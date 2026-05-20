@@ -1,132 +1,116 @@
-<div class="container">
-    <div class="header">
-        <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" class="python-logo">
-        <h1>รายละเอียดห้องเรียน</h1>
-        <button onclick="window.history.back()" class="back-btn">กลับ</button>
-    </div>
- 
-    <div class="section">
-        <h2 id="className">ชื่อห้องเรียน</h2>
-        <p id="classCode">รหัสห้องเรียน:</p>
-    </div>
- 
-    <div class="section">
-        <h3>โจทย์ในห้องเรียน</h3>
-        
-        <!-- เพิ่มส่วนค้นหา -->
-        <div class="search-box">
-            <input type="text" id="searchProblem" placeholder="ค้นหาโจทย์..." class="search-input">
+<!-- Updated class-detail.html -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>รายละเอียดห้องเรียน - Python Learning Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="class-detail.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Updated Header -->
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
+
+            <!-- Back button positioned absolutely -->
+            <button onclick="window.history.back()" class="back-btn">กลับ</button>
         </div>
-    
-        <div class="problem-actions">
-            <button id="createProblemBtn" class="primary-btn">สร้างโจทย์ใหม่</button>
-            <button id="problemBankBtn" class="secondary-btn">เพิ่มจากคลังโจทย์</button>
+
+        <!-- Class Info Section -->
+        <section class="section">
+            <h2 id="className">ชื่อห้องเรียน</h2>
+            <p id="classCode">รหัสห้องเรียน:</p>
+        </section>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div id="studentCount" class="stat-number">0</div>
+                <div>นักเรียน</div>
+            </div>
+            <div class="stat-card">
+                <div id="problemCount" class="stat-number">0</div>
+                <div>โจทย์</div>
+            </div>
         </div>
-    
-        <div id="problemList">
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('problems')">โจทย์</div>
+            <div class="tab" onclick="showTab('students')">รายชื่อนักเรียน</div>
+        </div>
+
+        <!-- Content sections remain the same -->
+        <div id="problemsTab" class="tab-content active">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="ค้นหาโจทย์..."
+                    onkeyup="searchProblems(this.value)">
+            </div>
+            <div class="problem-actions">
+                <button onclick="showProblemBankModal()" class="primary-btn">
+                    เพิ่มจากคลังโจทย์
+                </button>
+            </div>
+            <div id="problemList"></div>
+        </div>
+
+        <div id="studentsTab" class="tab-content">
+            <div class="problem-actions" style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                <button onclick="exportScoresCSV()" class="primary-btn" style="background-color: #27ae60;">
+                    <i class="fas fa-file-csv"></i> ดาวน์โหลดคะแนนนักเรียน (CSV)
+                </button>
+            </div>
+            <div id="studentList"></div>
         </div>
     </div>
- 
+    <!-- Modal สำหรับคลังโจทย์ -->
     <div id="problemBankModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>คลังโจทย์ของคุณ</h2>
-                <button onclick="closeProblemBankModal()" class="close-btn">&times;</button>
+                <h2>คลังโจทย์</h2>
+                <button class="close-btn" onclick="closeProblemBankModal()">&times;</button>
             </div>
-            
             <div class="modal-body">
-                <div id="problemBankList"></div>
-            </div>
-            
-            <div class="modal-footer">
-                <button onclick="closeProblemBankModal()" class="secondary-btn">ปิด</button>
-            </div>
-        </div>
-    </div>
- 
-    <div class="stats">
-        <div class="stat-card">
-            <div id="studentCount" class="stat-number">0</div>
-            <div>นักเรียน</div>
-        </div>
- 
-        <div class="stat-card">
-            <div id="problemCount" class="stat-number">0</div>
-            <div>โจทย์</div>
-        </div>
- 
-        <div class="stat-card">
-            <div id="submissionCount" class="stat-number">0</div>
-            <div>งานที่ส่ง</div>
-        </div>
-    </div>
- 
-    <div class="tabs">
-        <div class="tab active" onclick="showTab('problems')">โจทย์</div>
-        <div class="tab" onclick="showTab('students')">รายชื่อนักเรียน</div>
-    </div>
- 
-    <div id="problemsTab" class="tab-content active">
-        <div class="section">
-            <h3>โจทย์ทั้งหมด</h3>
-            <div id="problemList">
+                <div class="search-box" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="searchProblemBank" class="search-input" placeholder="ค้นหาโจทย์..." style="flex: 1;">
+                    <select id="filterProblemBankType" class="search-input" style="width: auto;">
+                        <option value="">ทุกประเภท</option>
+                        <option value="python">เขียนโค้ด Python</option>
+                        <option value="gui">สร้าง GUI (Tkinter)</option>
+                        <option value="flowchart">วาด Flowchart</option>
+                        <option value="comprehension">อ่านและทำความเข้าใจโค้ด</option>
+                        <option value="matching">จับคู่</option>
+                        <option value="quiz">ปรนัย (Multiple Choice)</option>
+                    </select>
+                </div>
+                <div id="problemBankList">
+                    <!-- รายการโจทย์จะถูกเพิ่มที่นี่ด้วย JavaScript -->
+                </div>
             </div>
         </div>
     </div>
- 
-    <div id="studentsTab" class="tab-content">
-        <div class="section">
-            <h3>รายชื่อนักเรียน</h3>
-            <div id="studentList">
-            </div>
-        </div>
-    </div>
- 
-    <div id="createProblemModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>สร้างโจทย์ใหม่</h2>
-            <form id="createProblemForm">
-                <div class="form-group">
-                    <h3>ชื่อโจทย์ *</h3>
-                    <input type="text" id="problemTitle" required>
-                </div>
- 
-                <div class="form-group">
-                    <h3>คำอธิบาย *</h3>
-                    <textarea id="problemDescription" rows="4" required></textarea>
-                </div>
- 
-                <div class="form-group">
-                    <h3>โค้ดต้นแบบ (Template Code)</h3>
-                    <textarea id="templateCode" rows="8" class="code-editor">def solution():
-    # เขียนโค้ดตรงนี้
-    pass</textarea>
-                </div>
- 
-                <div class="test-cases">
-                    <h3>Test Cases</h3>
-                    <div id="testCasesList">
-                        <div class="test-case">
-                            <h5>Input</h5>
-                            <input type="text" class="test-input" placeholder='{"x": 1, "y": 2}'>
-                            <h5>Expected Output</h5>
-                            <input type="text" class="test-output" placeholder="3">
-                        </div>
-                    </div>
-                    <button type="button" onclick="addTestCase()" class="secondary-btn">+ เพิ่ม Test Case</button>
-                </div>
- 
-                <div class="form-actions">
-                    <button type="submit" class="primary-btn">บันทึก</button>
-                    <button type="button" onclick="closeCreateProblemModal()" class="secondary-btn">ยกเลิก</button>
-                </div>
-            </form>
-        </div>
-    </div>
- </div>
- 
- <link rel="stylesheet" href="class-detail.css">
- <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
- <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
- <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
- <script src="class-detail.js"></script>
+
+    <!-- Your existing scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="flowchart-editor.js"></script>  
+    <script src="class-detail.js"></script>
+</body>
+
+</html>

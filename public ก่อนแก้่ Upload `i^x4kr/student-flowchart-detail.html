@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทำโจทย์ Flowchart</title>
+    <link rel="stylesheet" href="student-flowchart-detail.css">
+    <!-- เพิ่ม Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- New Header with Dark Theme -->
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
+        </div>
+
+        <!-- Original Header with Back Button -->
+        <header class="sub-header">
+            <button onclick="window.history.back()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> กลับ
+            </button>
+            <h1 id="problemTitle">กำลังโหลด...</h1>
+        </header>
+
+        <!-- ส่วนเนื้อหาโจทย์ -->
+        <div class="problem-content">
+            <div class="problem-description">
+                <h2>คำอธิบายโจทย์</h2>
+                <div id="problemDescription"></div>
+            </div>
+
+            <!-- ส่วนตัวแปร -->
+            <div class="variables-section">
+                <h2>ตัวแปรที่ใช้</h2>
+                <div id="variables-list"></div>
+            </div>
+        </div>
+
+        <!-- ส่วน Flowchart Editor -->
+        <!-- ส่วนของ Flowchart Editor -->
+
+        <div class="flowchart-section">
+            <div class="flowchart-toolbar">
+                <!-- กลุ่มที่ 1: Symbols พื้นฐาน -->
+                <div class="toolbar-group">
+                    <button type="button" class="tool-btn" draggable="true" data-type="start-end" title="Start/End">
+                        <svg viewBox="0 0 100 50" class="symbol-icon">
+                            <rect x="0" y="0" rx="25" ry="25" width="100" height="50" fill="white" stroke="black" />
+                        </svg>
+                        <span>Start/End</span>
+                    </button>
+
+                    <button type="button" class="tool-btn" draggable="true" data-type="process" title="Process">
+                        <svg viewBox="0 0 100 50" class="symbol-icon">
+                            <rect x="0" y="0" width="100" height="50" fill="white" stroke="black" />
+                        </svg>
+                        <span>Process</span>
+                    </button>
+
+                    <button type="button" class="tool-btn" draggable="true" data-type="decision" title="Decision">
+                        <svg viewBox="0 0 100 50" class="symbol-icon">
+                            <path d="M50,0 L100,25 L50,50 L0,25 Z" fill="white" stroke="black" />
+                        </svg>
+                        <span>Decision</span>
+                    </button>
+                </div>
+
+                <!-- กลุ่มที่ 2: Input/Output -->
+                <div class="toolbar-group">
+                    <button type="button" class="tool-btn" draggable="true" data-type="input-output"
+                        title="Input/Output">
+                        <svg viewBox="0 0 100 50" class="symbol-icon">
+                            <path d="M15,0 L100,0 L85,50 L0,50 Z" fill="white" stroke="black" />
+                        </svg>
+                        <span>Input/Output</span>
+                    </button>
+
+                    <button type="button" class="tool-btn" draggable="true" data-type="display"
+                        title="Display">
+                        <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                            <path d="M-30,-25 L30,-25 Q50,-25 50,0 Q50,25 30,25 L-30,25 L-50,0 Z" fill="white"
+                                stroke="black" />
+                        </svg>
+                        <span>Display</span>
+                    </button>
+
+                    <button type="button" class="tool-btn" draggable="true" data-type="data-storage"
+                        title="Data Storage">
+                        <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                            <path d="M-35,-25 L50,-25 Q35,-25 35,0 Q35,25 50,25 L-35,25 Q-55,25 -55,0 Q-55,-25 -35,-25 Z"
+                                fill="white" stroke="black" />
+                        </svg>
+                        <span>Data Storage</span>
+                    </button>
+                    <button type="button" class="tool-btn" draggable="true" data-type="manual-input"
+                        title="Manual Input">
+                        <svg viewBox="0 0 100 50" class="symbol-icon">
+                            <path d="M0,10 L100,0 L100,50 L0,50 Z" fill="white" stroke="black" />
+                        </svg>
+                        <span>Manual Input</span>
+                    </button>
+                    <button type="button" class="tool-btn" draggable="true" data-type="document" title="Document">
+                        <svg viewBox="0 0 100 50" class="symbol-icon">
+                            <path d="M0,0 L100,0 L100,40 Q50,60 0,40 Z" fill="white" stroke="black" />
+                        </svg>
+                        <span>Document</span>
+                    </button>
+                </div>
+
+                <!-- กลุ่มที่ 3: เครื่องมือเพิ่มเติม -->
+                <div class="toolbar-group">
+                    <button type="button" class="tool-btn" draggable="true" data-type="connector" title="Connector">
+                        <svg viewBox="0 0 50 50" class="symbol-icon">
+                            <circle cx="25" cy="25" r="20" fill="white" stroke="black" />
+                        </svg>
+                        <span>Connector</span>
+                    </button>
+
+                    <button type="button" class="tool-btn" data-type="arrow" title="Arrow">
+                        <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                            <path d="M-30,-20 L30,20 M20,20 L30,20 L30,10" fill="none" stroke="black"
+                                stroke-width="2" />
+                        </svg>
+                        <span>Arrow</span>
+                    </button>
+
+                    <button type="button" class="tool-btn delete" data-type="delete" title="Delete">
+                        <svg viewBox="0 0 50 50" class="symbol-icon">
+                            <path d="M10,10 L40,40 M40,10 L10,40" fill="none" stroke="red" stroke-width="2" />
+                        </svg>
+                        <span>Delete</span>
+                    </button>
+                    <button type="button" class="tool-btn" data-type="move" title="Move">
+                        <svg viewBox="0 0 50 50" class="symbol-icon">
+                            <path
+                                d="M25,5 L25,45 M5,25 L45,25 M15,15 L5,25 L15,35 M35,15 L45,25 L35,35 M15,5 L25,5 L35,5 M15,45 L25,45 L35,45"
+                                fill="none" stroke="black" stroke-width="2" />
+                        </svg>
+                        <span>Move</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="flowchartCanvas" class="flowchart-canvas"></div>
+
+
+            <!-- ส่วนปุ่มควบคุม -->
+
+            <div class="control-buttons">
+                <button onclick="checkAnswer()" class="check-btn">
+                    <i class="fas fa-check"></i> ตรวจคำตอบ
+                </button>
+
+                <button onclick="submitAnswer()" class="submit-btn" id="submitBtn" disabled>
+                    <i class="fas fa-paper-plane"></i> ส่งคำตอบ
+                </button>
+                <button type="button" class="tool-btn clear-btn" onclick="window.clearCanvas()" title="Clear Flowchart">
+                    ล้าง Flowchart
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <!-- FlowchartEditor และ Script หลัก -->
+    <script src="flowchart-editor.js"></script>
+    <script src="student-flowchart-detail.js"></script>
+    <script src="flowchart-checker.js"></script>
+</body>
+
+</html>

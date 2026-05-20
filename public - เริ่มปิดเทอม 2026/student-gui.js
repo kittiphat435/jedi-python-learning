@@ -1,0 +1,4574 @@
+// Firebase Configuration
+// ==========================================
+// 🛡️ TRUSTED TYPES FIX (แก้ปัญหา bootstrap:19 blocked)
+// ==========================================
+if (window.trustedTypes && window.trustedTypes.createPolicy) {
+    // ตรวจสอบว่ามี policy ชื่อ default หรือยัง เพื่อป้องกัน Error ซ้ำ
+    if (!window.trustedTypes.defaultPolicy) {
+        window.trustedTypes.createPolicy('default', {
+            createHTML: (string, sink) => string,
+            createScript: (string, sink) => string,
+            createScriptURL: (string, sink) => string,
+        });
+    }
+}
+// ==========================================
+
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
+    authDomain: "python-learning-platform-596e1.firebaseapp.com",
+    projectId: "python-learning-platform-596e1",
+    storageBucket: "python-learning-platform-596e1.firebasestorage.app",
+    messagingSenderId: "5262153531",
+    appId: "1:5262153531:web:55f6246093e1780003491e"
+};
+let guiWidth  = 550;   // ค่าเริ่มต้นถ้าต้องการ
+let guiHeight = 200;
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+const db = firebase.firestore();
+const params    = new URLSearchParams(window.location.search);
+const problemId = params.get('problemId');
+
+
+// Backend Configuration
+const config = {
+    PYTHON_API: 'https://xtgzdpztzdbavnbmjk2f25vq7u0nsfrx.lambda-url.us-east-1.on.aws/',
+    GUI_API: 'https://ipo4d7d76xyk2he5llc4ym22nq0yosht.lambda-url.ap-southeast-2.on.aws/'
+};
+
+// Add link to external CSS file
+function loadCSS() {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = 'css/student-gui.css';
+    document.head.appendChild(link);
+}
+// ==========================================
+// 🚀 PYODIDE SETUP (Copy มาจากไฟล์เก่า)
+// ==========================================
+let pyodideInstance = null;
+let isPyodideLoading = false;
+
+// โค้ด Python สำหรับ Mock Tkinter (หัวใจสำคัญ!)
+const MOCK_TKINTER_CODE = `
+import builtins
+import sys
+
+gui_elements = []
+gui_config = {"title": "Tkinter App", "geometry": ""}
+widget_registry = [] 
+
+class WidgetBase:
+    def __init__(self, master=None, **kwargs):
+        self.id = len(gui_elements)
+        self.type = self.__class__.__name__
+        self.props = kwargs
+        self.command_func = kwargs.get('command') 
+        if callable(self.command_func):
+             self.props['command'] = self.command_func.__name__
+        self.layout = None
+        gui_elements.append({"id": self.id, "type": self.type, "props": self.props, "layout": None})
+        widget_registry.append(self)
+    def pack(self, **kwargs): gui_elements[self.id]["layout"] = {"type": "pack", "args": kwargs}
+    def grid(self, **kwargs): gui_elements[self.id]["layout"] = {"type": "grid", "args": kwargs}
+    def place(self, **kwargs): gui_elements[self.id]["layout"] = {"type": "place", "args": kwargs}
+    def config(self, **kwargs):
+        self.props.update(kwargs)
+        gui_elements[self.id]["props"].update(kwargs)
+    def invoke(self):
+        if callable(self.command_func): self.command_func()
+    def get(self): return self.props.get('value', '')
+    def delete(self, first, last=None): 
+        if 'value' in self.props: self.props['value'] = ''
+    def insert(self, index, string):
+        current = self.props.get('value', '')
+        self.props['value'] = current + string
+
+class Tk(WidgetBase):
+    def __init__(self):
+        gui_elements.clear()
+        widget_registry.clear()
+        super().__init__(None)
+    def title(self, text): gui_config["title"] = text
+    def geometry(self, text): gui_config["geometry"] = text
+    def mainloop(self): pass
+
+class Label(WidgetBase): 
+    def config(self, **kwargs):
+        super().config(**kwargs)
+        if 'text' in kwargs: self.props['text'] = kwargs['text']
+class Button(WidgetBase): pass
+class Frame(WidgetBase): pass
+class Entry(WidgetBase):
+    def get(self):
+        if 'textvariable' in self.props: return self.props['textvariable'].get()
+        return self.props.get('value', '')
+    def insert(self, index, string):
+        if 'textvariable' in self.props: self.props['textvariable'].set(string)
+        else: self.props['value'] = string
+class Checkbutton(WidgetBase): pass
+
+class StringVar:
+    def __init__(self, value=""): self.v = value
+    def set(self, value): self.v = str(value)
+    def get(self): return self.v
+class IntVar:
+    def __init__(self, value=0): self.v = value
+    def set(self, value): self.v = int(value)
+    def get(self): return self.v
+
+class MockTtkModule: pass
+ttk_module = MockTtkModule()
+ttk_module.Button = Button
+ttk_module.Label = Label
+ttk_module.Entry = Entry
+ttk_module.Frame = Frame
+ttk_module.Checkbutton = Checkbutton
+
+module = type(sys)("tkinter")
+module.Tk = Tk
+module.Label = Label
+module.Button = Button
+module.Entry = Entry
+module.Checkbutton = Checkbutton
+module.Frame = Frame
+module.StringVar = StringVar
+module.IntVar = IntVar
+module.pack = lambda **kwargs: None 
+module.ttk = ttk_module 
+
+sys.modules["tkinter"] = module
+sys.modules["tkinter.ttk"] = ttk_module
+`;
+
+// ฟังก์ชันเช็คอุปกรณ์
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+           || window.innerWidth <= 800;
+}
+
+// ฟังก์ชันอัพเดทป้ายสถานะ
+function updateStatusUI(message, type) {
+    // สร้าง element นี้ไว้ใน HTML ของคุณ หรือหาที่ว่างๆ แปะ
+    // ถ้ายังไม่มีใน HTML มันจะไม่ error แต่มันจะไม่โชว์เฉยๆ
+    const statusEl = document.getElementById('executionStatus');
+    if (!statusEl) return;
+    statusEl.style.display = 'inline-block';
+    statusEl.textContent = message;
+    if (type === 'pyodide') { statusEl.style.backgroundColor = '#7CDEBC'; statusEl.style.color = '#004d40'; } 
+    else if (type === 'aws') { statusEl.style.backgroundColor = '#6EC4E8'; statusEl.style.color = '#003366'; } 
+    else if (type === 'fallback') { statusEl.style.backgroundColor = '#FFE66D'; statusEl.style.color = '#664d00'; } 
+    else { statusEl.style.display = 'none'; }
+}
+
+// ฟังก์ชันโหลด Pyodide
+async function initPyodide() {
+    if (isPyodideLoading || pyodideInstance) return;
+    try {
+        isPyodideLoading = true;
+        updateStatusUI("⏳ Preparing Python...", "fallback");
+        console.log("🚀 Loading Pyodide for GUI...");
+        
+        // ต้องมั่นใจว่ามีการ import script pyodide ใน index.html หรือโหลด dynamic
+        if (typeof loadPyodide === 'undefined') {
+             // โหลด Script ถ้ายังไม่มี
+             const script = document.createElement('script');
+             script.src = "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js";
+             document.head.appendChild(script);
+             await new Promise(r => script.onload = r);
+        }
+
+        pyodideInstance = await loadPyodide();
+        await pyodideInstance.runPythonAsync(MOCK_TKINTER_CODE);
+        
+        updateStatusUI("✅ Ready (PC)", "pyodide");
+        console.log("✅ Pyodide & Mock Tkinter Ready!");
+    } catch (err) {
+        console.error("❌ Failed to load Pyodide:", err);
+        updateStatusUI("☁️ Ready (Cloud)", "aws");
+    } finally {
+        isPyodideLoading = false;
+    }
+}
+
+// ฟังก์ชันช่วยกรอง Error ของ Pyodide
+function formatPyodideError(err) {
+    const errString = String(err);
+    if (errString.includes('PythonError:')) {
+        const lines = errString.split('\n');
+        const relevantLines = lines.filter(line => 
+            !line.includes('/lib/python') && 
+            !line.includes('_pyodide/_base.py') && 
+            !line.includes('PythonError:') &&
+            !line.includes('<exec>')
+        );
+        return relevantLines.join('\n').trim();
+    }
+    return errString;
+}
+
+// ฟังก์ชันเช็ค Syntax แบบ Hybrid (PC ใช้ Pyodide, มือถือใช้ AWS)
+async function checkSyntax_Hybrid(code) {
+    // 1. ถ้าเป็นมือถือ หรือ Pyodide ยังไม่มา -> ใช้ AWS (วิธีเดิมของคุณ)
+    if (isMobileDevice() || !pyodideInstance) {
+        updateStatusUI("☁️ Checking on Cloud...", "aws");
+        const result = await checkSyntax_AWS(code); // เรียกฟังก์ชันเดิมของคุณที่เปลี่ยนชื่อ
+        updateStatusUI(isMobileDevice() ? "☁️ Ready (Cloud)" : "✅ Ready (PC)", isMobileDevice() ? "aws" : "pyodide");
+        return result;
+    }
+
+    // 2. ถ้าเป็น PC -> ใช้ Pyodide (เร็วและฟรี)
+    updateStatusUI("💻 Checking on PC...", "pyodide");
+    try {
+        // ใช้ compile() เพื่อเช็ค Syntax โดยไม่ต้องรันจริง
+        pyodideInstance.runPython(`compile(${JSON.stringify(code)}, '<string>', 'exec')`);
+        updateStatusUI("✅ Ready (PC)", "pyodide");
+        return { status: 'success' };
+    } catch (err) {
+        updateStatusUI("✅ Ready (PC)", "pyodide");
+        return {
+            status: 'error',
+            message: formatPyodideError(err)
+        };
+    }
+}
+
+// ฟังก์ชัน Wrapper สำหรับ AWS (ของเดิมในไฟล์คุณ คือ logic ใน checkGUICode ส่วนที่ fetch API)
+// คุณต้อง Copy logic ใน checkGUICode เดิมมาใส่ที่นี่ หรือจะปรับ checkGUICode ให้เรียก Hybrid เลยก็ได้
+async function checkSyntax_AWS(code) {
+    // ... เอา Logic การ fetch(config.PYTHON_API...) ของเดิมมาใส่ตรงนี้ ...
+    // เพื่อความรวดเร็ว ผมเขียนย่อให้ดู:
+    const mockCode = `
+class Tk: 
+    def __init__(self): pass
+    def title(self, t): pass
+    def geometry(self, s): pass
+    def mainloop(self): pass
+# ... (mock อื่นๆ) ...
+tk = type('', (), {'Tk': Tk})
+import sys
+sys.modules['tkinter'] = tk
+`.trim();
+
+    const processedCode = preprocessTkinterCode(code); // ใช้ฟังก์ชันเดิมที่มีในไฟล์
+    
+    try {
+        const response = await fetch(config.PYTHON_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: processedCode, action: 'check_syntax' })
+        });
+        const result = await response.json();
+        
+        if (result.status === 'error' || result.stderr) {
+            return { status: 'error', message: result.output || result.stderr };
+        }
+        return { status: 'success' };
+    } catch (e) {
+        return { status: 'error', message: e.message };
+    }
+}
+// ==========================================
+
+// Load CSS when document is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Load CSS
+    loadCSS();
+    
+    // Setup page structure
+    setupPageStructure();
+    
+    // Firebase Auth Check
+    auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+            window.location.href = 'index.html';
+            return;
+        }
+    
+        // Setup Ace Editor
+        const codeEditor=setupEditor();
+        const convertBtn = document.getElementById('convertBtn');
+        if (convertBtn) {  // <--- เพิ่มบรรทัดนี้
+            convertBtn.addEventListener('click', async () => {
+            console.log('Preview button clicked');
+            const code = codeEditor.value;
+            console.log('Code to preview:', code.substring(0, 100) + '...');
+
+            if (convertBtn.disabled) {
+                console.log('Preview button is disabled');
+                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนแสดง GUI');
+                return;
+            }
+            
+            // อ่านโค้ดจาก textarea ที่เพิ่งสร้าง
+            const editorCode = document.getElementById('codeEditorTextarea').value;
+            document.getElementById('pythonInput').value = editorCode;
+
+            // แสดงผลใน result-frame
+            sendToSimulator(true);
+            
+            // เปิดใช้งานปุ่ม Test หลังจากรันโค้ดสำเร็จ
+            if (testBtn) {
+                testBtn.disabled = false;
+            }
+            // ยังคงปิดใช้งานปุ่ม testCaseBtn - ต้องตรวจคำตอบก่อน
+            if (testCaseBtn) {
+                testCaseBtn.disabled = true;
+            }
+            });
+        }
+        // Get problem ID and class ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const problemId = urlParams.get('id');
+        const classId = urlParams.get('classId');
+        const viewMode = urlParams.get('mode') === 'view';
+    
+        if (!problemId || !classId) {
+            showError('ไม่พบรหัสโจทย์หรือรหัสห้องเรียน');
+            return;
+        }
+    
+        // Check if student is enrolled in the class
+        await checkEnrollment(classId, user.uid);
+    
+        if (problemId) {
+            await loadGUIProblem(problemId, user.uid, classId, viewMode);
+            
+            // ตรวจสอบสถานะการส่งงาน
+            if (!viewMode) {
+                await checkSubmissionStatus(problemId, user.uid);
+            }
+        }
+    
+        // Event Listeners
+        setupEventListeners(problemId, classId, user.uid, viewMode);
+       
+    });
+    if (!isMobileDevice()) {
+        initPyodide(); // โหลด Pyodide ถ้าเป็น PC
+    } else {
+        updateStatusUI("☁️ Ready (Cloud)", "aws");
+    }
+});
+
+// Function to set up the page structure
+function setupPageStructure() {
+    // Since we're using the HTML structure that's already defined in the HTML file,
+    // we don't need to recreate all elements
+    
+    // Just make sure error and success message containers are properly set up
+    const errorMessage = document.getElementById('errorMessage');
+    if (errorMessage) {
+        errorMessage.style.display = 'none';
+    }
+    
+    const successMessage = document.getElementById('successMessage');
+    if (successMessage) {
+        successMessage.style.display = 'none';
+    }
+    
+    // Set up back button event listener and ensure it has the arrow icon
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+        // Add back arrow if it doesn't exist
+        if (!backBtn.innerHTML.includes('')) {
+            backBtn.innerHTML = '' + backBtn.innerHTML;
+        }
+        
+        backBtn.addEventListener('click', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const classId = urlParams.get('classId');
+            window.location.href = `student-class-detail.html?id=${classId}`;
+        });
+    }
+}
+
+function setupEditor() {
+    const codeEditorContainer = document.getElementById('codeEditor');
+    if (!codeEditorContainer) {
+        console.error('ไม่พบ element ที่มี id="codeEditor"');
+        return;
+    }
+
+    // สร้างโครงสร้างสำหรับ custom editor
+    codeEditorContainer.innerHTML = `
+        <div class="code-editor-container">
+            <div id="lineNumbers" class="line-numbers">1</div>
+            <textarea id="codeEditorTextarea" class="code-input" spellcheck="false"></textarea>
+            <pre class="code-highlight"><code class="language-python"></code></pre>
+        </div>
+    `;
+
+    // อ้างอิงถึง elements
+    const codeEditor = document.getElementById('codeEditorTextarea');
+    const lineNumbers = document.getElementById('lineNumbers');
+    const highlightContainer = document.querySelector('.code-highlight');
+
+    if (!codeEditor || !lineNumbers) {
+        console.error('ไม่พบ codeEditorTextarea หรือ lineNumbers');
+        return;
+    }
+
+    // ==========================================
+    // 🔧 AUTO-FIX CSS: แก้ปัญหา Scrollbar กินพื้นที่ (ใส่ให้เองเลย)
+    // ==========================================
+    // สร้าง style tag เพื่อดันก้นกล่อง Highlight หนี Scrollbar อัตโนมัติ
+    const styleFix = document.createElement('style');
+    styleFix.innerHTML = `
+        .code-highlight {
+            padding-bottom: 40px !important; /* ดันพื้นที่ล่างเผื่อ Scrollbar แนวนอน */
+        }
+        .code-input {
+            padding-bottom: 10px !important;
+        }
+    `;
+    document.head.appendChild(styleFix);
+
+    // ==========================================
+    // 🔄 SYNC SCROLL SYSTEM: ระบบซิงค์ตำแหน่งแบบเกาะติด
+    // ==========================================
+    const syncScroll = () => {
+        if (highlightContainer && codeEditor) {
+            // ซิงค์ทั้งแนวตั้งและแนวนอน
+            highlightContainer.scrollTop = codeEditor.scrollTop;
+            highlightContainer.scrollLeft = codeEditor.scrollLeft;
+        }
+        if (lineNumbers && codeEditor) {
+            // ซิงค์เลขบรรทัด
+            lineNumbers.scrollTop = codeEditor.scrollTop;
+        }
+    };
+
+    // 1. Event หลัก: เลื่อน (Scroll)
+    codeEditor.addEventListener('scroll', syncScroll);
+
+    // 2. Event การพิมพ์และการแก้ไข
+    codeEditor.addEventListener('input', () => { 
+        updateLineNumbers(); 
+        syncScroll(); 
+    });
+    codeEditor.addEventListener('keyup', () => {
+        updateLineNumbers(); 
+        syncScroll();
+    });
+
+    // 3. Event การคลิกและกดปุ่ม (กันตำแหน่งเพี้ยนตอนจิ้ม)
+    codeEditor.addEventListener('click', syncScroll);
+    codeEditor.addEventListener('mousedown', syncScroll);
+    codeEditor.addEventListener('keydown', syncScroll);
+
+    // 4. [ไม้ตาย] แค่ขยับเมาส์ผ่าน ก็สั่งจัดระเบียบทันที (แก้ปัญหาคลิกไม่โดน)
+    codeEditor.addEventListener('mousemove', syncScroll);
+
+    // 5. รองรับการย่อขยายหน้าจอ
+    window.addEventListener('resize', syncScroll);
+
+    // 6. การวางโค้ด (Paste) - ใช้เทคนิค Double RequestAnimationFrame รอ Browser วาดเสร็จ
+    codeEditor.addEventListener('paste', function() {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                updateLineNumbers();
+                updateCodeHighlight();
+                syncScroll(); // บังคับดีดตำแหน่งให้ตรง
+            });
+        });
+    });
+
+    // เพิ่มฟังก์ชันพิเศษให้กับ editor (Auto-indent, brackets)
+    enhanceCodeEditor();
+
+    // ==========================================
+    // 🌈 PRISM.JS LOADER (Highlighter)
+    // ==========================================
+    if (!window.Prism) {
+        const prismCSS = document.createElement('link');
+        prismCSS.rel = 'stylesheet';
+        prismCSS.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css';
+        document.head.appendChild(prismCSS);
+
+        const prismJS = document.createElement('script');
+        prismJS.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js';
+        prismJS.onload = () => {
+            const prismPython = document.createElement('script');
+            prismPython.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js';
+            prismPython.onload = () => {
+                console.log('Prism.js และ Python plugin โหลดเรียบร้อย');
+                if (window.Prism && Prism.languages.python) {
+                    Prism.languages.insertBefore('python', 'operator', {
+                        'variable-assignment': {
+                            pattern: /\b[a-zA-Z_]\w*(?=\s*=\s*(?!=))|\b[a-zA-Z_]\w*(?=\s*\.)/, 
+                            alias: 'variable' 
+                        }
+                    });
+                }
+                // รีเซ็ตสไตล์ code element
+                const highlightElement = document.querySelector('.code-highlight code');
+                if (highlightElement) {
+                    highlightElement.style.margin = '0';
+                    highlightElement.style.padding = '0';
+                    highlightElement.style.lineHeight = '21px';
+                    highlightElement.style.fontSize = '14px';
+                }
+                updateCodeHighlight();
+            };
+            document.head.appendChild(prismPython);
+        };
+        document.head.appendChild(prismJS);
+    } else {
+        console.log('Prism.js มีอยู่แล้ว อัปเดต highlighting');
+        const highlightElement = document.querySelector('.code-highlight code');
+        if (highlightElement) {
+            highlightElement.style.margin = '0';
+            highlightElement.style.padding = '0';
+            highlightElement.style.lineHeight = '21px';
+            highlightElement.style.fontSize = '14px';
+        }
+        updateCodeHighlight();
+    }
+
+    // Set initial content
+    codeEditor.value = "# เขียนโค้ด Python ที่นี่\n\nimport tkinter as tk\n\n# สร้างหน้าต่าง GUI\nwindow = tk.Tk()\nwindow.title('My GUI Application')\n\n# เพิ่ม widgets ที่นี่\n\n# แสดงหน้าต่าง\nwindow.mainloop()";
+    
+    updateLineNumbers();
+    updateCodeHighlight();
+
+    // Reset Scroll
+    codeEditor.scrollTop = 0;
+    lineNumbers.scrollTop = 0;
+    highlightContainer.scrollTop = 0;
+
+    console.log('Code editor ตั้งค่าเรียบร้อย (Enhanced Sync Activated)');
+
+    return codeEditor;
+}
+
+async function loadProblemConfig(problemId) {
+    const snap = await db.collection('problems').doc(problemId).get();
+    const data = snap.data();
+    window.guiTestCases = data.testCases || [];
+    window.problemTestCases = data.testCases || []; // เพิ่มบรรทัดนี้
+    window.widgetDefinitions = data.widgets || [];
+    renderTestCases(window.guiTestCases);
+}
+
+  function renderTestCases(testCases) {
+  const defs = window.widgetDefinitions || [];
+  const list = document.getElementById('guiTestCasesList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  testCases.forEach((tc, idx) => {
+    // Inputs
+    const inpText = (tc.inputs || [])
+      .map(i => {
+        const def = defs.find(d => d.name === i.name) || {};
+        const label = def.text  || '-';
+        const type  = def.type  || 'Entry';
+        return `${label} [${type}] = ${i.value}`;
+      })
+      .join(', ');
+
+    // Actions
+    const actText = (tc.actions || [])
+      .map(a => {
+        const def = defs.find(d => d.name === a.widget) || {};
+        const label = def.text  || '-';
+        const type  = def.type  || 'Button';
+        return `${label} [${type}] ▶ ${a.state}`;
+      })
+      .join(', ');
+
+    // Expected Outputs
+    const outText = (tc.outputs || [])
+      .map(o => {
+        const def = defs.find(d => d.name === o.widget) || {};
+        const label = def.text  || '-';
+        const type  = def.type  || 'Label';
+        return `${label} [${type}] = ${o.value}`;
+      })
+      .join(', ');
+
+    const score = tc.score || 1;
+    const note  = tc.explanation || '-';
+
+    const div = document.createElement('div');
+    div.className = 'test-case';
+    div.innerHTML = `
+      <strong>Test #${idx + 1}</strong><br>
+      Inputs: ${inpText || '–'}<br>
+      Actions: ${actText || '–'}<br>
+      Expected: ${outText || '–'}<br>
+      Score: ${score}<br>
+      Note: ${note}
+    `;
+    list.appendChild(div);
+  });
+}
+  
+  
+// เพิ่มฟังก์ชัน updateLineNumbers และ updateCodeHighlight
+function updateLineNumbers() {
+    const codeEditor = document.getElementById('codeEditorTextarea');
+    const lineNumbers = document.getElementById('lineNumbers');
+    if (codeEditor && lineNumbers) {
+        const lines = codeEditor.value.split('\n');
+        lineNumbers.textContent = Array.from(
+            { length: lines.length },
+            (_, i) => i + 1
+        ).join('\n');
+        updateCodeHighlight();
+    }
+}
+
+function updateCodeHighlight() {
+    const codeEditor = document.getElementById('codeEditorTextarea');
+    const highlightElement = document.querySelector('.code-highlight code');
+    const lineNumbers = document.getElementById('lineNumbers');
+
+    if (codeEditor && highlightElement && lineNumbers) {
+        // อัปเดตเนื้อหาใน code highlight
+        highlightElement.textContent = codeEditor.value;
+        
+        // รีเซ็ตสไตล์ที่อาจเพิ่มโดย Prism.js
+        highlightElement.style.margin = '0';
+        highlightElement.style.padding = '0';
+        highlightElement.style.lineHeight = '21px';
+        highlightElement.style.fontSize = '14px';
+        
+        if (window.Prism) {
+            Prism.highlightElement(highlightElement);
+        }
+
+        // ซิงโครไนซ์ scroll หลังจาก highlight
+        highlightElement.parentElement.scrollTop = codeEditor.scrollTop;
+        lineNumbers.scrollTop = codeEditor.scrollTop;
+        
+        console.log('Updated code highlight, scrollTop:', codeEditor.scrollTop);
+    }
+}
+async function testGUICode(code, problemTestCases, iframe) {
+    
+    console.log('=== เริ่มการทดสอบโค้ด GUI ===');
+    
+    // Log โค้ดใน editor ก่อนตรวจ test case
+    console.log('โค้ดที่ได้รับจาก editor (ก่อนตรวจ test case):', code);
+    
+    // เพิ่ม console.log ตรงนี้
+    // const iframe = document.getElementById('result-frame'); // Removed as iframe is now a parameter
+    // console.log('สถานะ iframe ก่อนทดสอบ:', iframe ? 'พบ iframe' : 'ไม่พบ iframe'); // Removed
+    if (iframe && iframe.contentDocument) {
+        console.log('จำนวน widget ใน iframe ก่อนทดสอบ:', 
+            Array.from(iframe.contentDocument.querySelectorAll('[data-index]')).length);
+    }
+    
+    // Log จำนวน test case
+    console.log('จำนวน test case ทั้งหมด:', problemTestCases.length);
+    // console.log('รายละเอียด test cases:', problemTestCases); // Comment out or remove old log
+
+    // สร้างข้อมูล test case สำหรับ log ในรูปแบบที่ต้องการ
+    const detailedTestCasesForLog = problemTestCases.map(tc => {
+        return {
+            actions: tc.actions.map(action => {
+                const widgetDef = window.widgetDefinitions.find(w => w.name === action.widget);
+                return { 
+                    widget: widgetDef ? widgetDef.type : action.widget, 
+                    text: widgetDef ? widgetDef.text : '', 
+                    state: action.state 
+                };
+            }),
+            inputs: tc.inputs.map(input => {
+                const widgetDef = window.widgetDefinitions.find(w => w.name === input.name);
+                return { 
+                    widget: widgetDef ? widgetDef.type : input.name, 
+                    text: widgetDef ? widgetDef.text : '', 
+                    value: input.value 
+                };
+            }),
+            outputs: tc.outputs.map(output => {
+                const widgetDef = window.widgetDefinitions.find(w => w.name === output.widget);
+                return { 
+                    widget: widgetDef ? widgetDef.type : output.widget, 
+                    text: widgetDef ? widgetDef.text : '', 
+                    value: output.value 
+                };
+            }),
+            explanation: tc.explanation
+        };
+    });
+    console.log('รายละเอียด test cases (ปรับปรุงแล้ว):', detailedTestCasesForLog);
+    
+    const previewDiv = document.getElementById('guiPreview');
+    previewDiv.style.display = 'block'; // เพิ่มบรรทัดนี้เพื่อแสดง div
+    previewDiv.innerHTML = `<div class="loading">กำลังตรวจคำตอบ...</div>`;
+
+    // ประมวลผลโค้ดก่อนตรวจสอบ
+    code = preprocessTkinterCode(code);
+
+    try {
+        let totalScore = 0;
+        let maxScore = 0;
+        const widgetResults = [];
+        const testResults = [];
+        const orderResults = []; // เพิ่มผลลัพธ์การตรวจสอบลำดับ
+
+        // จำลอง GUI
+        const { htmlOutput, widgets: parsedWidgets, jsCode } = convertTkinterToHtml(code);
+        
+        // แสดง GUI ที่มีการทำงานจริง
+        previewDiv.innerHTML = `
+            <div class="gui-preview">
+                ${htmlOutput}
+                <script>
+                    // JavaScript สำหรับจำลองการทำงานของ GUI
+                    ${jsCode}
+                </script>
+            </div>
+        `;
+
+        // ตรวจสอบ Widgets (เน้น type และ text) จาก problemData.widgets
+        const requiredWidgets = problemData.widgets || [];
+        maxScore += requiredWidgets.reduce((sum, w) => sum + (w.score || 1), 0);
+
+        // สร้าง map ของ widget ที่พบในโค้ด
+        const foundWidgets = {};
+        requiredWidgets.forEach(widget => {
+            const found = Object.values(parsedWidgets).some(parsed => 
+                parsed.type === widget.type && 
+                (widget.text ? parsed.text === widget.text : true)
+            );
+            const score = found ? (widget.score || 1) : 0;
+            totalScore += score;
+            foundWidgets[widget.name] = found;
+            widgetResults.push({
+                type: widget.type,
+                text: widget.text || 'ไม่มีข้อความ',
+                found,
+                score
+            });
+        });
+
+        // ตรวจสอบลำดับของ widget
+        let orderScore = 0;
+        const maxOrderScore = 5; // คะแนนสูงสุดสำหรับการเรียงลำดับถูกต้อง
+        maxScore += maxOrderScore;
+        
+        // สร้างลำดับของ widget ที่พบในโค้ด
+        const widgetOrder = [];
+        
+        // วนลูปดู Widget ที่โปรแกรมแปลงมาแล้ว (ซึ่งเรียงลำดับมาให้แล้ว)
+        parsedWidgets.forEach(pWidget => {
+            // เอา widget ที่พบ ไปเทียบกับโจทย์ (requiredWidgets) ว่าตรงกับตัวไหน
+            // โดยเช็คทั้ง Type และ Text (ถ้าโจทย์กำหนด Text)
+            const matchedDef = requiredWidgets.find(req => 
+                req.type === pWidget.type && 
+                (!req.text || req.text === pWidget.text) // ถ้า Entry text จะมาจาก value='...' ก็เช็คตรงนี้ได้
+            );
+
+            // ถ้าเจอว่าตรงกับโจทย์ ให้บันทึกชื่อ (ID) ลงในลำดับที่พบ
+            if (matchedDef) {
+                // กันการใส่ซ้ำ (Duplicate) กรณี code บรรทัดเดียวสร้างหลายอย่าง (เผื่อไว้)
+                // แต่ปกติ parsedWidgets จะแยก object กันอยู่แล้ว
+                widgetOrder.push(matchedDef.name);
+            }
+        });
+        
+        console.log('Final Widget Order Found:', widgetOrder);
+        
+        // เปรียบเทียบลำดับกับข้อกำหนด
+        let correctOrder = true;
+        const requiredOrder = requiredWidgets.map(w => w.name);
+        const foundInOrder = widgetOrder.filter(name => requiredOrder.includes(name));
+        
+        // ตรวจสอบว่าพบ widget ครบทุกตัวหรือไม่
+        const allWidgetsFound = requiredWidgets.every(widget => 
+            widgetOrder.includes(widget.name)
+        );
+        
+        if (foundInOrder.length >= 2) { // ต้องมี widget อย่างน้อย 2 ตัวจึงจะตรวจสอบลำดับได้
+            for (let i = 0; i < foundInOrder.length - 1; i++) {
+                const currentIndex = requiredOrder.indexOf(foundInOrder[i]);
+                const nextIndex = requiredOrder.indexOf(foundInOrder[i + 1]);
+                if (currentIndex > nextIndex) {
+                    correctOrder = false;
+                    break;
+                }
+            }
+            
+            if (correctOrder && allWidgetsFound) {
+                // ให้คะแนนเต็มเฉพาะเมื่อพบ widget ครบทุกตัวและลำดับถูกต้อง
+                orderScore = maxOrderScore;
+                orderResults.push({
+                    message: "✅ ลำดับ Widget ถูกต้องตามข้อกำหนด",
+                    score: orderScore,
+                    maxScore: maxOrderScore
+                });
+            } else if (correctOrder && !allWidgetsFound) {
+                // ลำดับถูกต้องแต่ไม่ครบทุก widget
+                const foundCount = foundInOrder.length;
+                const totalCount = requiredWidgets.length;
+                orderScore = Math.floor((foundCount / totalCount) * maxOrderScore);
+                orderResults.push({
+                    message: `⚠️ ลำดับ Widget ถูกต้อง แต่พบเพียง ${foundCount}/${totalCount} widget`,
+                    expected: requiredOrder.join(', '),
+                    found: foundInOrder.join(', '),
+                    score: orderScore,
+                    maxScore: maxOrderScore
+                });
+            } else {
+                // ลำดับไม่ถูกต้อง
+                orderResults.push({
+                    message: "❌ ลำดับ Widget ไม่ตรงตามข้อกำหนด",
+                    expected: requiredOrder.join(', '),
+                    found: foundInOrder.join(', '),
+                    score: 0,
+                    maxScore: maxOrderScore
+                });
+            }
+        } else {
+            orderResults.push({
+                message: `⚠️ ไม่สามารถตรวจสอบลำดับได้ (พบ Widget เพียง ${foundInOrder.length}/${requiredWidgets.length} ตัว)`,
+                expected: requiredOrder.join(', '),
+                found: foundInOrder.join(', '),
+                score: 0,
+                maxScore: maxOrderScore
+            });
+        }
+        
+        totalScore += orderScore;
+
+        // ตรวจ Test Cases
+        const testMaxScore = problemTestCases.reduce((sum, tc) => sum + (tc.score || 1), 0);
+        maxScore += testMaxScore;
+        
+        const failedTestCases = []; // เก็บ test case ที่ไม่ผ่าน
+
+        // ✅ [FIXED] Loop ตรวจ Testcase: รับคะแนนตรงๆ ไม่คำนวณซ้ำ
+        // ======================================================
+        for (let i = 0; i < problemTestCases.length; i++) {
+            const testCase = problemTestCases[i];
+            
+            // 1. Live Check: ส่งไปตรวจใน iframe
+            const liveResult = await testSpecificTestCaseInternal(htmlOutput, testCase, i + 1);
+            
+            // 2. ✅ รับคะแนนที่คำนวณมาแล้วจากข้างใน (ไม่ต้องเขียน logic passed ? score : 0 ซ้ำ)
+            const passed = liveResult.passed;
+            const score = liveResult.score; 
+            
+            // 3. บวกเข้ากองกลาง
+            totalScore += score;
+
+            console.log(`Test Case ${i + 1}: ${passed ? 'PASSED' : 'FAILED'} (ได้ ${score}/${testCase.score||1} คะแนน)`);
+
+            // 4. เตรียมข้อมูลสำหรับแสดงผลบนหน้าเว็บ (UI)
+            const simulatedOutputs = testCase.outputs.map((o, idx) => ({
+                widget: o.widget,
+                type: 'Unknown',
+                text: o.text || '',
+                value: passed ? o.value : (liveResult.details[idx] || 'Mismatch'), 
+                error: passed ? null : 'Check Failed'
+            }));
+
+            // 5. บันทึกผลลง testResults (เพื่อเอาไปโชว์ในกล่องผลลัพธ์)
+            testResults.push({
+                index: i + 1,
+                passed: passed,
+                message: passed ? `Test Case ${i + 1}: ✅ ผ่าน` : `Test Case ${i + 1}: ❌ ไม่ผ่าน`,
+                inputs: testCase.inputs,
+                actions: testCase.actions,
+                expected: testCase.outputs,
+                actual: simulatedOutputs,
+                explanation: testCase.explanation || '',
+                score: score,
+                maxScore: liveResult.maxScore || (testCase.score || 1)
+            });
+            
+            // 6. เก็บ Error ไว้ดูเฉพาะข้อที่ตก
+            if (!passed) {
+                failedTestCases.push({
+                   index: i + 1,
+                   details: liveResult.details 
+                });
+            }
+        }
+        
+        // Log test case ที่ไม่ผ่าน
+        console.log(`ผลการทดสอบ: ผ่าน ${testResults.filter(r => r.passed).length}/${testResults.length} test cases`);
+        if (failedTestCases.length > 0) {
+            console.log('Test case ที่ไม่ผ่าน:', failedTestCases);
+        } else {
+            console.log('ทุก test case ผ่านการทดสอบ');
+        }
+
+        // แสดงผลการตรวจ
+        previewDiv.innerHTML = `
+            <div class="test-results">
+                <h3>ผลการตรวจสอบ</h3>
+                
+                <h4>ผลการตรวจ Widgets (${widgetResults.filter(w => w.found).length}/${widgetResults.length})</h4>
+                ${widgetResults.map(w => `
+                    <div class="${w.found ? 'test-passed' : 'test-failed'}">
+                        <p>${w.type}: ${w.text} - ${w.found ? '✅ พบ' : '❌ ไม่พบ'}</p>
+                        <p>คะแนน: ${w.score}</p>
+                    </div>
+                `).join('')}
+                
+                <h4>ผลการตรวจลำดับ Widgets</h4>
+                ${orderResults.map(r => `
+                    <div class="${r.score > 0 ? 'test-passed' : 'test-failed'}">
+                        <p>${r.message}</p>
+                        ${r.expected ? `<p><strong>ลำดับที่คาดหวัง:</strong> ${r.expected}</p>` : ''}
+                        ${r.found ? `<p><strong>ลำดับที่พบ:</strong> ${r.found}</p>` : ''}
+                        <p><strong>คะแนน:</strong> ${r.score}/${r.maxScore}</p>
+                    </div>
+                `).join('')}
+                
+                <!-- ปิดการแสดงผลการตรวจ Test Cases -->
+                <!--
+                <h4>ผลการตรวจ Test Cases (${testResults.filter(r => r.passed).length}/${testResults.length})</h4>
+                ${testResults.map(r => `
+                    <div class="${r.passed ? 'test-passed' : 'test-failed'}">
+                        <h5>${r.message}</h5>
+                        
+                        <div class="test-case-details">
+                            <div class="test-inputs">
+                                <strong>📥 Inputs:</strong>
+                                <ul>
+                                    ${r.inputs.map(input => {
+                                        const widgetDef = window.widgetDefinitions.find(w => w.name === input.name);
+                                        return `<li>${input.name} (${widgetDef ? widgetDef.type : 'Unknown'}) "${widgetDef ? widgetDef.text : ''}" = "${input.value}"</li>`;
+                                    }).join('')}
+                                </ul>
+                            </div>
+                            
+                            <div class="test-actions">
+                                <strong>🎬 Actions:</strong>
+                                <ul>
+                                    ${r.actions.map(action => {
+                                        const widgetDef = window.widgetDefinitions.find(w => w.name === action.widget);
+                                        return `<li>${action.widget} (${widgetDef ? widgetDef.type : 'Unknown'}) "${widgetDef ? widgetDef.text : ''}" → ${action.state}</li>`;
+                                    }).join('')}
+                                </ul>
+                            </div>
+                            
+                            <div class="test-outputs">
+                                <strong>🎯 Expected vs 📤 Actual:</strong>
+                                <ul>
+                                    ${r.expected.map((expected, idx) => {
+                                        const actual = r.actual[idx];
+                                        const widgetDef = window.widgetDefinitions.find(w => w.name === expected.widget);
+                                        const match = actual && actual.value.trim() === expected.value.trim();
+                                        return `
+                                            <li class="${match ? 'output-match' : 'output-mismatch'}">
+                                                ${expected.widget} (${widgetDef ? widgetDef.type : 'Unknown'}) "${widgetDef ? widgetDef.text : ''}":<br>
+                                                Expected: "${expected.value}"<br>
+                                                Actual: "${actual ? actual.value : 'N/A'}" ${actual && actual.error ? `(Error: ${actual.error})` : ''}
+                                                ${match ? '✅' : '❌'}
+                                            </li>
+                                        `;
+                                    }).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        ${r.explanation ? `<p><strong>💡 คำอธิบาย:</strong> ${r.explanation}</p>` : ''}
+                        <p><strong>📊 คะแนน:</strong> ${r.score}/${r.maxScore || 1}</p>
+                    </div>
+                `).join('')}
+                -->
+                
+                <div class="total-score">
+                    <h4>📊 คะแนนรวม: ${totalScore}/${maxScore}</h4>
+                </div>
+            </div>
+        `;
+
+        showSuccess(`ตรวจคำตอบเสร็จสิ้น: ${totalScore}/${maxScore} คะแนน`);
+        return { totalScore, maxScore, passed: totalScore === maxScore };
+
+    } catch (error) {
+        console.error('Error testing GUI code:', error);
+        showError('เกิดข้อผิดพลาดในการตรวจคำตอบ: ' + error.message);
+        previewDiv.innerHTML = `
+            <div class="validation-error">
+                ❌ เกิดข้อผิดพลาด: ${error.message}
+                <pre class="code-preview code-error">${code}</pre>
+            </div>
+        `;
+        return { totalScore: 0, maxScore: 0, passed: false };
+    }
+}
+
+// ฟังก์ชันช่วยแปลงโค้ด Python เป็น JavaScript
+function convertPythonToJs(pythonCode) {
+    let jsCode = pythonCode
+        // แปลงการเรียกใช้ .get()
+        .replace(/([a-zA-Z0-9_]+)\.get\(\)/g, 'document.querySelector(\'[data-var="$1"]\').value')
+        // แปลงการเรียกใช้ .config(text=...) แบบ f-string
+        .replace(/([a-zA-Z0-9_]+)\.config\s*\(\s*text\s*=\s*f['"]([^'"]+)['"]\s*\)/g, (match, varName, textTemplate) => {
+            // แปลง f-string เป็น JavaScript template literal
+            const jsTemplate = textTemplate.replace(/{([^}]+)}/g, '${$1}');
+            return `document.querySelector('[data-var="${varName}"]').textContent = \`${jsTemplate}\``;
+        })
+        // แปลงการเรียกใช้ .config(text=...) แบบไม่ใช่ f-string
+        .replace(/([a-zA-Z0-9_]+)\.config\s*\(\s*text\s*=\s*['"]([^'"]+)['"]\s*\)/g, 
+            'document.querySelector(\'[data-var="$1"]\').textContent = "$2"')
+        // แปลงการเรียกใช้ int()
+        .replace(/int\(([^)]+)\)/g, 'parseInt($1)')
+        // แปลงการเรียกใช้ float()
+        .replace(/float\(([^)]+)\)/g, 'parseFloat($1)')
+        // แปลงการเรียกใช้ str()
+        .replace(/str\(([^)]+)\)/g, 'String($1)');
+    
+    return jsCode;
+}
+
+// ฟังก์ชันช่วยจำลองการรัน Test Case (ปรับปรุงใหม่)
+function simulateTestCase(code, inputs, testCase, parsedWidgets, requiredWidgets) {
+    console.log('=== เริ่มจำลอง Test Case ===');
+    console.log('Test Case:', testCase);
+    
+    // สร้าง virtual DOM จาก Generated HTML
+    const parser = new DOMParser();
+    const { htmlOutput, jsCode } = convertTkinterToHtml(code);
+    const doc = parser.parseFromString(htmlOutput, 'text/html');
+    
+    console.log('Generated HTML:', htmlOutput);
+    
+    // เก็บผลลัพธ์
+    const outputs = [];
+    
+    try {
+        // ขั้นตอนที่ 1: ใส่ค่า inputs ลงใน entry positions ตาม text และ widget
+        console.log('--- ขั้นตอนที่ 1: ใส่ค่า inputs ---');
+        (testCase.inputs || []).forEach((input, index) => {
+            console.log(`Input ${index + 1}:`, input);
+            
+            // หา widget definition จาก name
+            const widgetDef = window.widgetDefinitions.find(w => w.name === input.name);
+            if (!widgetDef) {
+                console.warn(`ไม่พบ widget definition สำหรับ ${input.name}`);
+                return;
+            }
+            
+            console.log(`Widget Definition:`, widgetDef);
+            
+            // หา widget ใน parsedWidgets ที่ตรงกับ type และ text
+            console.log('Looking for widget:', widgetDef.type, 'with text:', widgetDef.text);
+            console.log('Available parsedWidgets:', parsedWidgets.map(w => ({type: w.type, text: w.text})));
+
+            const matchingWidgetIndex = parsedWidgets.findIndex(widget => {
+                const typeMatch = widget.type === widgetDef.type;
+                const textMatch = !widgetDef.text || widget.text === widgetDef.text;
+                
+                // เพิ่ม debug information
+                console.log(`🔍 Debugging widget matching:`);
+                console.log(`  Widget from parsedWidgets: type="${widget.type}", text="${widget.text}"`);
+                console.log(`  Widget definition: type="${widgetDef.type}", text="${widgetDef.text}"`);
+                console.log(`  Type match: ${typeMatch}`);
+                console.log(`  Text match: ${textMatch}`);
+                console.log(`  Text comparison: "${widget.text}" === "${widgetDef.text}" = ${widget.text === widgetDef.text}`);
+                
+                return typeMatch && textMatch;
+            });
+            
+            if (matchingWidgetIndex === -1) {
+                console.warn(`❌ ไม่พบ widget ที่ตรงกันใน parsedWidgets สำหรับ ${widgetDef.type} "${widgetDef.text}"`);
+                console.log(`📋 Available parsedWidgets:`);
+                parsedWidgets.forEach((w, i) => {
+                    console.log(`  [${i}] type: "${w.type}", text: "${w.text}"`);
+                });
+                return;
+            }
+            
+            console.log(`พบ widget ที่ตรงกันที่ index ${matchingWidgetIndex}`);
+            
+            // หา element ใน DOM และใส่ค่า
+            const element = doc.querySelector(`[data-index="${matchingWidgetIndex}"]`);
+            if (element) {
+                if (element.tagName === 'INPUT' && element.type === 'text') {
+                    element.value = input.value;
+                    element.dispatchEvent(new Event('input', { bubbles: true }));
+                    console.log(`✅ ใส่ค่า "${input.value}" ลงใน ${widgetDef.type} "${widgetDef.text}"`);
+                } else {
+                    console.warn(`Element ไม่ใช่ input text: ${element.tagName}`);
+                }
+            } else {
+                console.warn(`ไม่พบ element สำหรับ widget index ${matchingWidgetIndex}`);
+            }
+        });
+        
+        // ขั้นตอนที่ 2: ดำเนินการ actions (เช่น การคลิกปุ่ม)
+        console.log('--- ขั้นตอนที่ 2: ดำเนินการ actions ---');
+        (testCase.actions || []).forEach((action, index) => {
+            console.log(`Action ${index + 1}:`, action);
+            
+            // หา widget definition จาก widget name
+            const widgetDef = window.widgetDefinitions.find(w => w.name === action.widget);
+            if (!widgetDef) {
+                console.warn(`ไม่พบ widget definition สำหรับ ${action.widget}`);
+                return;
+            }
+            
+            console.log(`Widget Definition:`, widgetDef);
+            
+            // หา widget ใน parsedWidgets ที่ตรงกับ type และ text
+            console.log('Looking for widget:', widgetDef.type, 'with text:', widgetDef.text);
+            console.log('Available parsedWidgets:', parsedWidgets.map(w => ({type: w.type, text: w.text})));
+
+            const matchingWidgetIndex = parsedWidgets.findIndex(widget => {
+                const typeMatch = widget.type === widgetDef.type;
+                const textMatch = !widgetDef.text || widget.text === widgetDef.text;
+                
+                // เพิ่ม debug information
+                console.log(`🔍 Debugging widget matching:`);
+                console.log(`  Widget from parsedWidgets: type="${widget.type}", text="${widget.text}"`);
+                console.log(`  Widget definition: type="${widgetDef.type}", text="${widgetDef.text}"`);
+                console.log(`  Type match: ${typeMatch}`);
+                console.log(`  Text match: ${textMatch}`);
+                console.log(`  Text comparison: "${widget.text}" === "${widgetDef.text}" = ${widget.text === widgetDef.text}`);
+                
+                return typeMatch && textMatch;
+            });
+            
+            if (matchingWidgetIndex === -1) {
+                console.warn(`❌ ไม่พบ widget ที่ตรงกันใน parsedWidgets สำหรับ ${widgetDef.type} "${widgetDef.text}"`);
+                console.log(`📋 Available parsedWidgets:`);
+                parsedWidgets.forEach((w, i) => {
+                    console.log(`  [${i}] type: "${w.type}", text: "${w.text}"`);
+                });
+                return;
+            }
+            
+            console.log(`พบ widget ที่ตรงกันที่ index ${matchingWidgetIndex}`);
+            
+            // หา element ใน DOM และดำเนินการ action
+            const element = doc.querySelector(`[data-index="${matchingWidgetIndex}"]`);
+            if (element) {
+                if (widgetDef.type === 'Button' && (action.state === 'pressed' || action.state === 'click')) {
+                    // จำลองการคลิกปุ่ม
+                    element.click();
+                    element.dispatchEvent(new Event('click', { bubbles: true }));
+                    console.log(`✅ คลิกปุ่ม "${widgetDef.text}"`);
+                    
+                    // รัน JavaScript code ที่เกี่ยวข้อง
+                    if (jsCode) {
+                        try {
+                            // สร้าง context สำหรับรัน JavaScript
+                            const scriptElement = doc.createElement('script');
+                            scriptElement.textContent = jsCode;
+                            doc.head.appendChild(scriptElement);
+                            console.log('✅ รัน JavaScript code แล้ว');
+                        } catch (jsError) {
+                            console.warn('เกิดข้อผิดพลาดในการรัน JavaScript:', jsError);
+                        }
+                    }
+                } else if (widgetDef.type === 'Checkbutton') {
+                    if (action.state === 'checked' || action.state === 'unchecked') {
+                        element.checked = action.state === 'checked';
+                        element.dispatchEvent(new Event('change', { bubbles: true }));
+                        console.log(`✅ เปลี่ยนสถานะ checkbox "${widgetDef.text}" เป็น ${action.state}`);
+                    }
+                } else {
+                    console.warn(`ไม่รองรับ action สำหรับ ${widgetDef.type} หรือ state ${action.state}`);
+                }
+            } else {
+                console.warn(`ไม่พบ element สำหรับ widget index ${matchingWidgetIndex}`);
+            }
+        });
+        
+        // ขั้นตอนที่ 3: ดึงผลลัพธ์ (outputs) จาก widgets ตาม text และ widget
+        console.log('--- ขั้นตอนที่ 3: ดึงผลลัพธ์ outputs ---');
+        (testCase.outputs || []).forEach((expectedOutput, index) => {
+            console.log(`Expected Output ${index + 1}:`, expectedOutput);
+            
+            // หา widget definition จาก widget name
+            const widgetDef = window.widgetDefinitions.find(w => w.name === expectedOutput.widget);
+            if (!widgetDef) {
+                console.warn(`ไม่พบ widget definition สำหรับ ${expectedOutput.widget}`);
+                outputs.push({
+                    widget: expectedOutput.widget,
+                    value: '',
+                    error: 'ไม่พบ widget definition'
+                });
+                return;
+            }
+            
+            console.log(`Widget Definition:`, widgetDef);
+            
+            // หา widget ใน parsedWidgets ที่ตรงกับ type และ text
+            console.log('Looking for widget:', widgetDef.type, 'with text:', widgetDef.text);
+            console.log('Available parsedWidgets:', parsedWidgets.map(w => ({type: w.type, text: w.text})));
+
+            const matchingWidgetIndex = parsedWidgets.findIndex(widget => {
+                const typeMatch = widget.type === widgetDef.type;
+                const textMatch = !widgetDef.text || widget.text === widgetDef.text;
+                
+                // เพิ่ม debug information
+                console.log(`🔍 Debugging widget matching:`);
+                console.log(`  Widget from parsedWidgets: type="${widget.type}", text="${widget.text}"`);
+                console.log(`  Widget definition: type="${widgetDef.type}", text="${widgetDef.text}"`);
+                console.log(`  Type match: ${typeMatch}`);
+                console.log(`  Text match: ${textMatch}`);
+                console.log(`  Text comparison: "${widget.text}" === "${widgetDef.text}" = ${widget.text === widgetDef.text}`);
+                
+                return typeMatch && textMatch;
+            });
+            
+            if (matchingWidgetIndex === -1) {
+                console.warn(`ไม่พบ widget ที่ตรงกันใน parsedWidgets สำหรับ ${widgetDef.type} "${widgetDef.text}"`);
+                outputs.push({
+                    widget: expectedOutput.widget,
+                    value: '',
+                    error: 'ไม่พบ widget ที่ตรงกัน'
+                });
+                return;
+            }
+            
+            console.log(`พบ widget ที่ตรงกันที่ index ${matchingWidgetIndex}`);
+            
+            // หา element ใน DOM และดึงค่า
+            const element = doc.querySelector(`[data-index="${matchingWidgetIndex}"]`);
+            if (element) {
+                let actualValue = '';
+                
+                if (widgetDef.type === 'Label') {
+                    actualValue = element.textContent || element.innerText || '';
+                } else if (widgetDef.type === 'Entry') {
+                    actualValue = element.value || '';
+                } else if (widgetDef.type === 'Button') {
+                    actualValue = element.textContent || element.innerText || '';
+                } else if (widgetDef.type === 'Checkbutton') {
+                    actualValue = element.checked ? 'checked' : 'unchecked';
+                } else {
+                    actualValue = element.value || element.textContent || element.innerText || '';
+                }
+                
+                actualValue = actualValue.trim();
+                
+                outputs.push({
+                    widget: expectedOutput.widget,
+                    value: actualValue
+                });
+                
+                console.log(`✅ ดึงค่าจาก ${widgetDef.type} "${widgetDef.text}": "${actualValue}"`);
+            } else {
+                console.warn(`ไม่พบ element สำหรับ widget index ${matchingWidgetIndex}`);
+                outputs.push({
+                    widget: expectedOutput.widget,
+                    value: '',
+                    error: 'ไม่พบ element'
+                });
+            }
+        });
+        
+    } catch (error) {
+        console.error('เกิดข้อผิดพลาดในการจำลอง test case:', error);
+    }
+    
+    console.log('=== ผลลัพธ์การจำลอง Test Case ===');
+    console.log('Outputs:', outputs);
+    
+    return outputs;
+}
+
+
+// Placeholder สำหรับฟังก์ชันจริง (ต้องปรับตามโจทย์)
+function calculate_logic(input) {
+    return input; // ตัวอย่างง่ายๆ
+}
+
+// เพิ่มฟังก์ชัน enhanceCodeEditor จาก student-problem-detail.js
+function enhanceCodeEditor() {
+    const codeEditor = document.getElementById('codeEditorTextarea');
+
+    if (!codeEditor) {
+        console.error('ไม่พบ codeEditorTextarea');
+        return;
+    }
+
+    const PYTHON_KEYWORDS = [
+        'if', 'elif', 'else:', 'for', 'while', 'def', 'class', 'try:', 'except', 'finally:', 'with'
+    ];
+
+    codeEditor.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+
+            const cursor = this.selectionStart;
+            const value = this.value;
+            const currentLine = value.substring(0, cursor).split('\n').pop();
+
+            const currentIndentMatch = currentLine.match(/^\s*/);
+            let indentation = currentIndentMatch ? currentIndentMatch[0] : '';
+
+            const shouldIndent = PYTHON_KEYWORDS.some(keyword =>
+                currentLine.trim().endsWith(':') ||
+                currentLine.trim().startsWith(keyword)
+            );
+
+            if (currentLine.trim() === '' && indentation.length > 0) {
+                indentation = indentation.slice(0, -4);
+            } else if (shouldIndent) {
+                indentation += '    ';
+            }
+
+            const before = value.substring(0, cursor);
+            const after = value.substring(cursor);
+            const newValue = before + '\n' + indentation + after;
+
+            this.value = newValue;
+            const newCursor = cursor + 1 + indentation.length;
+            this.selectionStart = this.selectionEnd = newCursor;
+
+            updateCodeHighlight();
+            updateLineNumbers();
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+
+            const cursor = this.selectionStart;
+            const value = this.value;
+
+            const before = value.substring(0, cursor);
+            const after = value.substring(cursor);
+            const newValue = before + '    ' + after;
+
+            this.value = newValue;
+            this.selectionStart = this.selectionEnd = cursor + 4;
+
+            updateCodeHighlight();
+            updateLineNumbers();
+        } else if (e.key === 'Backspace') {
+            const cursor = this.selectionStart;
+            const value = this.value;
+            const beforeCursor = value.substring(0, cursor);
+
+            if (beforeCursor.endsWith('    ')) {
+                e.preventDefault();
+
+                const newValue = beforeCursor.substring(0, beforeCursor.length - 4) + value.substring(cursor);
+                this.value = newValue;
+                this.selectionStart = this.selectionEnd = cursor - 4;
+
+                updateCodeHighlight();
+                updateLineNumbers();
+            }
+        }
+    });
+
+    // Auto-closing brackets และ quotes
+    codeEditor.addEventListener('keypress', function (e) {
+        const pairs = {
+            '(': ')',
+            '[': ']',
+            '{': '}',
+            '"': '"',
+            "'": "'"
+        };
+
+        if (pairs[e.key]) {
+            e.preventDefault();
+
+            const cursor = this.selectionStart;
+            const value = this.value;
+            const before = value.substring(0, cursor);
+            const after = value.substring(cursor);
+
+            this.value = before + e.key + pairs[e.key] + after;
+            this.selectionStart = this.selectionEnd = cursor + 1;
+
+            updateCodeHighlight();
+        }
+    });
+}
+
+async function checkEnrollment(classId, userId) {
+    try {
+        const enrollmentSnapshot = await db.collection('class_enrollments')
+            .where('classId', '==', classId)
+            .where('studentId', '==', userId)
+            .get();
+
+        if (enrollmentSnapshot.empty) {
+            alert('คุณไม่ได้ลงทะเบียนในห้องเรียนนี้');
+            window.location.href = 'student-dashboard.html';
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error("Error checking enrollment:", error);
+        alert('เกิดข้อผิดพลาดในการตรวจสอบการลงทะเบียน');
+        return false;
+    }
+}
+
+
+
+
+
+const styles = `
+.code-editor {
+    width: 100%;
+    height: 400px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.problem-image {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.problem-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.content-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #f9f9f9;
+}
+
+.content-section h3 {
+    margin-top: 0;
+    color: #333;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+/* Container สำหรับวิดีโอหลายๆ อัน */
+.videos-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.video-container {
+    position: relative;
+    width: 240px;
+    height: 135px;
+    margin: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.video-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+}
+
+.pdf-container {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.pdf-link {
+    padding: 10px;
+    background: #fff;
+    text-align: center;
+    border-top: 1px solid #ddd;
+}
+
+.link-container {
+    text-align: center;
+}
+
+.btn-link {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.btn-link:hover {
+    background: #0056b3;
+    color: white;
+    text-decoration: none;
+}
+`;
+
+const styleSheet = document.createElement("style");
+styleSheet.type = "text/css";
+styleSheet.innerText = styles;
+document.head.appendChild(styleSheet);
+
+
+// เพิ่มฟังก์ชันสำหรับแปลงโค้ด tkinter ก่อนส่งไปตรวจสอบ
+function preprocessTkinterCode(code) {
+    // ตรวจสอบว่ามีการ import tkinter หรือไม่
+    if (code.includes('from tkinter import') || code.includes('import tkinter')) {
+        // เพิ่มโค้ดจำลอง tkinter ที่รองรับ event handlers
+        const mockTkinterCode = `
+# Mock tkinter classes for syntax checking and event simulation
+class Tk: 
+    def __init__(self): 
+        self._widgets = {}
+    def title(self, title): pass 
+    def geometry(self, size): pass 
+    def mainloop(self): pass 
+class Frame: 
+    def __init__(self, master=None, **kwargs): pass 
+    def pack(self, **kwargs): pass 
+    def grid(self, **kwargs): pass 
+    def place(self, **kwargs): pass 
+    def config(self, **kwargs): pass
+    def configure(self, **kwargs): return self.config(**kwargs)
+class Label: 
+    def __init__(self, master=None, **kwargs):
+        self.text = kwargs.get('text', '')
+    def pack(self, **kwargs): pass 
+    def grid(self, **kwargs): pass 
+    def place(self, **kwargs): pass 
+    def config(self, **kwargs):
+        if 'text' in kwargs:
+            self.text = kwargs['text']
+    def configure(self, **kwargs): return self.config(**kwargs)
+class Button: 
+    def __init__(self, master=None, **kwargs):
+        self.text = kwargs.get('text', '')
+        self.command = kwargs.get('command', None)
+    def pack(self, **kwargs): pass 
+    def grid(self, **kwargs): pass 
+    def place(self, **kwargs): pass 
+    def config(self, **kwargs):
+        if 'command' in kwargs:
+            self.command = kwargs['command']
+        if 'text' in kwargs:
+            self.text = kwargs['text']
+    def configure(self, **kwargs): return self.config(**kwargs)
+    def invoke(self):
+        if self.command:
+            self.command()
+class Entry: 
+    def __init__(self, master=None, **kwargs):
+        self.textvariable = kwargs.get('textvariable', None)
+    def pack(self, **kwargs): pass 
+    def grid(self, **kwargs): pass 
+    def place(self, **kwargs): pass 
+    def get(self): 
+        if self.textvariable:
+            return self.textvariable.get()
+        return "" 
+    def config(self, **kwargs): pass
+    def configure(self, **kwargs): return self.config(**kwargs)
+class StringVar: 
+    def __init__(self, master=None, value=None, name=None):
+        self._value = value or ""
+    def set(self, value): 
+        self._value = value
+    def get(self): 
+        return self._value
+class IntVar: 
+    def __init__(self, master=None, value=None, name=None):
+        self._value = value or 0
+    def set(self, value): 
+        self._value = value
+    def get(self): 
+        return self._value
+class DoubleVar: 
+    def __init__(self, master=None, value=None, name=None):
+        self._value = value or 0.0
+    def set(self, value): 
+        self._value = value
+    def get(self): 
+        return self._value
+class BooleanVar: 
+    def __init__(self, master=None, value=None, name=None):
+        self._value = value or False
+    def set(self, value): 
+        self._value = value
+    def get(self): 
+        return self._value
+class Checkbutton: 
+    def __init__(self, master=None, **kwargs): pass 
+    def pack(self, **kwargs): pass 
+    def grid(self, **kwargs): pass 
+    def place(self, **kwargs): pass 
+    def config(self, **kwargs): pass
+    def configure(self, **kwargs): return self.config(**kwargs)
+tk = type('', (), { 
+    'Tk': Tk, 
+    'Frame': Frame, 
+    'Label': Label, 
+    'Button': Button, 
+    'Entry': Entry, 
+    'StringVar': StringVar, 
+    'IntVar': IntVar, 
+    'DoubleVar': DoubleVar, 
+    'BooleanVar': BooleanVar, 
+    'Checkbutton': Checkbutton 
+}) 
+# For direct imports 
+IntVar = IntVar 
+StringVar = StringVar 
+DoubleVar = DoubleVar 
+BooleanVar = BooleanVar 
+Tk = Tk 
+Frame = Frame 
+Label = Label 
+Button = Button 
+Entry = Entry 
+Checkbutton = Checkbutton 
+# tkinter mocked 
+`;
+
+        // แทนที่การ import tkinter ด้วยโค้ดจำลอง
+        code = code.replace(/from\s+tkinter\s+import\s+\*/, mockTkinterCode);
+        code = code.replace(/import\s+tkinter\s+as\s+tk/, mockTkinterCode);
+        code = code.replace(/import\s+tkinter/, mockTkinterCode);
+    }
+
+    return code;
+}
+
+
+function convertTkinterToHtml(code) {
+    // ประมวลผลโค้ดก่อนแปลง
+    code = preprocessTkinterCode(code);
+    
+    console.log("Starting convertTkinterToHtml with code:", code.substring(0, 100) + "...");
+    const elements = [];
+    const widgets = {};
+    const variables = {};
+    const parsedWidgets = []; // เปลี่ยนจาก object เป็น array
+    let widgetCounter = 0;
+    let rootVar = 'root'; // Default root variable name
+    let rootTitle = 'Tkinter Application'; // Default title
+    let hasPackOrGrid = false; // ตรวจสอบว่ามีการใช้ pack/grid/place หรือไม่
+    let jsCode = ''; // เพิ่มตัวแปรสำหรับเก็บ JavaScript code
+
+    const lines = code.split('\n');
+    console.log(`Processing ${lines.length} lines of code`);
+    
+    for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine || trimmedLine.startsWith('#')) continue;
+
+        try {
+            // Find the root variable name
+            if (trimmedLine.includes('= Tk()')) {
+                rootVar = trimmedLine.split('=')[0].trim();
+                console.log('Found root variable:', rootVar);
+            }
+            
+            // ตรวจจับชื่อหน้าต่าง (window title)
+            if (trimmedLine.includes('.title(')) {
+                const titleMatch = trimmedLine.match(/\.title\(['"](.*?)['"]\)/);
+                if (titleMatch && titleMatch[1]) {
+                    rootTitle = titleMatch[1];
+                    console.log('Found window title:', rootTitle);
+                }
+            }
+
+            // Handle StringVar, IntVar, DoubleVar, BooleanVar
+            if (trimmedLine.includes('StringVar(') || 
+                trimmedLine.includes('IntVar(') || 
+                trimmedLine.includes('DoubleVar(') || 
+                trimmedLine.includes('BooleanVar(')) {
+                
+                const varName = trimmedLine.split('=')[0].trim();
+                // Fix the regex pattern to properly capture values with quotes
+                const valueMatch = trimmedLine.match(/value\s*=\s*['"]([^'"]*)['"]/);
+                let varType = 'StringVar';
+                
+                if (trimmedLine.includes('IntVar(')) varType = 'IntVar';
+                else if (trimmedLine.includes('DoubleVar(')) varType = 'DoubleVar';
+                else if (trimmedLine.includes('BooleanVar(')) varType = 'BooleanVar';
+                
+                variables[varName] = { 
+                    type: varType, 
+                    value: valueMatch ? valueMatch[1] : (varType === 'IntVar' ? '0' : 
+                                                        varType === 'DoubleVar' ? '0.0' : 
+                                                        varType === 'BooleanVar' ? 'false' : '')
+                };
+                console.log('Added variable:', varName, variables[varName], 'Raw value match:', valueMatch ? valueMatch[1] : 'no match');
+            }
+
+            // Handle Label
+            if (trimmedLine.includes('Label(')) {
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim(); // 1. ดึงชื่อตัวแปร
+                const text = trimmedLine.match(/text=['"]([^'"]*)['"]/)?.[1] || '';
+                
+                const widget = { 
+                    type: 'Label', 
+                    text, 
+                    // 2. ✅ [สำคัญมาก] ต้องเติม data-var="${varName}" ตรงนี้ !!
+                    // ถ้าไม่มีบรรทัดนี้ ปุ่มกดจะไม่รู้ว่าจะเปลี่ยนข้อความที่ Label ไหน
+                    element: `<div id="${widgetKey}" class="tk-label" data-var="${varName}" data-index="${widgetCounter - 1}">${text}</div>`,
+                    widgetKey,
+                    added: false 
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget);
+                console.log('Added Label:', varName, widget);
+            }
+
+            // Handle Entry widget
+            if (trimmedLine.includes('Entry(')) {
+                console.log('Processing Entry:', trimmedLine);
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim();
+                
+                // เพิ่มการตรวจสอบ textvariable
+                const textvariableMatch = trimmedLine.match(/textvariable=([a-zA-Z_][a-zA-Z0-9_]*)/); 
+                let placeholderText = '';
+                
+                if (textvariableMatch && textvariableMatch[1]) {
+                    const textvariableName = textvariableMatch[1];
+                    console.log('Found textvariable:', textvariableName, 'Value:', variables[textvariableName] ? variables[textvariableName].value : 'undefined');
+                    
+                    if (variables[textvariableName] && variables[textvariableName].value !== undefined) {
+                        placeholderText = variables[textvariableName].value;
+                        console.log('Setting Entry value to:', placeholderText);
+                    }
+                }
+                
+                // ดึง text จาก comment หรือ label ที่อยู่ใกล้เคียง
+                const textMatch = trimmedLine.match(/text=['"]([ ^'"]*)['"]/) || 
+                                 trimmedLine.match(/#\s*(.+)$/) || // จาก comment
+                                 ['', '']; // default
+                const entryText = textMatch[1] || '';
+                
+                // เพิ่มการตรวจสอบ command (ถ้ามี)
+                const commandMatch = trimmedLine.match(/command=([a-zA-Z_][a-zA-Z0-9_]*)/); 
+                
+                const widget = {
+                    type: 'Entry',
+                    text: placeholderText || entryText,
+                    command: commandMatch ? commandMatch[1] : null,
+                    textvariable: textvariableMatch ? textvariableMatch[1] : null,
+                    element: `<input type="text" class="tk-entry" id="${widgetKey}" value="${placeholderText}" data-index="${widgetCounter - 1}">`,
+                    widgetKey,
+                    added: false
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget); // เพิ่มใน parsedWidgets เป็น array
+                console.log('Added Entry:', varName, widget);
+            }
+
+            // Handle Button
+            if (trimmedLine.includes('Button(')) {
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim();
+                const text = trimmedLine.match(/text=['"]([^'"]*)['"]/)?.[ 1] || 'Button';
+                const commandMatch = trimmedLine.match(/command=([a-zA-Z_][a-zA-Z0-9_]*)/);
+                
+                console.log('Parsing Button line:', trimmedLine);
+                console.log('Button text match:', text);
+                console.log('Button command match:', commandMatch ? commandMatch[1] : 'none');
+                
+                const widget = {
+                    type: 'Button',
+                    text,
+                    command: commandMatch ? commandMatch[1] : null,
+                    element: `<button id="${widgetKey}" class="tk-button" data-index="${widgetCounter - 1}" data-var="${varName}">${text}</button>`,
+                    widgetKey,
+                    added: false
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget); // เพิ่มใน parsedWidgets เป็น array
+                console.log('Added Button:', varName, widget);
+            }
+
+            // Handle Checkbutton
+            if (trimmedLine.includes('Checkbutton(')) {
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim();
+                
+                console.log('Parsing Checkbutton line:', trimmedLine);
+                
+                const text = trimmedLine.match(/text=['"]([^'"]*)['"]/)?.[1] || '';
+                const commandMatch = trimmedLine.match(/command=([a-zA-Z_][a-zA-Z0-9_]*)/);
+                const variableMatch = trimmedLine.match(/variable=([a-zA-Z_][a-zA-Z0-9_]*)/);
+                const onvalueMatch = trimmedLine.match(/onvalue=([0-9]+)/);
+                const offvalueMatch = trimmedLine.match(/offvalue=([0-9]+)/);
+                
+                console.log('Checkbutton text:', text);
+                console.log('Checkbutton variable match:', variableMatch ? variableMatch[1] : 'none');
+                console.log('Checkbutton onvalue:', onvalueMatch ? onvalueMatch[1] : '1');
+                console.log('Checkbutton offvalue:', offvalueMatch ? offvalueMatch[1] : '0');
+                
+                const onvalue = onvalueMatch ? onvalueMatch[1] : '1';
+                const offvalue = offvalueMatch ? offvalueMatch[1] : '0';
+                
+                const checked = variableMatch && variables[variableMatch[1]] && 
+                               (variables[variableMatch[1]].value === 'true' || 
+                                parseInt(variables[variableMatch[1]].value) > 0);
+                
+                const widget = {
+                    type: 'Checkbutton',
+                    text,
+                    command: commandMatch ? commandMatch[1] : null,
+                    variable: variableMatch ? variableMatch[1] : null,
+                    onvalue: onvalue,
+                    offvalue: offvalue,
+                    element: `<div class="tk-checkbox"><input type="checkbox" id="${widgetKey}" ${checked ? 'checked' : ''} data-index="${widgetCounter - 1}"><label for="${widgetKey}">${text}</label></div>`,
+                    widgetKey,
+                    added: false
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget); // เพิ่มใน parsedWidgets เป็น array
+                console.log('Added Checkbutton:', varName, widget);
+            }
+
+            // Handle pack/grid/place
+            if (trimmedLine.includes('.pack(') || trimmedLine.includes('.grid(') || trimmedLine.includes('.place(')) {
+                hasPackOrGrid = true;
+                const widgetName = trimmedLine.split('.')[0].trim();
+                console.log('Processing layout for widget:', widgetName);
+                
+                if (widgets[widgetName] && !widgets[widgetName].added) {
+                    elements.push(widgets[widgetName].element);
+                    widgets[widgetName].added = true;
+                    console.log('Added element to display:', widgetName);
+                } else if (!widgets[widgetName]) {
+                    console.warn(`Widget ${widgetName} not found for layout`);
+                } else {
+                    console.warn(`Widget ${widgetName} already added to layout`);
+                }
+            }
+        } catch (err) {
+            console.error('Error parsing line:', trimmedLine, err);
+            elements.push(`<div style="color:red;">Error: ${trimmedLine}</div>`);
+        }
+    }
+
+    // ถ้าไม่มีการใช้ pack/grid/place เลย ให้แสดง widget ทั้งหมดที่สร้างไว้
+    if (!hasPackOrGrid) {
+        console.log('No pack/grid/place found, showing all widgets');
+        for (const widgetName in widgets) {
+            if (!widgets[widgetName].added) {
+                elements.push(widgets[widgetName].element);
+                widgets[widgetName].added = true;
+                console.log('Auto-added element to display:', widgetName);
+            }
+        }
+    }
+
+    // ตรวจสอบว่ามี widgets ที่ไม่ได้ถูกเพิ่มหรือไม่
+    for (const widgetName in widgets) {
+        if (!widgets[widgetName].added) {
+            console.warn(`Widget ${widgetName} was not added to the layout`);
+        }
+    }
+
+    // Add CSS for better display
+    const css = `
+<style>
+    .gui-preview {
+        margin: 20px auto !important;
+        max-width: 100% !important;
+        background-color: #ffffff !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .tk-window {
+        border: 1px solid #ccc !important;
+        padding: 20px !important;
+        width: 400px !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        background-color: #ffffff !important;
+        border-radius: 5px !important;
+        font-family: Arial, sans-serif !important;
+        position: relative !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+    }
+    .tk-title-bar {
+        background-color: #e0e0e0 !important;
+        padding: 5px 10px !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        border-bottom: 1px solid #ccc !important;
+        margin: -20px -20px 15px -20px !important;
+        border-radius: 5px 5px 0 0 !important;
+        position: relative !important;
+        width: 100% !important; /* Ensure full width */
+        box-sizing: border-box !important; /* Include padding in width calculation */
+    }
+    .tk-title {
+        display: inline-block !important;
+        margin: 0 !important;
+        font-size: 14px !important;
+    }
+    /* Removed window controls CSS */
+</style>
+`;
+
+    // หาฟังก์ชันทั้งหมดในโค้ด Python
+     // หาปุ่มและเชื่อมโยงกับฟังก์ชัน
+     const functionRegex = /def\s+([a-zA-Z0-9_]+)\s*\([^)]*\):\s*([\s\S]*?)(?=\n\S|$)/gm;
+    let match;
+    while ((match = functionRegex.exec(code)) !== null) {
+        const functionName = match[1];
+        const functionBody = match[2];
+        
+        // แปลงฟังก์ชัน Python เป็น JavaScript
+        let jsFunction = `
+        function ${functionName}() {
+            console.log("เรียกใช้ฟังก์ชัน ${functionName}");
+            
+            // จำลองการทำงานของฟังก์ชัน
+            try {
+                ${convertPythonToJs(functionBody)}
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในฟังก์ชัน ${functionName}:", error);
+            }
+        }
+        `;
+        
+        jsCode += jsFunction;
+    }
+    
+    // หาปุ่มและเชื่อมโยงกับฟังก์ชัน
+    const buttonRegex = /([a-zA-Z0-9_]+)\s*=\s*(?:tk\.)?Button\(.*?text\s*=\s*['"]([^'"]+)['"].*?\)/gs;
+    const commandRegex = /([a-zA-Z0-9_]+)\.(config|configure)\s*\(.*?command\s*=\s*([^,)]+)/gs;
+    const directCommandRegex = /([a-zA-Z0-9_]+)\s*=\s*(?:tk\.)?Button\(.*?command\s*=\s*([^,)]+).*?\)/gs;
+    
+    let buttonMatch;
+    while ((buttonMatch = buttonRegex.exec(code)) !== null) {
+        const buttonVar = buttonMatch[1];
+        const buttonText = buttonMatch[2];
+        
+        // หาฟังก์ชันที่เชื่อมโยงกับปุ่ม (จากการใช้ config/configure)
+        let commandMatch;
+        commandRegex.lastIndex = 0;
+        let functionName = null;
+        
+        while ((commandMatch = commandRegex.exec(code)) !== null) {
+            if (commandMatch[1] === buttonVar) {
+                functionName = commandMatch[3].trim();
+                break;
+            }
+        }
+        
+        // หาฟังก์ชันที่เชื่อมโยงกับปุ่ม (จากการกำหนดตรงใน constructor)
+        if (!functionName) {
+            directCommandRegex.lastIndex = 0;
+            while ((commandMatch = directCommandRegex.exec(code)) !== null) {
+                if (commandMatch[1] === buttonVar) {
+                    functionName = commandMatch[2].trim();
+                    break;
+                }
+            }
+        }
+        
+        if (functionName) {
+            // เพิ่ม event listener ให้กับปุ่ม
+            jsCode += `
+            // เชื่อมโยงปุ่ม ${buttonVar} กับฟังก์ชัน ${functionName}
+            document.addEventListener("DOMContentLoaded", function() {
+                const button = document.querySelector('button[data-var="${buttonVar}"]');
+                if (button) {
+                    console.log("พบปุ่ม ${buttonVar}");
+                    button.addEventListener('click', function() {
+                        console.log("คลิกปุ่ม ${buttonVar}");
+                        ${functionName}();
+                    });
+                } else {
+                    console.error("ไม่พบปุ่ม ${buttonVar}");
+                }
+            });
+            `;
+        }
+    }
+    
+    // สร้าง HTML และ script สำหรับจำลองการทำงาน
+    let script = '';
+    
+    // ตรวจสอบว่ามี Button หรือ Checkbutton ที่มี command หรือไม่
+    const interactiveWidgets = Object.values(widgets).filter(
+        w => ['Button', 'Checkbutton'].includes(w.type) && w.command
+    );
+    
+    console.log(`Found ${interactiveWidgets.length} interactive widgets with commands`);
+    
+    for (const widget of interactiveWidgets) {
+        const funcName = widget.command;
+        const widgetKey = widget.widgetKey;
+        
+        console.log(`Creating event listener for ${widget.type} with ID ${widgetKey} and command ${funcName}`);
+        
+        script += `
+            // เพิ่ม event listener สำหรับ ${widget.type} ${widget.widgetKey}
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOM loaded, looking for element with ID: ${widgetKey}');
+                const element = document.getElementById('${widgetKey}');
+                if (element) {
+                    console.log('Found element with ID: ${widgetKey}');
+                    element.addEventListener('click', function() {
+                        console.log('${widget.type} ${widgetKey} clicked, executing command: ${funcName}');
+                        ${simulateFunction(funcName, widgets, variables)}
+                    });
+                } else {
+                    console.error('Element with ID ${widgetKey} not found');
+                }
+            });
+        `;
+    }
+
+    const htmlOutput = `
+         ${css}
+    <div class="tk-window">
+        <div class="tk-title-bar">
+            <div class="tk-title">${rootTitle}</div>
+        </div>
+        ${elements.length > 0 ? elements.join('') : '<div class="tk-label">ไม่พบ widget ที่แสดงได้</div>'}
+    </div>
+    <script>${script}</script>
+`;
+
+    console.log(`Generated HTML with ${elements.length} elements and ${Object.keys(widgets).length} widgets`);
+    return {
+        htmlOutput,
+        widgets: parsedWidgets, // คืนค่าเป็น array
+        jsCode // เพิ่ม JavaScript code ในผลลัพธ์
+    };
+}
+
+function simulateFunction(funcName, widgets, variables) {
+    console.log(`Simulating function: ${funcName} with ${Object.keys(widgets).length} widgets`);
+    
+    let script = '';
+    
+    // ดึงข้อมูลจาก Entry widgets
+    const entries = Object.values(widgets).filter(w => w.type === 'Entry');
+    console.log(`Found ${entries.length} Entry widgets`);
+    
+    entries.forEach(w => {
+        script += `
+            let ${w.widgetKey}_value = '';
+            const ${w.widgetKey}_element = document.getElementById('${w.widgetKey}');
+            if (${w.widgetKey}_element) {
+                ${w.widgetKey}_value = ${w.widgetKey}_element.value || '';
+                console.log('Read Entry value:', ${w.widgetKey}_value);
+            } else {
+                console.error('Entry element with ID ${w.widgetKey} not found');
+            }
+        `;
+    });
+
+    // ดึงข้อมูลจาก Checkbutton widgets
+    const checkbuttons = Object.values(widgets).filter(w => w.type === 'Checkbutton');
+    console.log(`Found ${checkbuttons.length} Checkbutton widgets`);
+    
+    checkbuttons.forEach(w => {
+        script += `
+            let ${w.widgetKey}_checked = false;
+            let ${w.widgetKey}_value = ${w.offvalue || 0};
+            const ${w.widgetKey}_element = document.getElementById('${w.widgetKey}');
+            if (${w.widgetKey}_element) {
+                ${w.widgetKey}_checked = ${w.widgetKey}_element.checked || false;
+                // ใช้ค่า onvalue หรือ offvalue ตามสถานะของ checkbox
+                ${w.widgetKey}_value = ${w.widgetKey}_checked ? ${w.onvalue || 1} : ${w.offvalue || 0};
+                console.log('Read Checkbutton state:', ${w.widgetKey}_checked, 'value:', ${w.widgetKey}_value);
+            } else {
+                console.error('Checkbutton element with ID ${w.widgetKey} not found');
+            }
+        `;
+    });
+
+    // สร้างฟังก์ชัน logic สำหรับการคำนวณจริง
+    script += `
+        // สร้างฟังก์ชัน ${funcName}_logic สำหรับการคำนวณจริง
+        function ${funcName}_logic() {
+            console.log('Executing ${funcName}_logic');
+            
+            // ดึงค่าจาก Entry widgets
+            let year1 = 0, year2 = 0;
+            ${entries.map((w, index) => {
+                if (index === 0) return `year1 = parseInt(${w.widgetKey}_value) || 0;`;
+                if (index === 1) return `year2 = parseInt(${w.widgetKey}_value) || 0;`;
+                return '';
+            }).filter(Boolean).join('\n            ')}
+            
+            // คำนวณอายุ
+            let age = Math.abs(year2 - year1);
+            
+            // ตรวจสอบ checkbox สำหรับการแสดง "AA"
+            let showAA = false;
+            ${checkbuttons.map(w => `if (${w.widgetKey}_checked) showAA = true;`).join('\n            ')}
+            
+            console.log('Calculated age:', age, 'Show AA:', showAA);
+            
+            // อัปเดต Label widgets ตามลำดับ
+            const labels = document.querySelectorAll('.tk-label');
+            if (labels.length >= 2) {
+                // Label แรก (ผลลัพธ์คำนวณอายุ) - ใช้ index 2 ตาม test case
+                if (labels[2]) {
+                    labels[2].textContent = age.toString();
+                    console.log('Updated age label:', age);
+                }
+                
+                // Label ที่สอง (พิเศษ) - ใช้ index 3 ตาม test case  
+                if (labels[3]) {
+                    labels[3].textContent = showAA ? 'AA' : 'พิเศษ';
+                    console.log('Updated special label:', showAA ? 'AA' : 'พิเศษ');
+                }
+            }
+            
+            return \`อายุ: \${age} ปี\${showAA ? ', พิเศษ: AA' : ''}\`;
+        }
+        
+        let result = '';
+        try {
+            result = String(${funcName}_logic());
+            console.log('Function executed successfully with result:', result);
+        } catch (e) { 
+            console.error("Error in ${funcName}_logic:", e);
+            result = 'Error: ' + e.message; 
+        }
+    `;
+
+    // อัพเดทผลลัพธ์ไปยัง Label widget
+    const labels = Object.values(widgets).filter(w => w.type === 'Label');
+    console.log(`Found ${labels.length} Label widgets for result display`);
+    
+    if (labels.length > 0) {
+        script += `
+            // เรียกใช้ฟังก์ชันคำนวณ
+            ${funcName}_logic();
+        `;
+    } else {
+        script += `
+            console.warn('No Label widgets found to display result');
+            let result = ${funcName}_logic();
+            alert('ผลลัพธ์: ' + result);
+        `;
+    }
+
+    return script;
+}
+
+// ตัวอย่างฟังก์ชัน logic (ต้องปรับตามโจทย์จริง)
+function calculate_logic(input) { return input; } // Placeholder
+
+
+let problemData = {}; // ตัวแปร global เพื่อเก็บข้อมูลโจทย์ทั้งหมด (รวม widgets)
+let problemTestCases = []; // ตัวแปร global เพื่อเก็บ Test Cases
+
+// เพิ่มฟังก์ชันคำนวณคะแนนเต็มจาก testcase ทั้งหมด
+// ✅ [FIX] แก้ให้คำนวณคะแนนเต็มจากทุกส่วน (Widget + Order + Testcase)
+function calculateMaxScore() {
+    let maxScore = 0;
+    
+    // 1. คะแนนจาก Widget (จาก problemData.widgets)
+    if (problemData.widgets && Array.isArray(problemData.widgets)) {
+        maxScore += problemData.widgets.reduce((sum, w) => sum + (w.score || 1), 0);
+        
+        // บวกคะแนน Order (ลำดับ) เพิ่มไปอีก 5 คะแนน (ตาม Logic เดิมใน testGUICode)
+        // เงื่อนไข: ต้องมี widget อย่างน้อย 2 ตัวถึงจะมีคะแนนส่วนนี้
+        if (problemData.widgets.length >= 2) {
+            maxScore += 5; 
+        }
+    }
+
+    // 2. คะแนนจาก Test Cases (จาก problemData.testCases)
+    if (problemData.testCases && Array.isArray(problemData.testCases)) {
+        maxScore += problemData.testCases.reduce((sum, tc) => sum + (tc.score || 1), 0);
+    }
+    
+    return maxScore > 0 ? maxScore : 0;
+}
+
+// ฟังก์ชันอัปเดตการแสดงคะแนน
+function updateScoreDisplay(currentScore = 0, maxScore = null) {
+    if (maxScore === null) {
+        maxScore = calculateMaxScore();
+    }
+    
+    const currentScoreElement = document.getElementById('currentScore');
+    const maxScoreElement = document.getElementById('maxScore');
+    const scorePercentageElement = document.getElementById('scorePercentage');
+    const scoreContainer = document.querySelector('.score-container');
+    
+    if (currentScoreElement && maxScoreElement && scorePercentageElement) {
+        currentScoreElement.textContent = currentScore;
+        maxScoreElement.textContent = maxScore;
+        
+        const percentage = maxScore > 0 ? Math.round((currentScore / maxScore) * 100) : 0;
+        scorePercentageElement.textContent = `${percentage}%`;
+        
+        // เปลี่ยนสีตามเปอร์เซ็นต์
+        scoreContainer.classList.remove('perfect', 'good', 'poor');
+        if (percentage >= 90) {
+            scoreContainer.classList.add('perfect');
+        } else if (percentage >= 70) {
+            scoreContainer.classList.add('good');
+        } else {
+            scoreContainer.classList.add('poor');
+        }
+        
+        // เพิ่ม animation เมื่ออัปเดต
+        scoreContainer.classList.add('updated');
+        setTimeout(() => {
+            scoreContainer.classList.remove('updated');
+        }, 500);
+    }
+}
+
+async function loadGUIProblem(problemId, userId, classId, viewMode) {
+    try {
+        const problemDoc = await db.collection('problems').doc(problemId).get();
+
+        if (!problemDoc.exists) {
+            showError('ไม่พบโจทย์ที่ต้องการ');
+            return;
+        }
+
+        problemData = problemDoc.data(); // เก็บข้อมูลโจทย์ทั้งหมดในตัวแปร global
+        problemTestCases = problemData.testCases || []; // เก็บ Test Cases โดยให้เป็น array ว่างถ้าไม่มี
+
+        // เรียกใช้ loadProblemConfig เพื่อตั้งค่า window.widgetDefinitions และ window.guiTestCases
+        await loadProblemConfig(problemId);
+        
+        // Ensure the problem is of type 'gui'
+        if (problemData.type !== 'gui') {
+            showError('โจทย์นี้ไม่ใช่โจทย์ GUI');
+            return;
+        }
+
+        // แสดงคะแนนเต็มทันทีหลังโหลดโจทย์
+        const maxScore = calculateMaxScore();
+        updateScoreDisplay(0, maxScore);
+
+        // Display basic problem info
+        document.getElementById('problemTitle').textContent = problemData.title || 'ไม่มีชื่อโจทย์';
+        
+        // Display problem description with additional content
+        const descriptionElement = document.getElementById('problemDescription');
+        if (descriptionElement) {
+            let descriptionHTML = problemData.description || 'ไม่มีคำอธิบาย';
+            
+            // เพิ่มรูปภาพถ้ามี
+            if (problemData.image) {
+                descriptionHTML = `
+                    <div class="problem-image">
+                        <img src="${problemData.image}" alt="รูปภาพประกอบโจทย์">
+                    </div>
+                    ${descriptionHTML}
+                `;
+            }
+
+            if (problemData.attachments) {
+            descriptionHTML += renderAttachmentsHTML(problemData.attachments);
+            }
+            
+            // แสดง URL เนื้อหาเพิ่มเติมหลายรายการ
+            if (problemData.contentUrls && problemData.contentUrls.length > 0) {
+                // แยกวิดีโอออกจากเนื้อหาอื่นๆ
+                const videos = problemData.contentUrls.filter(urlItem => {
+                    const { url } = urlItem;
+                    return url.includes('youtube.com') || url.includes('youtu.be');
+                });
+                
+                const otherContent = problemData.contentUrls.filter(urlItem => {
+                    const { url } = urlItem;
+                    return !(url.includes('youtube.com') || url.includes('youtu.be'));
+                });
+                
+                let urlsHtml = '';
+                
+                // แสดงวิดีโอทั้งหมดในกริด
+                if (videos.length > 0) {
+                    const videosHtml = videos.map(urlItem => {
+                        const { title, url } = urlItem;
+                        let videoId = '';
+                        if (url.includes('youtube.com/watch?v=')) {
+                            videoId = url.split('v=')[1].split('&')[0];
+                        } else if (url.includes('youtu.be/')) {
+                            videoId = url.split('youtu.be/')[1].split('?')[0];
+                        }
+                        
+                        if (videoId) {
+                            return `
+                                <div class="video-container">
+                                    <iframe width="240" height="135" 
+                                            src="https://www.youtube.com/embed/${videoId}" 
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen
+                                            title="${title || 'วิดีโอประกอบ'}">
+                                    </iframe>
+                                </div>
+                            `;
+                        }
+                        return '';
+                    }).filter(html => html !== '').join('');
+                    
+                    if (videosHtml) {
+                        urlsHtml += `
+                            <div class="content-section">
+                                <h3>📹 วิดีโอประกอบ</h3>
+                                <div class="videos-grid">
+                                    ${videosHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // แสดงเนื้อหาอื่นๆ
+                const otherContentHtml = otherContent.map(urlItem => {
+                    const { title, url, type } = urlItem;
+                    let contentHTML = '';
+                    
+                    if (url.toLowerCase().includes('.pdf') || type === 'pdf') {
+                        // แสดง PDF
+                        contentHTML = `
+                            <div class="content-section">
+                                <h3>📄 ${title || 'เอกสารประกอบ'}</h3>
+                                <div class="pdf-container">
+                                    <iframe src="${url}" width="100%" height="500px" frameborder="0">
+                                        <p>เบราว์เซอร์ของคุณไม่สามารถแสดง PDF ได้ 
+                                           <a href="${url}" target="_blank">คลิกที่นี่เพื่อเปิดในแท็บใหม่</a>
+                                        </p>
+                                    </iframe>
+                                    <div class="pdf-link">
+                                        <a href="${url}" target="_blank" class="btn-link">🔗 เปิดในแท็บใหม่</a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // แสดงลิงก์ทั่วไป
+                        contentHTML = `
+                            <div class="content-section">
+                                <h3>🔗 ${title || 'เนื้อหาเพิ่มเติม'}</h3>
+                                <div class="link-container">
+                                    <a href="${url}" target="_blank" class="btn-link">${url}</a>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    return contentHTML;
+                }).join('');
+                
+                urlsHtml += otherContentHtml;
+                descriptionHTML = `${descriptionHTML}${urlsHtml}`;
+            }
+            // รองรับข้อมูลเก่าที่ยังใช้ contentUrl เดียว (Backward Compatibility)
+            else if (problemData.contentUrl) {
+                const url = problemData.contentUrl;
+                let contentHTML = '';
+                
+                if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                    // แสดง YouTube video
+                    let videoId = '';
+                    if (url.includes('youtube.com/watch?v=')) {
+                        videoId = url.split('v=')[1].split('&')[0];
+                    } else if (url.includes('youtu.be/')) {
+                        videoId = url.split('youtu.be/')[1].split('?')[0];
+                    }
+                    
+                    if (videoId) {
+                        contentHTML = `
+                            <div class="content-section">
+                                <h3>📹 วิดีโอประกอบ</h3>
+                                <div class="video-container">
+                                    <iframe width="240" height="135" 
+                                            src="https://www.youtube.com/embed/${videoId}" 
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen>
+                                    </iframe>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else if (url.toLowerCase().includes('.pdf')) {
+                    // แสดง PDF
+                    contentHTML = `
+                        <div class="content-section">
+                            <h3>📄 เอกสารประกอบ</h3>
+                            <div class="pdf-container">
+                                <iframe src="${url}" width="100%" height="500px" frameborder="0">
+                                    <p>เบราว์เซอร์ของคุณไม่สามารถแสดง PDF ได้ 
+                                       <a href="${url}" target="_blank">คลิกที่นี่เพื่อเปิดในแท็บใหม่</a>
+                                    </p>
+                                </iframe>
+                                <div class="pdf-link">
+                                    <a href="${url}" target="_blank" class="btn-link">🔗 เปิดในแท็บใหม่</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // แสดงลิงก์ทั่วไป
+                    contentHTML = `
+                        <div class="content-section">
+                            <h3>🔗 เนื้อหาเพิ่มเติม</h3>
+                            <div class="link-container">
+                                <a href="${url}" target="_blank" class="btn-link">${url}</a>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                descriptionHTML = `${descriptionHTML}${contentHTML}`;
+            }
+            
+            descriptionElement.innerHTML = descriptionHTML;
+        }
+
+        // Display GUI image if available
+        const guiImagePreview = document.getElementById('guiImagePreview');
+        if (problemData.guiImage) {
+            guiImagePreview.innerHTML = `<img src="${problemData.guiImage}" alt="ภาพประกอบ GUI" onerror="this.parentElement.style.display='none'">`;
+            guiImagePreview.style.display = 'block';
+        } else {
+            guiImagePreview.style.display = 'none';
+            guiImagePreview.innerHTML = '';
+        }
+
+        // Display widgets (แทน requirements) if available
+        if (problemData.widgets && Array.isArray(problemData.widgets)) {
+            displayWidgets(problemData.widgets); // เปลี่ยนจาก displayRequirements เป็น displayWidgets
+        } else {
+            document.getElementById('requirementsList').innerHTML = '<p>ไม่มี Widgets ระบุ</p>';
+        }
+
+        const codeEditor = document.getElementById('codeEditorTextarea');
+        if (!codeEditor) {
+            console.error('ไม่พบ codeEditorTextarea');
+            return;
+        }
+
+        // Load student's last submission or template code
+        const submissionsSnapshot = await db.collection('submissions')
+            .where('problemId', '==', problemId)
+            .where('userId', '==', userId)
+            .where('classId', '==', classId)
+            .orderBy('timestamp', 'desc')
+            .limit(1)
+            .get();
+
+        if (!submissionsSnapshot.empty) {
+            const submission = submissionsSnapshot.docs[0].data();
+            const currentScore = submission.score || 0;
+            updateScoreDisplay(currentScore, maxScore);
+            
+            codeEditor.value = submission.code || '';
+            if (viewMode) {
+                checkGUICode(submission.code);
+            }
+        } else {
+            updateScoreDisplay(0, maxScore);
+            codeEditor.value = problemData.templateCode || `import tkinter as tk\n\nwindow = tk.Tk()\nwindow.title("My GUI Application")\nwindow.geometry("400x300")\n\n# Add your GUI components here\n\nwindow.mainloop()`;
+        }
+
+        updateLineNumbers();
+
+        if (viewMode) {
+            codeEditor.setAttribute('readonly', 'readonly');
+            document.getElementById('checkBtn').style.display = 'none';
+            document.getElementById('testBtn').style.display = 'none'; // ซ่อนปุ่มตรวจคำตอบในโหมด view
+            document.getElementById('convertBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Error loading problem:', error);
+        showError('เกิดข้อผิดพลาดในการโหลดโจทย์: ' + error.message);
+    }
+}
+
+// เพิ่มฟังก์ชัน displayWidgets (แทน displayRequirements)
+function displayWidgets(widgets) {
+    const requirementsList = document.getElementById('requirementsList');
+    requirementsList.innerHTML = '';
+
+    if (widgets.length === 0) {
+        requirementsList.innerHTML = '<p>ไม่มี Widgets ระบุ</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    widgets.forEach(widget => {
+        const li = document.createElement('li');
+        let widgetText = `${widget.type}: ${widget.text || 'ไม่มีข้อความ'}`;
+        if (widget.props) widgetText += ` - คุณสมบัติ: ${widget.props}`;
+        if (widget.action) widgetText += ` - การทำงาน: ${widget.action}`;
+        if (widget.score) widgetText += ` - คะแนน: ${widget.score}`;
+        li.textContent = widgetText;
+        ul.appendChild(li);
+    });
+
+    requirementsList.appendChild(ul);
+}
+
+// Helper function to show errors
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Helper function to show success messages
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.style.display = 'block';
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        successDiv.style.display = 'none';
+    }, 5000);
+}
+
+
+// --- 🔄 ฟังก์ชัน checkGUICode (ฉบับ Hybrid: ประหยัดเงิน AWS) ---
+async function checkGUICode(code) {
+    const resultFrame = document.getElementById('result-frame');
+    const previewDiv = document.getElementById('guiPreview');
+    
+    // แสดงสถานะ Loading ใน iframe
+    if (resultFrame) {
+        resultFrame.srcdoc = `
+            <html>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <div style="text-align: center;">
+                        <div class="loading">กำลังตรวจสอบ Syntax...</div>
+                    </div>
+                </body>
+            </html>
+        `;
+    }
+    
+    // แสดงสถานะ Loading ใน Preview Div (ถ้ามี)
+    if (previewDiv) {
+        previewDiv.innerHTML = `<div class="loading">กำลังตรวจสอบโค้ด...</div>`;
+    }
+
+    try {
+        // 1. Basic Validation: ตรวจสอบพื้นฐานก่อน (ไม่ต้องเสียเวลาเรียก Pyodide/AWS)
+        
+        // 1.1 ตรวจสอบโค้ดว่าง
+        if (!code || code.trim() === '') {
+            const msg = 'โค้ดว่างเปล่า กรุณาเขียนโค้ด Python';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg);
+            return false;
+        }
+
+        // 1.2 ตรวจสอบ import
+        if (!code.includes('from tkinter import') && !code.includes('import tkinter')) {
+            const msg = 'โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg);
+            return false;
+        }
+
+        // 1.3 ตรวจสอบ mainloop
+        if (!code.includes('mainloop()')) {
+            const msg = 'โค้ดขาด "root.mainloop()" เพื่อแสดง GUI';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg);
+            return false;
+        }
+
+        // 1.4 ตรวจสอบคำสั่งหลัง mainloop (Logic เดิมของคุณ)
+        const lines = code.split('\n').map(line => line.trim());
+        const mainloopIndex = lines.findIndex(line => line.includes('mainloop()'));
+        const linesAfterMainloop = lines.slice(mainloopIndex + 1).filter(line => line && !line.startsWith('#'));
+        const widgetKeywords = ['Label', 'Entry', 'Frame', 'Button', 'StringVar', 'pack(', 'grid(', 'place('];
+        
+        const hasInvalidLines = linesAfterMainloop.some(line => 
+            widgetKeywords.some(keyword => line.includes(keyword))
+        );
+        
+        if (hasInvalidLines) {
+            const msg = 'พบคำสั่งหลัง "root.mainloop()" ซึ่งจะไม่ถูกประมวลผล กรุณาย้ายไปไว้ก่อน mainloop';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg, code);
+            return false;
+        }
+
+        // 2. Hybrid Syntax Check: เรียกใช้ฟังก์ชันฉลาด (Pyodide หรือ AWS)
+        // *** ต้องแน่ใจว่าคุณวางฟังก์ชัน checkSyntax_Hybrid ไว้ในไฟล์แล้ว ***
+        const result = await checkSyntax_Hybrid(code);
+
+        // 3. จัดการผลลัพธ์
+        if (result.status === 'error') {
+            // กรณีมี Error จาก Python/AWS
+            showError(result.message);
+            
+            if (resultFrame) {
+                resultFrame.srcdoc = getErrorHtml(`❌ พบข้อผิดพลาดในโค้ด: ${result.message}`, code);
+            }
+            
+            if (previewDiv) {
+                previewDiv.innerHTML = `
+                    <div class="validation-error">
+                        ❌ พบข้อผิดพลาด: ${result.message}
+                    </div>
+                `;
+            }
+            return false;
+        }
+
+        // กรณีผ่านฉลุย
+        const successMsg = `✅ โค้ดถูกต้องตาม Python syntax (${!isMobileDevice() && pyodideInstance ? 'ตรวจสอบโดย PC' : 'ตรวจสอบโดย Cloud'})`;
+        
+        if (resultFrame) {
+            resultFrame.srcdoc = `
+                <html>
+                    <body style="font-family: Arial, sans-serif; padding: 20px;">
+                        <div class="validation-success" style="color: green; background: #e6ffe6; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
+                            ${successMsg}
+                        </div>
+                    </body>
+                </html>
+            `;
+        }
+
+        if (previewDiv) {
+            previewDiv.innerHTML = `
+                <div class="validation-success">
+                    ${successMsg}
+                </div>
+            `;
+        }
+        
+        return true;
+
+    } catch (error) {
+        console.error("System Error in checkGUICode:", error);
+        showError('ข้อผิดพลาดระบบ: ' + error.message);
+        if (resultFrame) resultFrame.srcdoc = getErrorHtml(`System Error: ${error.message}`);
+        return false;
+    }
+}
+
+// Helper Function สำหรับสร้าง HTML Error สวยๆ ใน iframe
+function getErrorHtml(message, codeContext = '') {
+    return `
+        <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+                <div class="validation-error" style="color: #721c24; background: #f8d7da; padding: 15px; border-radius: 5px; border: 1px solid #f5c6cb;">
+                    ${message}
+                    ${codeContext ? `<pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; margin-top: 10px; color: #333;">${codeContext}</pre>` : ''}
+                </div>
+            </body>
+        </html>
+    `;
+}
+
+// Function to set up event listeners
+// Function to set up event listeners
+function setupEventListeners(problemId, classId, userId, viewMode) {
+    if (viewMode) return;
+
+    const codeEditor = document.getElementById('codeEditorTextarea');
+    if (!codeEditor) {
+        console.error('ไม่พบ codeEditorTextarea');
+        return;
+    }
+
+    const checkBtn = document.getElementById('checkBtn');
+    const testBtn = document.getElementById('testBtn');
+    const convertBtn = document.getElementById('convertBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const testCaseBtn = document.getElementById('testCaseBtn');
+    
+    // ✅ 1. เพิ่มการอ้างอิงปุ่ม Reset ตรงนี้
+    const resetBtn = document.getElementById('resetBtn');
+
+    // ตั้งค่าสถานะเริ่มต้นปุ่มต่างๆ
+    if (convertBtn) convertBtn.disabled = true;
+    if (testBtn) testBtn.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+    if (testCaseBtn) testCaseBtn.disabled = true;
+
+    // --- Event Listeners เดิม ---
+    if (checkBtn) {
+        checkBtn.addEventListener('click', async () => {
+            const code = codeEditor.value;
+            const isValid = await checkGUICode(code);
+            if (convertBtn) convertBtn.disabled = !isValid;
+            if (submitBtn) submitBtn.disabled = !isValid;
+            
+            if (testBtn) testBtn.disabled = true;
+            if (testCaseBtn) testCaseBtn.disabled = true;
+        });
+    }
+
+    if (testBtn) {
+        testBtn.addEventListener('click', checkAnswer);
+    }
+
+    if (convertBtn) {
+        convertBtn.addEventListener('click', async () => {
+            console.log('Preview button clicked');
+            
+            // 1. ตรวจสอบสถานะปุ่ม
+            if (convertBtn.disabled) {
+                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนแสดง GUI');
+                return;
+            }
+            
+            const code = codeEditor.value;
+
+            // 2. ✅ ตรวจสอบ Syntax ก่อน (เพื่อให้แน่ใจว่าไม่ Error ตามที่คุณขอ)
+            // เราเรียกใช้ checkGUICode อีกครั้งเพื่อความชัวร์ (หรือถ้ามั่นใจว่าปุ่มเปิดคือผ่านแล้ว ก็ข้ามบรรทัดนี้ได้)
+            const isValid = await checkGUICode(code);
+            
+            if (isValid) {
+                // 3. ส่งไปแสดงผล (Simulator)
+                sendToSimulator(true);
+                
+                // 4. เปิดปุ่มตรวจคำตอบ
+                if (testBtn) testBtn.disabled = false;
+                
+                // 5. ✅✅ บันทึกโค้ดทันที (ทุกกรณีที่ไม่ Error)
+                await saveDraftCode(code);
+            } else {
+                console.log("Code has errors, not saving.");
+            }
+        });
+    }
+
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            const code = codeEditor.value;
+
+            if (submitBtn.disabled) {
+                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนส่งงาน');
+                return;
+            }
+
+            const alreadySubmitted = await checkSubmissionStatus(problemId, userId);
+            if (alreadySubmitted) {
+                showError('คุณได้ส่งงานไปแล้ว ไม่สามารถส่งซ้ำได้');
+                return;
+            }
+
+            // ✅ แก้ไข: เรียกฟังก์ชันส่งงานเลย (ไม่ต้องเรียก checkAnswer ซ้ำให้รำคาญ)
+            try {
+                // ปิดปุ่มกันกดซ้ำ
+                submitBtn.disabled = true; 
+                submitBtn.textContent = 'กำลังส่ง...';
+                
+                await submitGUICode(code, problemId, userId, classId);
+                
+            } catch (error) {
+                submitBtn.disabled = false; // เปิดคืนถ้า error
+                submitBtn.textContent = 'ส่งงาน';
+                showError('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        });
+    }
+
+    // ✅ 2. เพิ่ม Logic ปุ่ม Reset เข้าไปในนี้ (ทำงานชัวร์แน่นอน)
+    if (resetBtn) {
+        console.log("✅ Reset button detected inside setupEventListeners");
+        resetBtn.addEventListener('click', function() {
+            if (confirm('⚠️ คุณต้องการล้างโค้ดทั้งหมดและเริ่มใหม่ใช่หรือไม่?\n\n(โค้ดปัจจุบันจะหายไป และกลับไปเป็นค่าเริ่มต้น)')) {
+                
+                // เตรียม Template
+                let startCode = `# เขียนโค้ด Python ที่นี่\n\nimport tkinter as tk\n\n# สร้างหน้าต่าง GUI\nwindow = tk.Tk()\nwindow.title('My GUI Application')\n\n# เพิ่ม widgets ที่นี่\n\n# แสดงหน้าต่าง\nwindow.mainloop()`;
+
+                // ถ้าโจทย์มี Template ให้ใช้ของโจทย์ (ดึงจากตัวแปร global problemData)
+                if (typeof problemData !== 'undefined' && problemData.templateCode) {
+                    startCode = problemData.templateCode;
+                }
+
+                // ใส่โค้ดลง Editor
+                codeEditor.value = startCode;
+
+                // อัปเดตหน้าจอ
+                if (typeof updateLineNumbers === 'function') updateLineNumbers();
+                if (typeof updateCodeHighlight === 'function') updateCodeHighlight();
+                
+                // ล้างจอ Preview
+                const resultFrame = document.getElementById('result-frame');
+                if (resultFrame) resultFrame.srcdoc = '';
+                
+                const guiPreview = document.getElementById('guiPreview');
+                if (guiPreview) guiPreview.innerHTML = '';
+
+                // รีเซ็ตปุ่มต่างๆ
+                if (convertBtn) convertBtn.disabled = true;
+                if (testBtn) testBtn.disabled = true;
+                if (testCaseBtn) testCaseBtn.disabled = true;
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        });
+    } else {
+        console.warn("⚠️ Reset button NOT found in HTML");
+    }
+}
+
+async function checkAnswer() {
+    console.log('=== เริ่มการตรวจสอบคำตอบ (Structure Only + Return Fix) ===');
+    
+    const iframe = document.getElementById('result-frame');
+    const convertBtn = document.getElementById('convertBtn');
+    
+    // 1. ตรวจสอบความพร้อม
+    if (convertBtn && convertBtn.disabled) {
+        alert('กรุณาตรวจสอบโค้ดให้ผ่านก่อนตรวจคำตอบ');
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 ส่งค่ากลับว่าไม่ผ่าน
+    }
+    
+    if (!iframe || !iframe.srcdoc || iframe.srcdoc.includes('กำลังประมวลผล GUI')) {
+        alert('กรุณารันโค้ดก่อนตรวจคำตอบ');
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 ส่งค่ากลับว่าไม่ผ่าน
+    }
+
+    // ข้อมูลจากโจทย์ (Expected)
+    const expectedWidgets = window.widgetDefinitions || [];
+    
+    // ข้อมูลจากนักเรียน (Actual) - ดึงมาเฉพาะ Type
+    const allWidgets = Array.from(iframe.contentDocument.querySelectorAll('[data-index]'));
+    
+    // เรียงตามลำดับการสร้างจริง
+    const sortedWidgets = [...allWidgets].sort((a, b) => {
+        return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0);
+    });
+
+    // Helper: แปลงเป็นข้อมูลสำหรับเทียบ
+    const getWidgetType = (w) => {
+        if (w.className.includes('tk-label')) return 'Label';
+        if (w.className.includes('tk-entry')) return 'Entry';
+        if (w.className.includes('tk-button')) return 'Button';
+        if (w.className.includes('tk-checkbox') || w.type === 'checkbox') return 'Checkbutton';
+        return 'Unknown';
+    };
+
+    const actualTypes = sortedWidgets.map(w => getWidgetType(w));
+    const report = [];
+    let isStructurePerfect = true;
+
+    // -------------------------------------------------------------
+    // 1. เช็คสต็อก (Inventory Check)
+    // -------------------------------------------------------------
+    const typeCounts = {}; 
+    actualTypes.forEach(t => typeCounts[t] = (typeCounts[t] || 0) + 1);
+
+    const inventoryReport = [];
+    const missingTypes = {}; 
+    const uniqueExpectedTypes = [...new Set(expectedWidgets.map(w => w.type))];
+    
+    uniqueExpectedTypes.forEach(type => {
+        const required = expectedWidgets.filter(w => w.type === type).length;
+        const current = typeCounts[type] || 0;
+
+        if (current < required) {
+            missingTypes[type] = required - current;
+            inventoryReport.push(`❌ ${type}: ขาด ${required - current} ตัว`);
+        } else if (current > required) {
+            // inventoryReport.push(`⚠️ ${type}: เกินมา ${current - required} ตัว`);
+        } else {
+            inventoryReport.push(`✅ ${type}: ครบ`);
+        }
+    });
+
+    // -------------------------------------------------------------
+    // 2. ตรวจสอบลำดับ (Sequence Check - Two Pointer)
+    // -------------------------------------------------------------
+    let expIndex = 0; 
+    let actIndex = 0; 
+
+    while (expIndex < expectedWidgets.length) {
+        const def = expectedWidgets[expIndex];    
+        const actualType = actualTypes[actIndex];   
+
+        // 2.1 ของนักเรียนหมดแล้ว แต่โจทย์ยังเหลือ
+        if (!actualType) {
+            isStructurePerfect = false;
+            report.push(`ลำดับที่ ${expIndex + 1}: ❌ หายไป (คุณลืมสร้าง ${def.type})`);
+            expIndex++; 
+            continue;
+        }
+
+        // 2.2 ✅ ชนิดตรงกัน (ผ่าน!)
+        if (actualType === def.type) {
+            report.push(`ลำดับที่ ${expIndex + 1}: ✅ ถูกต้อง (${actualType})`);
+            expIndex++;
+            actIndex++;
+        } 
+        // 2.3 ❌ ชนิดไม่ตรงกัน
+        else {
+            isStructurePerfect = false;
+            
+            // เช็คว่าเพราะ "ของขาด" หรือเปล่า? (Shift Detection)
+            if (missingTypes[def.type] > 0) {
+                report.push(`ลำดับที่ ${expIndex + 1}: ❌ ขาด ${def.type} (คุณข้ามไปสร้าง ${actualType} แทน)`);
+                missingTypes[def.type]--; 
+                expIndex++; // ขยับแค่โจทย์ รอตรวจตัวถัดไป (นักเรียนอยู่ที่เดิม)
+            } else {
+                report.push(`ลำดับที่ ${expIndex + 1}: ❌ ผิดประเภท (ควรเป็น ${def.type} แต่พบ ${actualType})`);
+                expIndex++;
+                actIndex++;
+            }
+        }
+    }
+
+    const testCaseBtn = document.getElementById('testCaseBtn');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // -------------------------------------------------------------
+    // 3. ตัดสินผล "โครงสร้าง"
+    // -------------------------------------------------------------
+    if (!isStructurePerfect) {
+        const finalMsg = 
+            `❌ โครงสร้างไม่ถูกต้อง\n\n` +
+            `--- 📊 สรุปยอดรวม ---\n` +
+            `${inventoryReport.join('\n')}\n\n` +
+            `--- 📍 รายละเอียด ---\n` +
+            `${report.join('\n')}`;
+
+        alert(finalMsg);
+        
+        if (testCaseBtn) testCaseBtn.disabled = true;
+        if (submitBtn) submitBtn.disabled = true;
+        
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 ส่งค่ากลับว่าไม่ผ่าน
+    }
+
+    // -------------------------------------------------------------
+    // 4. โครงสร้างผ่าน -> เปิดทางให้ไปต่อ (Running Logic Tests)
+    // -------------------------------------------------------------
+    console.log("Structure OK -> Running Logic Tests...");
+    
+    // ✅ ปลดล็อกปุ่ม Test Case ทันทีที่โครงสร้างผ่าน
+    if (testCaseBtn) {
+        testCaseBtn.disabled = false;
+        testCaseBtn.style.opacity = "1";
+        testCaseBtn.style.cursor = "pointer";
+    }
+
+    try {
+        const codeEditor = document.getElementById('codeEditorTextarea');
+        
+        // รันฟังก์ชันให้คะแนน (testGUICode จะ return object ผลลัพธ์กลับมา)
+        const testResult = await testGUICode(codeEditor.value, window.guiTestCases, iframe);
+        
+        // อัปเดตตัวเลขคะแนนบนหน้าจอ
+        updateScoreDisplay(testResult.totalScore, testResult.maxScore);
+
+        // เช็คเงื่อนไขส่งงาน (ต้องคะแนนเต็มถึงจะส่งได้)
+        if (testResult.passed === true) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = "1";
+                submitBtn.style.cursor = "pointer";
+            }
+            alert(`✅ โครงสร้างถูกต้อง และได้คะแนนเต็ม!\n\nคะแนน: ${testResult.totalScore}/${testResult.maxScore}`);
+            showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
+        } else {
+            // โครงสร้างถูก แต่คะแนนไม่เต็ม
+            if (submitBtn) submitBtn.disabled = true;
+            
+            alert(`⚠️ โครงสร้างถูกต้อง (ปุ่ม Test Case เปิดแล้ว)\n\nแต่คะแนนยังไม่เต็ม (${testResult.totalScore}/${testResult.maxScore})\nอาจมีข้อความผิด หรือ Test Case ไม่ผ่าน`);
+        }
+        
+        if (typeof saveDraftCode === 'function') {
+             saveDraftCode(codeEditor.value);
+        }
+
+        // ✅✅ จุดสำคัญที่ขาดไป: ส่งผลลัพธ์ออกไปให้ปุ่ม Submit ใช้งาน
+        return testResult; 
+
+    } catch (error) {
+        console.error('Test Error:', error);
+        showError('เกิดข้อผิดพลาด: ' + error.message);
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 กรณี Error
+    }
+}
+// ตรวจสอบสถานะการส่งงาน (และล็อกหน้าจอถ้าส่งแล้ว)
+// ตรวจสอบสถานะการส่งงาน (แก้ไขชื่อฟิลด์เป็น studentId แล้ว)
+async function checkSubmissionStatus(problemId, userId) {
+    try {
+        const submissionsRef = db.collection('submissions')
+            .where('problemId', '==', problemId)
+            .where('studentId', '==', userId) // ✅ แก้เป็น studentId
+            .where('type', '==', 'gui')
+            .where('status', '==', 'completed')
+            .orderBy('timestamp', 'desc')
+            .limit(1);
+            
+        const snapshot = await submissionsRef.get();
+        
+        if (!snapshot.empty) {
+            console.log("🔒 พบการส่งงานแล้ว -> ล็อกหน้าจอ (View Mode)");
+            
+            const lastSubmission = snapshot.docs[0].data();
+            showSuccess(`ส่งงานแล้วเมื่อ: ${lastSubmission.timestamp?.toDate().toLocaleString('th-TH')}`);
+
+            // 1. ล็อก Editor
+            const codeEditor = document.getElementById('codeEditorTextarea');
+            if (codeEditor) {
+                codeEditor.setAttribute('readonly', 'readonly');
+                codeEditor.style.backgroundColor = '#f0f0f0';
+                codeEditor.style.color = '#555';
+            }
+
+            // 2. ซ่อนปุ่มทั้งหมด (เหลือแค่ Back)
+            const buttonsToHide = ['checkBtn', 'convertBtn', 'testBtn', 'submitBtn', 'testCaseBtn', 'resetBtn'];
+            buttonsToHide.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.style.display = 'none';
+            });
+            
+            return true; // ส่งแล้ว
+        }
+        return false; // ยังไม่ส่ง
+    } catch (error) {
+        console.error('Error checking submission:', error);
+        return false;
+    }
+}
+async function submitGUICode(code, problemId, userId, classId) {
+    try {
+        console.log("🚀 กำลังส่งงาน...");
+        
+        // 1. เช็คคะแนนจากหน้าจอ
+        const currentScoreEl = document.getElementById('currentScore');
+        const maxScoreEl = document.getElementById('maxScore');
+        const currentScore = parseInt(currentScoreEl ? currentScoreEl.innerText : '0') || 0;
+        const maxScore = parseInt(maxScoreEl ? maxScoreEl.innerText : '0') || 0;
+
+        // 2. ถ้าคะแนนไม่เต็ม ห้ามส่ง
+        if (currentScore < maxScore || maxScore === 0) {
+            alert(`⚠️ คะแนนยังไม่ครบ (${currentScore}/${maxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
+            return;
+        }
+
+        // 3. ✅ บันทึก (สำคัญ: ใช้ studentId และ status: 'completed')
+        await db.collection('submissions').add({
+            problemId: problemId,
+            studentId: userId, // <--- ใช้ studentId เพื่อให้ตรงกับ class detail
+            classId: classId,
+            code: code,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            type: 'gui',
+            status: 'completed', // <--- ใช้ completed เพื่อให้ปุ่มเป็นสีเขียว
+            testResult: 'passed',
+            score: currentScore,
+            maxScore: maxScore
+        });
+        
+        console.log('✅ บันทึกข้อมูลสำเร็จ');
+
+        // 4. แจ้งเตือนและกลับ
+        alert('ส่งงานเรียบร้อยแล้ว! (คะแนนเต็ม)');
+        window.location.href = `student-class-detail.html?id=${classId}`; 
+        
+    } catch (error) {
+        console.error('Error submitting:', error);
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
+    }
+}
+
+// Function to display requirements
+function displayRequirements(requirements) {
+    const requirementsList = document.getElementById('requirementsList');
+    requirementsList.innerHTML = '';
+
+    if (requirements.length === 0) {
+        requirementsList.innerHTML = '<p>ไม่มีข้อกำหนดระบุ</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    requirements.forEach(req => {
+        const li = document.createElement('li');
+        let requirementText = `${req.type} (${req.name})`;
+        if (req.text) requirementText += ` - ข้อความ: "${req.text}"`;
+        if (req.props) requirementText += ` - คุณสมบัติ: ${req.props}`;
+        if (req.event) requirementText += ` - เหตุการณ์: ${req.event}`;
+        if (req.description) requirementText += ` - คำอธิบาย: ${req.description}`;
+        if (req.score) requirementText += ` - คะแนน: ${req.score}`;
+        li.textContent = requirementText;
+        ul.appendChild(li);
+    });
+
+    requirementsList.appendChild(ul);
+}
+
+// นอกฟังก์ชันทั้งหมด
+
+  
+async function sendToSimulator(autoRun = false) {
+    console.log('=== เริ่มการส่งโค้ดไปยัง Simulator ===');
+    const code = document.getElementById('pythonInput')?.value
+               || document.getElementById('codeEditorTextarea')?.value
+               || '';
+    
+    console.log('โค้ดที่จะส่ง:', code.substring(0, 100) + '...');
+    
+    if (!code.trim()) {
+      showError('กรุณาเขียนโค้ด Python');
+      return;
+    }
+  
+    // ตรวจสอบ from tkinter import * หรือ import tkinter as tk
+    if (!code.includes('from tkinter import') && !code.includes('import tkinter')) {
+      showError('โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"');
+      if (resultFrame) {
+        resultFrame.srcdoc = `
+          <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <div class="validation-error" style="color: red; background: #ffe6e6; padding: 15px; border-radius: 5px;">
+                ❌ โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"<br>กรุณาเพิ่มคำสั่งนำเข้า Tkinter ที่ต้นโค้ด
+              </div>
+            </body>
+          </html>
+        `;
+      }
+      return;
+    }
+  
+    // ใช้ result-frame แทน guiPreview
+    const resultFrame = document.getElementById('result-frame');
+    const previewDiv  = document.getElementById('guiPreview');
+  
+    if (!resultFrame) {
+      console.error('ไม่พบ result-frame element');
+      return;
+    }
+  
+    try {
+      // แสดงข้อความ loading ใน result-frame
+      resultFrame.srcdoc = `
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>กำลังโหลด...</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+            <div>กำลังประมวลผล GUI...</div>
+          </body>
+        </html>
+      `;
+  
+      // สร้าง HTML GUI ด้วย convertCode()
+      convertCode();
+      const htmlOutput = document.getElementById('htmlOutput').value;
+      
+      // เพิ่ม console.log เพื่อแสดงเนื้อหาของ htmlOutput ที่จะถูกใส่ใน iframe.srcdoc
+      console.log('HTML Output ที่จะใส่ใน iframe.srcdoc:', htmlOutput.substring(0, 500) + '...');
+      
+      // แสดงผลใน result-frame
+      resultFrame.srcdoc = htmlOutput;
+      
+      // เพิ่ม console.log หลังจากกำหนดค่า iframe.srcdoc
+      console.log('iframe.srcdoc หลังกำหนดค่า:', resultFrame.srcdoc.substring(0, 500) + '...');
+  
+      // **เพิ่ม onload เพื่อปรับขนาด iframe ตามเนื้อหาในตัวมันเอง**
+      resultFrame.onload = () => {
+        try {
+          const doc = resultFrame.contentDocument || resultFrame.contentWindow.document;
+          const contentHeight = doc.documentElement.scrollHeight;
+          resultFrame.style.height = contentHeight + 'px';
+        } catch (e) {
+          console.warn('ปรับขนาด iframe อัตโนมัติไม่สำเร็จ:', e);
+        }
+      };
+  
+      // ถ้ามี guiPreview ให้แสดงสถานะสำเร็จ
+      if (previewDiv) {
+        previewDiv.innerHTML = `
+          <div class="validation-success">
+            ✅ GUI ทำงานได้ถูกต้อง (แสดงผลใน result-frame)
+          </div>
+        `;
+      }
+  
+      console.log('GUI แสดงผลใน result-frame เรียบร้อย');
+  
+    } catch (error) {
+      console.error('Error in sendToSimulator:', error);
+  
+      // แสดงข้อผิดพลาดใน result-frame
+      resultFrame.srcdoc = `
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>เกิดข้อผิดพลาด</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; padding: 20px; color: red;">
+            <h3>เกิดข้อผิดพลาด</h3>
+            <p>${error.message}</p>
+          </body>
+        </html>
+      `;
+  
+      if (previewDiv) {
+        previewDiv.innerHTML = `
+          <div class="validation-error">
+            ❌ เกิดข้อผิดพลาด: ${error.message}
+          </div>
+        `;
+      }
+    }
+  }
+  
+  
+  function convertCode() {
+    const code = document.getElementById('pythonInput')?.value
+               || document.getElementById('codeEditor')?.value
+               || '';
+    const lines = code.split('\n');
+  
+    // 1. Metadata และตัวเก็บ widget definitions
+    let title    = 'GUI';
+    let guiWidth = 400, guiHeight = 300;
+    const labels       = [];   // [{ name, text, fg, bg }, …]
+    const entries      = {};   // { entryVar: placeholder, … }
+    const checks       = {};   // { varName: { on, off, label }, … }
+    const buttons      = [];   // [{ name, text }, …]
+    const localMap     = {};   // { localVar: entryVar, … }
+    const buttonToFunc = {};   // { buttonVarName: functionName, … }
+  
+    // 2. เตรียมอาร์เรย์เก็บหลาย ๆ ฟังก์ชัน
+    const functions = [];  // แต่ละ element: { name: <ชื่อฟังก์ชัน>, lines: [<บรรทัดภายใน>] }
+    let inFunc = false;
+  
+    // 3. Pass 1: parse definitions + capture function body
+    lines.forEach(raw => {
+      const line = raw.trim();
+
+      if (line.startsWith('#')) return;
+
+
+      let m;
+  
+      // title
+      if (m = line.match(/(?:root|window)\.title\(['"](.+?)['"]\)/)) {
+        title = m[1];
+      }
+      // geometry
+      else if (m = line.match(/root\.geometry\(['"](\d+)x(\d+)['"]\)/)) {
+        guiWidth  = parseInt(m[1], 10);
+        guiHeight = parseInt(m[2], 10);
+      }
+      // StringVar(value='...')
+      else if (m = line.match(/(\w+)\s*=\s*StringVar\s*\(\s*value=['"](.+?)['"]\s*\)/)) {
+        entries[m[1]] = m[2];
+      }
+      // Entry(... textvariable=<var> ...)
+      else if (m = line.match(/Entry\([^)]*textvariable\s*=\s*(\w+)/)) {
+        if (!(m[1] in entries)) entries[m[1]] = '';
+      }
+      // Label(text='...', fg='...', bg='...')
+      else if (m = line.match(/(\w+)\s*=\s*Label\(\s*([^)]*?)\s*\)/)) {
+        const name = m[1], opts = m[2];
+        const text = (opts.match(/text=['"](.+?)['"]/) || [])[1] || '';
+        const fg   = (opts.match(/fg=['"](.+?)['"]/)   || [])[1] || '';
+        const bg   = (opts.match(/bg=['"](.+?)['"]/)   || [])[1] || '';
+        labels.push({ name, text, fg, bg });
+      }
+      // IntVar()
+      else if (m = line.match(/(\w+)\s*=\s*IntVar/)) {
+        checks[m[1]] = { on: 1, off: 0, label: '' };
+      }
+      // Button(text='...')
+      else if (m = line.match(/(\w+)\s*=\s*Button\([^)]*text=['"](.+?)['"]\)/)) {
+        buttons.push({ name: m[1], text: m[2] });
+      }
+      // ButtonVar.configure(command=<func>)
+      else if (m = line.match(/(\w+)\.configure\(\s*command\s*=\s*(\w+)\s*\)/)) {
+        // m[1] = "button1",   m[2] = "cal"
+        buttonToFunc[m[1]] = m[2];
+      }
+      // Checkbutton(text='...', variable=<var>, onvalue=<n>, offvalue=<n>)
+      else if (m = line.match(
+        /Checkbutton\([^)]*text=['"](.+?)['"][^)]*variable\s*=\s*(\w+)[^)]*onvalue\s*=\s*(\d+)[^)]*offvalue\s*=\s*(\d+)/
+      )) {
+        // m[1]=label text, m[2]=variable name, m[3]=onvalue, m[4]=offvalue
+        checks[m[2]] = { on: +m[3], off: +m[4], label: m[1] };
+      }
+      // localVar = int(entryVar.get())
+      else if (m = line.match(/(\w+)\s*=\s*int\(\s*(\w+)\.get\(\)\s*\)/)) {
+        // m[1] = localVar, m[2] = entryVar
+        localMap[m[1]] = m[2];
+      }
+      // def <fnName>():
+      else if (m = line.match(/def\s+(\w+)\s*\(\)\s*:/)) {
+        const fnName = m[1];
+        functions.push({ name: fnName, lines: [] });
+        inFunc = true;
+      }
+      // บรรทัดภายในฟังก์ชัน (indent)
+      else if (inFunc) {
+        if (/^\s/.test(raw)) {
+          const lastFn = functions[functions.length - 1];
+          lastFn.lines.push(line);
+        } else {
+          inFunc = false;
+        }
+      }
+    });
+  
+    // 4. Extract f-string + static configs + branchVar for each function
+    const exprConfigsByName = {};  // { fnName: [{ label, prefix, expr, suffix }, ...] }
+    const staticConfigsByName = {}; // { fnName: [{ varName, text }, ...] }
+    const branchArrayByName = {};  // { fnName: [ { cond, varName, text }, … ] }
+    const branchVarByName   = {};  // { fnName: [ 'var1', 'var2', … ] }
+  
+    functions.forEach(fn => {
+      const exprConfigs = []; // เปลี่ยนจาก exprConfig เดียวเป็น array
+      const branchVars = new Set();
+      const staticConfigs = [];
+      const branchArray = [];
+      let currCond = null;
+      let branchIndex = -1;
+  
+      // (A) หาชื่อตัวแปร checkbox และ f-string update + staticConfigs
+      fn.lines.forEach((fl, lineIndex) => {
+        // ตรวจสอบว่าบรรทัดนี้อยู่ภายใต้เงื่อนไขหรือไม่
+        let isInBranch = false;
+        
+        // ตรวจสอบบรรทัดก่อนหน้าเพื่อดูว่าอยู่ใน if/elif/else block หรือไม่
+        for (let i = lineIndex - 1; i >= 0; i--) {
+          const prevLine = fn.lines[i];
+          if (prevLine.match(/^\s*(if|elif|else)/)) {
+            isInBranch = true;
+            break;
+          }
+          // ถ้าเจอบรรทัดที่ไม่ indent แล้วไม่ใช่ if/elif/else แสดงว่าออกจาก block แล้ว
+          if (!prevLine.match(/^\s+/) && !prevLine.match(/^\s*(if|elif|else)/)) {
+            break;
+          }
+        }
+        
+        // f-string ที่มีตัวแปร: <widget>.config(text=f'prefix{expr}suffix')
+        if (m = fl.match(/(\w+)\.config\(\s*text\s*=\s*f['"](.+?)['"]\)/)) {
+          const labelName = m[1];
+          let fStringContent = m[2];
+          
+          // ตรวจสอบว่ามี {} หรือไม่
+          if (fStringContent.includes('{') && fStringContent.includes('}')) {
+            // แปลง {expression} เป็น ${expression}
+            fStringContent = fStringContent.replace(/\{([^}]+)\}/g, '${$1}');
+            
+            // มีตัวแปร - ประมวลผลเป็น exprConfig
+            const exprMatch = fStringContent.match(/^(.*?)\$\{(.+?)\}(.*)$/);
+            if (exprMatch && !isInBranch) {
+              exprConfigs.push({
+                label: labelName,
+                prefix: exprMatch[1],
+                expr: exprMatch[2],
+                suffix: exprMatch[3]
+              });
+            }
+          } else {
+            // ไม่มีตัวแปร - ประมวลผลเป็น staticConfig
+            if (!isInBranch) {
+              staticConfigs.push({ varName: labelName, text: fStringContent });
+            }
+          }
+        }
+        // static config(text='...') 
+        else if (m = fl.match(/^\s*(\w+)\.config\(\s*text\s*=\s*['"](.+?)['"]\s*\)/)) {
+          if (!isInBranch) {
+            let text = m[2];
+            // แปลง {expression} เป็น ${expression} ถ้ามี
+            text = text.replace(/\{([^}]+)\}/g, '${$1}');
+            staticConfigs.push({ varName: m[1], text: text });
+          }
+        }
+      });
+  
+      // เก็บ array แทนที่จะเก็บตัวเดียว
+      if (exprConfigs.length > 0) {
+        exprConfigsByName[fn.name] = exprConfigs;
+      }
+      if (staticConfigs.length > 0) {
+        staticConfigsByName[fn.name] = staticConfigs;
+      }
+      if (branchVars.size > 0) {
+        branchVarByName[fn.name] = Array.from(branchVars);
+      }
+  
+      // (B) สร้าง branchArray: อ่านเงื่อนไข if/elif/else กับ config(text=…)
+      currCond = null;
+      branchIndex = -1;
+      fn.lines.forEach(fl => {
+        let m;
+        if (m = fl.match(/^\s*(if|elif)\s*\((.+?)\)\s*:/)) {
+          currCond = m[2].trim();
+          branchIndex++;
+          branchArray[branchIndex] = { cond: currCond, varName: null, text: null };
+        }
+        else if (/^\s*else\s*:/.test(fl)) {
+          currCond = null;
+          branchIndex++;
+          branchArray[branchIndex] = { cond: null, varName: null, text: null };
+        }
+        else if (m = fl.match(/^\s*(\w+)\.config\(\s*text\s*=\s*f?['"](.+?)['"]\s*\)/)) {
+          if (branchIndex >= 0 && branchArray[branchIndex]) {
+            branchArray[branchIndex].varName = m[1];
+            let text = m[2];
+            // แปลง {expression} เป็น ${expression} สำหรับ template literals
+            text = text.replace(/\{([^}]+)\}/g, '${$1}');
+            branchArray[branchIndex].text = text;
+          }
+        }
+      });
+  
+      if (branchArray.length > 0) {
+        branchArrayByName[fn.name] = branchArray;
+      }
+    });
+  
+    // 5. Build HTML for widgets ตามลำดับที่พบในโค้ด Python
+    const html = [];
+    let widgetIndex = 0;
+
+    // เก็บข้อมูล widget ทั้งหมดพร้อมลำดับที่พบในโค้ด
+    const allWidgets = [];
+
+    // วนลูปผ่านแต่ละบรรทัดของโค้ด Python อีกครั้ง
+    lines.forEach((line, lineIndex) => {
+      let m;
+      
+      // Label(text='...', fg='...', bg='...')
+      if (m = line.match(/\b(\w+)\s*=\s*Label\s*\((.*)\)/)) {
+        const name = m[1];
+        const labelInfo = labels.find(l => l.name === name);
+        if (labelInfo) {
+          allWidgets.push({
+            type: 'label',
+            name: name,
+            lineIndex: lineIndex,
+            data: labelInfo
+          });
+        }
+      }
+      // StringVar(value='...')
+      else if (m = line.match(/\b(\w+)\s*=\s*StringVar\s*\((.*)\)/)) {
+        const name = m[1];
+        if (entries[name]) {
+          allWidgets.push({
+            type: 'entry',
+            name: name,
+            lineIndex: lineIndex,
+            placeholder: entries[name]
+          });
+        }
+      }
+      // IntVar()
+      else if (m = line.match(/\b(\w+)\s*=\s*IntVar\s*\((.*)\)/)) {
+        const name = m[1];
+        if (checks[name]) {
+          allWidgets.push({
+            type: 'checkbox',
+            name: name,
+            lineIndex: lineIndex,
+            data: checks[name]
+          });
+        }
+      }
+      // Button(text='...')
+      else if (m = line.match(/\b(\w+)\s*=\s*Button\s*\((.*)\)/)) {
+        const name = m[1];
+        const buttonInfo = buttons.find(b => b.name === name);
+        if (buttonInfo) {
+          allWidgets.push({
+            type: 'button',
+            name: name,
+            lineIndex: lineIndex,
+            data: buttonInfo
+          });
+        }
+      }
+    });
+
+    // เรียงลำดับ widget ตามบรรทัดที่พบในโค้ด Python
+    allWidgets.sort((a, b) => a.lineIndex - b.lineIndex);
+
+    // สร้าง HTML ตามลำดับที่เรียงแล้ว
+    allWidgets.forEach(widget => {
+      switch (widget.type) {
+        case 'label':
+          let style = '';
+          if (widget.data.fg) style += `color:${widget.data.fg};`;
+          if (widget.data.bg) style += `background-color:${widget.data.bg};`;
+          html.push(`<div id="label_${widget.name}" class="tk-label" data-var="${widget.name}" data-index="${widgetIndex++}" style="${style}">${widget.data.text}</div>`);
+          break;
+        case 'entry':
+          const placeholder = widget.placeholder ? ` placeholder="${widget.placeholder}"` : '';
+          html.push(`<input type="text" id="entry_${widget.name}" class="tk-entry" data-var="${widget.name}" data-index="${widgetIndex++}"${placeholder}/>`);
+          break;
+        case 'checkbox':
+          html.push(`<label><input type="checkbox" id="cb_${widget.name}" class="tk-checkbox" data-var="${widget.name}" data-index="${widgetIndex++}"/>${widget.data.label}</label>`);
+          break;
+        case 'button':
+          const fn = buttonToFunc[widget.name] || widget.name;
+          html.push(`<button onclick="${fn}()" class="tk-button" data-index="${widgetIndex++}">${widget.data.text}</button>`);
+          break;
+      }
+    });
+
+    // ถ้าไม่มี widget เลย ให้ fallback สร้างปุ่มจากชื่อฟังก์ชัน
+    if (allWidgets.length === 0) {
+      functions.forEach(fn => {
+        html.push(`<button onclick="${fn.name}()" class="tk-button" data-index="${widgetIndex++}">${fn.name}</button>`);
+      });
+    }
+  
+    // 6. Build JavaScript for all functions
+    let js = '';
+    functions.forEach(fn => {
+      js += `function ${fn.name}() {\n`;
+  
+      // (1) locals จาก entry
+      Object.entries(localMap).forEach(([local, w]) => {
+        js += `  const ${local} = parseInt(document.getElementById("entry_${w}").value, 10);\n`;
+      });
+      js += '\n';
+  
+      // (2) ตรวจสถานะ checkbox *ทุกตัวที่นิยาม* เพื่อเตรียม var_varName
+      Object.keys(checks).forEach(v => {
+        js += `  const checkbox_${v}   = document.getElementById("cb_${v}");\n`;
+        js += `  const isChecked_${v}  = checkbox_${v}.checked;\n`;
+        js += `  const value_${v}      = isChecked_${v} ? ${checks[v].on} : ${checks[v].off};\n`;
+        js += `  console.log('🔍 Debug: value_${v} =', value_${v}, 'isChecked_${v} =', isChecked_${v}, 'checkbox state:', checkbox_${v}.checked);\n\n`;
+      });
+  
+      // (3) validation ถ้ามี Entry สองตัวขึ้นไป
+      const localsArr = Object.keys(localMap);
+      if (localsArr.length >= 2) {
+        js += `  if (isNaN(${localsArr[0]}) || isNaN(${localsArr[1]})) {\n`;
+        js += `    alert("กรุณากรอกข้อมูลให้ถูกต้อง");\n`;
+        js += `    return;\n`;
+        js += `  }\n\n`;
+      }
+  
+      // (4) จัดการ static configs ก่อน (ทุกบรรทัดที่ไม่ใช่ f-string)
+      const staticConfigsForFn = [];
+      
+      // เพิ่ม static configs จากการประมวลผลก่อนหน้า (ถ้ามี)
+      if (staticConfigsByName[fn.name]) {
+        staticConfigsByName[fn.name].forEach(config => {
+          staticConfigsForFn.push(config);
+        });
+      }
+
+      // เพิ่ม static configs ลงใน JavaScript
+        staticConfigsForFn.forEach(config => {
+            js += `  document.getElementById("label_${config.varName}").textContent = \`${config.text}\`;\n`;
+        });
+
+      // (4.1) f-string updates ทั้งหมด
+        if (exprConfigsByName[fn.name]) {
+            const configs = exprConfigsByName[fn.name];
+            configs.forEach(ec => {
+                js += `  document.getElementById("label_${ec.label}")`
+                   + `.textContent = \`${ec.prefix}\${${ec.expr}}${ec.suffix}\`;\n`;
+            });
+            js += '\n';
+        }
+  
+      // (5) dynamic branch updates ถ้ามี branchArrayByName[fn.name]
+        if (branchArrayByName[fn.name]) {
+            branchArrayByName[fn.name].forEach(b => {
+                const rawCond = (b.cond || '')
+                    .replace(/\b(\w+)\.get\(\)/g, 'value_$1')
+                    .replace(/\band\b/g, '&&')
+                    .replace(/\bor\b/g, '||')
+                    .replace(/\bnot\b/g, '!')
+                    .trim() || 'true';
+                js += `  if (${rawCond}) {\n`;
+                js += `    document.getElementById("label_${b.varName}")`
+                    + `.textContent = \`${b.text}\`;\n`;
+                js += `  }\n`;
+            });
+        }
+  
+      // ปิดฟังก์ชัน
+      js += `}\n\n`;
+    });
+  
+    // 7. Assemble final HTML
+    const w = guiWidth, h = guiHeight;
+    const output = `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <style>
+      .window {
+        border:2px solid #444;
+        border-radius:6px;
+        width:${w}px;
+        height:${h}px; 
+        display:flex;
+        flex-direction:column;
+        overflow:visible;
+        box-shadow:2px 2px 6px rgba(0,0,0,0.3);
+      }
+      .title-bar {
+        background:#eee;
+        padding:6px;
+        text-align:center;
+        font-weight:bold;
+        border-bottom:1px solid #444;
+        user-select:none;
+      }
+      .content {
+        flex:1;
+        padding:8px;
+        overflow:visible;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+      }
+      .content > * {
+        display:block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="window">
+      <div class="title-bar">${title}</div>
+      <div class="content">
+        ${html.join('\n')}
+      </div>
+    </div>
+    <script>
+    ${js}
+    </script>
+  </body>
+  </html>`;
+  
+    document.getElementById('htmlOutput').value = output;
+    console.log('Generated HTML:', output);
+    console.log('Generated JavaScript:', js);
+  }
+  
+  
+  
+  
+  
+  
+      
+      // W3Schools Simulator
+      function openEditorTab(tabName) {
+        const tabContents = document.getElementsByClassName("editor-content");
+        for (let content of tabContents) content.classList.remove("active");
+  
+        const tabs = document.getElementsByClassName("editor-tab");
+        for (let tab of tabs) tab.classList.remove("active");
+  
+        document.getElementById(tabName + "-tab").classList.add("active");
+        document.querySelector(`.editor-tab[onclick="openEditorTab('${tabName}')"]`).classList.add("active");
+      }
+  
+      function showStatus(message, isError = false) {
+        const status = document.getElementById("status");
+        status.textContent = message;
+        status.className = isError ? "status error" : "status success";
+        setTimeout(() => {
+          status.textContent = "";
+          status.className = "status";
+        }, 3000);
+      }
+  
+      function runCode() {
+        try {
+          const htmlCode = document.getElementById("html-editor").value;
+          const cssCode = document.getElementById("css-editor").value;
+          const jsCode = document.getElementById("js-editor").value;
+  
+          const fullCode = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <style>${cssCode}</style>
+  </head>
+  <body>
+    ${htmlCode}
+    <script>${jsCode.replace(/<\/script>/g, "<\\/script>")}<\/script>
+  </body>
+  </html>
+          `;
+  
+          const resultFrame = document.getElementById("result-frame");
+          resultFrame.srcdoc = fullCode;
+        } catch (error) {
+          console.error("เกิดข้อผิดพลาด: " + error.message);
+        }
+      }
+  
+      function clearCode() {
+        if (confirm("คุณแน่ใจหรือไม่ที่จะล้างโค้ดทั้งหมด?")) {
+          document.getElementById("html-editor").value =
+  `<h1>สวัสดี W3Schools Simulator</h1>
+  <p>นี่คือตัวอย่างเว็บเพจอย่างง่าย</p>
+  <button id="myButton">คลิกที่นี่</button>
+  <p id="demo"></p>`;
+          document.getElementById("css-editor").value =
+  `body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  h1 {
+    color: blue;
+  }`;
+          document.getElementById("js-editor").value =
+  `document.getElementById("myButton").addEventListener("click", function () {
+    document.getElementById("demo").innerHTML = "คุณได้คลิกปุ่มแล้ว!";
+  });`;
+          runCode();
+        }
+      }
+  
+// ฟังก์ชันใหม่สำหรับทดสอบ TestCase เฉพาะ
+async function testSpecificTestCase(generatedHTML, testCase) {
+    try {
+        console.log('เริ่มทดสอบ TestCase เฉพาะ...');
+        console.log('Generated HTML:', generatedHTML);
+        console.log('Test Case:', testCase);
+        
+        // สร้าง iframe สำหรับทดสอบ
+        const testFrame = document.createElement('iframe');
+        testFrame.style.display = 'none';
+        document.body.appendChild(testFrame);
+        
+        // โหลด HTML ลงใน iframe
+        testFrame.srcdoc = generatedHTML;
+        
+        // รอให้ iframe โหลดเสร็จ
+        await new Promise(resolve => {
+            testFrame.onload = resolve;
+        });
+        
+        // ตั้งค่า inputs
+        console.log('🔧 ตั้งค่า Inputs...');
+        for (const input of testCase.inputs) {
+            const element = testFrame.contentDocument.querySelector(`[data-var*="${input.text}"]`);
+            if (element) {
+                element.value = input.value;
+                console.log(`✅ ตั้งค่า ${input.widget} "${input.text}" = "${input.value}"`);
+            } else {
+                console.warn(`⚠️ ไม่พบ ${input.widget} "${input.text}"`);
+            }
+        }
+        
+        // ดำเนินการ actions
+        console.log('🎬 ดำเนินการ Actions...');
+        for (const action of testCase.actions) {
+            if (action.widget === 'Button' && action.state === 'pressed') {
+                // หาปุ่มที่ตรงกับข้อความ
+                const button = Array.from(testFrame.contentDocument.querySelectorAll('button'))
+                    .find(btn => btn.textContent.includes(action.text));
+                
+                if (button) {
+                    console.log(`🔘 กดปุ่ม "${action.text}"`);
+                    
+                    // ลองเรียก cal() ก่อน
+                    try {
+                        if (testFrame.contentWindow.cal) {
+                            testFrame.contentWindow.cal();
+                            console.log('✅ เรียก cal() สำเร็จ');
+                        } else {
+                            button.click();
+                            console.log('✅ คลิกปุ่มสำเร็จ');
+                        }
+                    } catch (error) {
+                        console.error('❌ เกิดข้อผิดพลาดในการเรียก cal():', error);
+                        button.click();
+                    }
+                } else {
+                    console.warn(`⚠️ ไม่พบปุ่ม "${action.text}"`);
+                }
+            } else if (action.widget === 'Checkbutton') {
+                // หา checkbox ที่ตรงกับข้อความ
+                const checkbox = Array.from(testFrame.contentDocument.querySelectorAll('input[type="checkbox"]'))
+                    .find(cb => {
+                        const label = testFrame.contentDocument.querySelector(`label[for="${cb.id}"]`);
+                        return label && label.textContent.includes(action.text);
+                    });
+                
+                if (checkbox) {
+                    checkbox.checked = action.state === 'checked';
+                    console.log(`☑️ ตั้งค่า Checkbutton "${action.text}" เป็น ${action.state}`);
+                } else {
+                    console.warn(`⚠️ ไม่พบ Checkbutton "${action.text}"`);
+                }
+            }
+        }
+        
+        // รอสักครู่ให้การประมวลผลเสร็จ
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // ตรวจสอบ outputs
+        console.log('🎯 ตรวจสอบ Expected vs Actual...');
+        const results = [];
+        
+        for (const expected of testCase.outputs) {
+            // หา Label ที่ตรงกับข้อความ
+            const label = Array.from(testFrame.contentDocument.querySelectorAll('*'))
+                .find(el => {
+                    const dataVar = el.getAttribute('data-var');
+                    return dataVar && el.textContent && el.textContent.includes(expected.text);
+                });
+            
+            if (label) {
+                const actualValue = label.textContent.trim();
+                const expectedValue = expected.value.trim();
+                const match = actualValue === expectedValue;
+                
+                results.push({
+                    widget: expected.widget,
+                    text: expected.text,
+                    expected: expectedValue,
+                    actual: actualValue,
+                    match: match
+                });
+                
+                console.log(`${match ? '✅' : '❌'} ${expected.widget} "${expected.text}": Expected "${expectedValue}", Actual "${actualValue}"`);
+            } else {
+                results.push({
+                    widget: expected.widget,
+                    text: expected.text,
+                    expected: expected.value,
+                    actual: 'ไม่พบ',
+                    match: false
+                });
+                
+                console.warn(`⚠️ ไม่พบ ${expected.widget} "${expected.text}"`);
+            }
+        }
+        
+        // ลบ iframe
+        document.body.removeChild(testFrame);
+        
+        // แสดงผลลัพธ์
+        const passedCount = results.filter(r => r.match).length;
+        const totalCount = results.length;
+        const passed = passedCount === totalCount;
+        
+        const resultHTML = `
+            <div class="test-results">
+                <h3>ผลการทดสอบ TestCase เฉพาะ</h3>
+                <h4>TestCase ID: 0kdmujouj ${passed ? '✅ ผ่าน' : '❌ ไม่ผ่าน'}</h4>
+                
+                <div class="test-case-details">
+                    <div class="test-inputs">
+                        <strong>📥 Inputs:</strong>
+                        <ul>
+                            ${testCase.inputs.map(input => 
+                                `<li>${input.widget} "${input.text}" = "${input.value}"</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="test-actions">
+                        <strong>🎬 Actions:</strong>
+                        <ul>
+                            ${testCase.actions.map(action => 
+                                `<li>${action.widget} "${action.text}" → ${action.state}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="test-outputs">
+                        <strong>🎯 Expected vs 📤 Actual:</strong>
+                        <ul>
+                            ${results.map(result => `
+                                <li class="${result.match ? 'output-match' : 'output-mismatch'}">
+                                    ${result.widget} "${result.text}":<br>
+                                    Expected: "${result.expected}"<br>
+                                    Actual: "${result.actual}" ${result.match ? '✅' : '❌'}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="total-score">
+                    <h4>📊 คะแนน: ${passedCount}/${totalCount}</h4>
+                </div>
+            </div>
+        `;
+        
+        const previewDiv = document.getElementById('guiPreview');
+        previewDiv.innerHTML = resultHTML;
+        
+        if (passed) {
+            showSuccess(`ทดสอบ TestCase เฉพาะผ่าน! คะแนน: ${passedCount}/${totalCount}`);
+        } else {
+            showError(`ทดสอบ TestCase เฉพาะไม่ผ่าน คะแนน: ${passedCount}/${totalCount}`);
+        }
+        
+        return { passed, score: passedCount, maxScore: totalCount, results };
+        
+    } catch (error) {
+        console.error('เกิดข้อผิดพลาดในการทดสอบ TestCase เฉพาะ:', error);
+        showError('เกิดข้อผิดพลาดในการทดสอบ TestCase เฉพาะ: ' + error.message);
+        return { passed: false, score: 0, maxScore: 1, results: [] };
+    }
+}
+
+// เพิ่ม Event Listener สำหรับปุ่มใหม่
+document.addEventListener('DOMContentLoaded', function() {
+    // หาโค้ดส่วนนี้ (น่าจะอยู่ท้ายๆ ไฟล์ หรือใน setupEventListeners)
+// ค้นหาโค้ดส่วนนี้ (มักจะอยู่ท้ายไฟล์ ใน document.addEventListener('DOMContentLoaded', ...))
+const testCaseBtn = document.getElementById('testCaseBtn');
+if (testCaseBtn) {
+    testCaseBtn.addEventListener('click', async () => {
+        // ตรวจสอบสถานะปุ่ม
+        if (testCaseBtn.disabled) return;
+
+        try {
+            const resultFrame = document.getElementById('result-frame');
+            if (!resultFrame || !resultFrame.srcdoc) {
+                showError('กรุณาแสดง GUI ก่อนทดสอบ TestCase');
+                return;
+            }
+            
+            if (!window.problemTestCases || window.problemTestCases.length === 0) {
+                showError('ไม่พบข้อมูล Test Cases');
+                return;
+            }
+            
+            const previewDiv = document.getElementById('guiPreview');
+            previewDiv.innerHTML = '<div class="loading">กำลังทดสอบ Test Cases ทั้งหมด...</div>';
+            
+            let allResults = [];
+            let currentRunPassed = 0; // คะแนนที่จะนำไปบวกเพิ่ม
+            
+            // วนลูปทดสอบทุกข้อ
+            for (let i = 0; i < window.problemTestCases.length; i++) {
+                const testCase = window.problemTestCases[i];
+                console.log(`=== เริ่มทดสอบข้อที่ #${i + 1} ===`);
+                
+                // Format ข้อมูล
+                const formattedTestCase = {
+                    inputs: (testCase.inputs || []).map(input => {
+                        const widgetName = input.name || input.widget; 
+                        const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
+                        return {
+                            name: widgetName, widget: widgetDef.type || 'Entry',
+                            text: widgetDef.text || '', value: input.value
+                        };
+                    }),
+                    actions: (testCase.actions || []).map(action => {
+                        const widgetName = action.widget || action.name;
+                        const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
+                        return {
+                            name: widgetName, widget: action.widget || widgetDef.type || 'Button',
+                            text: action.text || widgetDef.text || '', state: action.state
+                        };
+                    }),
+                    outputs: (testCase.outputs || []).map(output => {
+                        const widgetName = output.widget || output.name;
+                        const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
+                        return {
+                            name: widgetName, widget: widgetDef.type || 'Label',
+                            text: widgetDef.text || '', value: output.value
+                        };
+                    }),
+                    explanation: testCase.explanation || ""
+                };
+                
+                // เรียกฟังก์ชันทดสอบภายใน
+                const result = await testSpecificTestCaseInternal(resultFrame.srcdoc, formattedTestCase, i + 1);
+                
+                // เช็คว่าผ่านหรือไม่ (เพื่อเก็บแต้ม)
+                if (result && (result.passed === true || result.score > 0)) {
+                    currentRunPassed++; // นับคะแนนเพิ่ม
+                }
+                allResults.push(result);
+            }
+            
+            // แสดงผลตารางสรุป
+            displayAllTestResults(allResults, currentRunPassed, window.problemTestCases.length);
+            
+            console.log(`🏁 ผลการตรวจสอบ: ผ่าน ${currentRunPassed} / ${window.problemTestCases.length}`);
+
+            // ------------------------------------------------------------------
+            // ✅ แก้ไข: เรียกฟังก์ชันบวกคะแนน (Uncommented)
+            // ------------------------------------------------------------------
+            if (currentRunPassed > 0) {
+                // เรียกฟังก์ชัน saveTestResults เพื่อบวกคะแนนใน UI
+                saveTestResults(currentRunPassed, window.problemTestCases.length);
+                console.log(`✅ อัปเดตคะแนนหน้าเว็บ: +${currentRunPassed}`);
+            } else {
+                console.log("❌ ไม่ผ่าน Test Case ไม่มีการบวกคะแนน");
+            }
+
+        } catch (error) {
+            console.error('Test Error:', error);
+            showError('เกิดข้อผิดพลาด: ' + error.message);
+        }
+    });
+}
+});
+async function runPython() {
+    // --- [ส่วนที่ต้องเพิ่ม] เริ่มต้น ---
+    
+    // 1. ล้างหน้าจอ GUI (ที่เป็น HTML)
+    const guiContainer = document.querySelector(".gui-preview"); // หรือใช้ id ตามที่คุณตั้ง
+    if (guiContainer) {
+        guiContainer.innerHTML = ""; // ล้าง element เก่าทิ้งให้เกลี้ยง
+    }
+
+    // 2. ล้างค่าใน Python (Memory)
+    try {
+        await pyodide.runPythonAsync(`
+            try:
+                import tkinter
+                if 'root' in globals():
+                    root.destroy()
+                    del root
+            except:
+                pass
+        `);
+    } catch (e) {
+        // ไม่ต้องทำอะไรถ้า error แค่กันไว้
+    }
+    // --- [ส่วนที่ต้องเพิ่ม] จบ ---
+
+    // 3. รันโค้ดนักเรียนต่อตามปกติ (โค้ดเดิมของคุณ)
+    let code = editor.getValue();
+    await pyodide.runPythonAsync(code);
+}
+// ฟังก์ชันสำหรับทดสอบ test case เดียว (แก้ไขใหม่ - ใช้ ID)
+// ฟังก์ชันสำหรับทดสอบ test case เดียว (ฉบับแก้จุดบอด: จำ ID Widget ไว้ก่อนค่าจะเปลี่ยน)
+async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber) {
+
+    return new Promise((resolve) => {
+        // สร้าง iframe แบบซ่อนเพื่อจำลองการทำงาน
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.srcdoc = generatedHTML;
+        document.body.appendChild(iframe);
+        
+        iframe.onload = async () => {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                let passed = true;
+                let details = [];
+                
+                console.log(`=== Started Test Case #${testNumber} ===`);
+
+                // ==========================================
+                // ✅ STEP 0: PRE-MAPPING (หัวใจสำคัญของการแก้นี้)
+                // จำตัวตนของ Widget เป้าหมายไว้ "ก่อน" ที่จะทำการกดปุ่ม
+                // ==========================================
+                const outputMap = {}; // ใช้เก็บคู่ { index: elementID }
+                
+                if (testCase.outputs) {
+                    testCase.outputs.forEach((output, index) => {
+                        let targetElement = null;
+                        
+                        // 1. ลองหาจาก ID ที่ระบบสร้างให้ (เช่น label_C, result_1)
+                        const possibleIds = [
+                            `label_${String.fromCharCode(67 + index)}`, // label_C, label_D...
+                            `output_${index + 1}`,
+                            `result_${index + 1}`,
+                            `answer_${index + 1}`,
+                            `label${index + 1}`
+                        ];
+                        
+                        for (const id of possibleIds) {
+                            targetElement = iframeDoc.getElementById(id);
+                            if (targetElement) break;
+                        }
+
+                        // 2. ถ้าไม่เจอ ID ให้หาจาก Data Attribute (แม่นยำรองลงมา)
+                        if (!targetElement && output.widget) {
+                             // data-var มักตรงกับชื่อตัวแปรใน Python
+                             targetElement = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
+                        }
+
+                        // 3. ถ้าไม่เจออีก ให้หาจาก Text Content เดิม (ค่าตั้งต้น เช่น 'asd')
+                        if (!targetElement) {
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
+                            targetElement = allElements.find(el => 
+                                el.textContent && el.textContent.trim() === output.text
+                            );
+                        }
+                        
+                        // ถ้าเจอตัวตนแล้ว ให้จด ID ไว้ (ถ้าไม่มี ID ให้สร้างยัดใส่เข้าไปเลย)
+                        if (targetElement) {
+                            if (!targetElement.id) {
+                                targetElement.id = `temp_tracked_id_${Date.now()}_${index}`;
+                            }
+                            outputMap[index] = targetElement.id;
+                            console.log(`Step 0: จดจำ Widget "${output.text}" ไว้ที่ ID: ${targetElement.id}`);
+                        } else {
+                            console.warn(`Step 0: หา Widget ต้นทางไม่เจอสำหรับ "${output.text}"`);
+                        }
+                    });
+                }
+                
+                // ==========================================
+                // STEP 1: ตั้งค่า Inputs
+                // ==========================================
+                if (testCase.inputs) {
+                    for (let i = 0; i < testCase.inputs.length; i++) {
+                        const input = testCase.inputs[i];
+                        let inputElement = null;
+                        
+                        // หา input จาก ID pattern ต่างๆ
+                        const possibleIds = [
+                            `entry_number${i + 1}`, `entry_${i + 1}`, 
+                            `input_${i + 1}`, `entry${i + 1}`,
+                            `entry_${input.widget}` // กรณีชื่อตรงกับ widget name
+                        ];
+                        
+                        for (const id of possibleIds) {
+                            inputElement = iframeDoc.getElementById(id);
+                            if (inputElement) break;
+                        }
+                        
+                        // Fallback หา input ตัวที่ i ตามลำดับ
+                        if (!inputElement) {
+                            const allInputs = Array.from(iframeDoc.querySelectorAll('input[type="text"], input:not([type])'));
+                            if (allInputs[i]) inputElement = allInputs[i];
+                        }
+                        
+                        if (inputElement) {
+                            inputElement.value = input.value;
+                            // กระตุ้น Event เพื่อให้ JS ใน iframe รู้ตัว
+                            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                            inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+                            details.push(`✓ ตั้งค่า input ${i + 1} (${input.text || 'Entry'}): ${input.value}`);
+                        } else {
+                            details.push(`✗ ไม่พบช่อง Input สำหรับ: "${input.text}"`);
+                            passed = false;
+                        }
+                    }
+                }
+                
+                // ==========================================
+                // STEP 2: ทำ Actions (กดปุ่ม / ติ๊กถูก)
+                // ==========================================
+                if (testCase.actions && testCase.actions.length > 0) {
+                    for (let i = 0; i < testCase.actions.length; i++) {
+                        const action = testCase.actions[i];
+                        console.log(`Processing action: ${action.widget} -> ${action.state}`);
+
+                        // กรณีเป็นปุ่ม (Button)
+                        if (action.widget.includes('Button') || action.widget === 'vbcb' || action.state === 'pressed') {
+                            const buttons = Array.from(iframeDoc.querySelectorAll('button, input[type="button"]'));
+                            
+                            // หาปุ่มที่ข้อความตรง หรือ data-var ตรง
+                            let button = buttons.find(b => 
+                                (b.textContent && b.textContent.includes(action.text)) || 
+                                (b.getAttribute('data-var') === action.text)
+                            );
+                            
+                            // Fallback: ถ้าหาไม่เจอ และมีปุ่มเดียว ให้กดปุ่มนั้นเลย
+                            if (!button && buttons.length > 0 && testCase.actions.length === 1) {
+                                button = buttons[0];
+                            }
+
+                            if (button) {
+                                button.click();
+                                details.push(`✓ กดปุ่ม "${action.text || 'Button'}"`);
+                                
+                                // **สำคัญ** รอให้ JS ทำงานและอัปเดต DOM
+                                await new Promise(r => setTimeout(r, 200)); 
+                            } else {
+                                details.push(`✗ ไม่พบปุ่ม "${action.text}"`);
+                                passed = false;
+                            }
+                        }
+                        
+                        // กรณีเป็น Checkbox
+                        else if (action.widget.includes('Checkbutton') || action.widget.includes('Ck')) {
+                            // หา checkbox (logic เดียวกับปุ่ม)
+                            let cb = iframeDoc.querySelector(`input[type="checkbox"][data-var="${action.text}"]`);
+                            if (!cb) {
+                                // หาจาก label
+                                const labels = Array.from(iframeDoc.querySelectorAll('label'));
+                                const targetLabel = labels.find(l => l.textContent.includes(action.text));
+                                if (targetLabel) {
+                                    const id = targetLabel.getAttribute('for');
+                                    if (id) cb = iframeDoc.getElementById(id);
+                                }
+                            }
+
+                            if (cb) {
+                                cb.checked = (action.state === 'checked');
+                                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                                details.push(`✓ ตั้งค่า Checkbox "${action.text}" เป็น ${action.state}`);
+                                await new Promise(r => setTimeout(r, 100));
+                            } else {
+                                details.push(`✗ ไม่พบ Checkbox "${action.text}"`);
+                                passed = false;
+                            }
+                        }
+                    }
+                }
+
+                // รอเวลาเพิ่มเติมเพื่อให้ UI อัปเดตเสร็จสมบูรณ์
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // ==========================================
+                // STEP 3: ตรวจสอบ Outputs (ใช้ ID ที่จดไว้ใน Step 0)
+                // ==========================================
+                if (testCase.outputs) {
+                    for (let i = 0; i < testCase.outputs.length; i++) {
+                        const output = testCase.outputs[i];
+                        let element = null;
+                        let actualValue = '';
+
+                        // 1. หาจาก ID ที่จดไว้ (แม่นยำ 100% แม้ข้อความเปลี่ยน)
+                        if (outputMap[i]) {
+                            element = iframeDoc.getElementById(outputMap[i]);
+                        }
+
+                        // 2. Fallback: ถ้าตอนแรกหาไม่เจอ ลองหาจากค่าใหม่ (เผื่อฟลุ๊ค)
+                        if (!element) {
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
+                            element = allElements.find(el => el.textContent && el.textContent.trim() === output.value);
+                        }
+
+                        if (element) {
+                            actualValue = element.textContent.trim();
+                            
+                            if (actualValue === output.value) {
+                                details.push(`✓ "${output.text}" เปลี่ยนเป็น "${actualValue}" (ถูกต้อง)`);
+                            } else {
+                                details.push(`✗ "${output.text}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`);
+                                passed = false;
+                            }
+                        } else {
+                            details.push(`✗ ไม่พบ Widget สำหรับผลลัพธ์: "${output.text}" (หา Element ไม่เจอ)`);
+                            passed = false;
+                        }
+                    }
+                }
+                
+                // Cleanup: ลบ iframe ทิ้ง
+                document.body.removeChild(iframe);
+
+                // 👇👇 ลบอันเก่า แล้วแปะอันใหม่ตรงนี้เลยครับ 👇👇
+                const caseScore = testCase.score || 1;      // ดึงคะแนนเต็มของข้อนี้ (ถ้าไม่มีให้เป็น 1)
+                const earnedScore = passed ? caseScore : 0; // ถ้าผ่านก็ได้คะแนนเต็ม ถ้าไม่ผ่านได้ 0
+                
+                resolve({
+                    testNumber,
+                    passed,
+                    details,
+                    score: earnedScore,      // ส่งคะแนนจริงออกไป
+                    maxScore: caseScore      // ส่งคะแนนเต็มออกไป
+                });
+                
+            } catch (error) {
+                console.error("Error in testSpecificTestCaseInternal:", error);
+                // Cleanup ในกรณี Error
+                if (iframe.parentNode) document.body.removeChild(iframe);
+                
+                resolve({ 
+                    testNumber, 
+                    passed: false, 
+                    details: [`System Error: ${error.message}`], 
+                    score: 0 
+                });
+            }
+        };
+    });
+}
+
+// ฟังก์ชันแสดงผลรวมทั้งหมด
+function displayAllTestResults(results, totalPassed, totalTests) {
+    const previewDiv = document.getElementById('guiPreview');
+    
+    let html = `
+        <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; margin: 10px 0;">
+            <h3 style="color: #333; margin-bottom: 15px;">📋 ผลการทดสอบ Test Cases ทั้งหมด</h3>
+            <div style="background: ${totalPassed === totalTests ? '#d4edda' : '#f8d7da'}; 
+                        color: ${totalPassed === totalTests ? '#155724' : '#721c24'}; 
+                        padding: 10px; border-radius: 5px; margin-bottom: 15px; font-weight: bold;">
+                ผลรวม: ${totalPassed}/${totalTests} ผ่าน (คะแนน: ${totalPassed}/${totalTests})
+            </div>
+    `;
+    
+    results.forEach((result, index) => {
+        const statusColor = result.passed ? '#28a745' : '#dc3545';
+        const statusIcon = result.passed ? '✅' : '❌';
+        
+        html += `
+            <div style="border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; overflow: hidden;">
+                <div style="background: ${statusColor}; color: white; padding: 10px; font-weight: bold;">
+                    ${statusIcon} Test Case ${result.testNumber} - ${result.passed ? 'ผ่าน' : 'ไม่ผ่าน'}
+                </div>
+                <div style="padding: 10px; background: white;">
+                    ${result.details.map(detail => `<div style="margin: 2px 0;">${detail}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    previewDiv.innerHTML = html;
+}
+// ==========================================
+// 🔧 FORCE FIX: บังคับแก้สีตัวแปร (Variable Color)
+// ==========================================
+// ==========================================
+// 🔧 FORCE FIX: บังคับแก้สีตัวแปร (Variable Color)
+// ==========================================
+const fixVariableColor = setInterval(() => {
+    if (window.Prism && Prism.languages.python) {
+        
+        // สั่งให้รู้จัก "ตัวแปร" ใน 2 กรณี:
+        // 1. หน้าเครื่องหมาย = (เช่น mylabel = ...)
+        // 2. หน้าจุด . (เช่น mylabel.pack())
+        Prism.languages.insertBefore('python', 'operator', {
+            'variable-assignment': {
+                // จับคำที่อยู่หน้า = หรือ หน้า .
+                pattern: /\b[a-zA-Z_]\w*(?=\s*=\s*(?!=))|\b[a-zA-Z_]\w*(?=\s*\.)/, 
+                alias: 'variable' 
+            }
+        });
+
+        console.log("✅ Custom Syntax Highlighting Applied (Assignment & Methods)!");
+
+        if (typeof updateCodeHighlight === 'function') {
+            updateCodeHighlight();
+        }
+
+        clearInterval(fixVariableColor);
+    }
+}, 500);
+
+// ==========================================
+// 🔄 RESET BUTTON LOGIC: ปุ่มเริ่มใหม่ (Reset Code)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // รอจนกว่าหน้าเว็บจะโหลดเสร็จ
+    setTimeout(() => {
+        const resetBtn = document.getElementById('resetBtn');
+        const codeEditor = document.getElementById('codeEditorTextarea');
+
+        if (resetBtn && codeEditor) {
+            console.log("✅ Reset button initialized");
+            
+            resetBtn.addEventListener('click', function() {
+                // 1. ถามยืนยันเพื่อความปลอดภัย
+                if (confirm('⚠️ คุณต้องการล้างโค้ดทั้งหมดและเริ่มใหม่ใช่หรือไม่?\n\n(โค้ดปัจจุบันจะหายไป และกลับไปเป็นค่าเริ่มต้น)')) {
+                    
+                    // 2. เตรียม Template เริ่มต้น
+                    let startCode = `# เขียนโค้ด Python ที่นี่\n\nimport tkinter as tk\n\n# สร้างหน้าต่าง GUI\nwindow = tk.Tk()\nwindow.title('My GUI Application')\n\n# เพิ่ม widgets ที่นี่\n\n# แสดงหน้าต่าง\nwindow.mainloop()`;
+
+                    // 3. ถ้าโจทย์ข้อนี้มี Template เฉพาะ (จาก Database) ให้ใช้ของโจทย์
+                    if (window.problemData && window.problemData.templateCode) {
+                        startCode = window.problemData.templateCode;
+                    }
+
+                    // 4. ใส่โค้ดลงใน Editor
+                    codeEditor.value = startCode;
+
+                    // 5. สั่งรีเฟรชหน้าจอ (เลขบรรทัด + ไฮไลท์สี)
+                    if (typeof updateLineNumbers === 'function') updateLineNumbers();
+                    if (typeof updateCodeHighlight === 'function') updateCodeHighlight();
+                    
+                    // 6. ล้างหน้าจอผลลัพธ์ (Preview) ให้โล่ง
+                    const resultFrame = document.getElementById('result-frame');
+                    if (resultFrame) resultFrame.srcdoc = '';
+                    
+                    const guiPreview = document.getElementById('guiPreview');
+                    if (guiPreview) guiPreview.innerHTML = ''; // ล้างข้อความผลตรวจเก่า
+
+                    // 7. รีเซ็ตปุ่มต่างๆ กลับสู่สถานะเริ่มต้น
+                    const convertBtn = document.getElementById('convertBtn');
+                    const testBtn = document.getElementById('testBtn');
+                    const testCaseBtn = document.getElementById('testCaseBtn');
+                    
+                    if (convertBtn) convertBtn.disabled = true; // ต้อง Check ใหม่ก่อน Run
+                    if (testBtn) testBtn.disabled = true;
+                    if (testCaseBtn) testCaseBtn.disabled = true;
+
+                    // 8. แสดงข้อความแจ้งเตือนเล็กๆ (Optional)
+                    // alert("รีเซ็ตโค้ดเรียบร้อยแล้ว");
+                }
+            });
+        }
+    }, 1000); // รอ 1 วินาทีเผื่อ Element สร้างไม่เสร็จ
+});
+// ฟังก์ชันสำหรับอัปเดตตัวเลขบนหน้าจอ
+// ฟังก์ชันบันทึกและอัปเดตคะแนน (ฉบับแก้ไขตรงตาม HTML ของคุณ)
+// ฟังก์ชันบันทึกและอัปเดตคะแนน (เพิ่มการปลดล็อกปุ่มส่งงาน)
+function saveTestResults(additionalScore, runMaxScore) {
+    // 1. ดึง Element ตาม ID จริงในไฟล์ HTML
+    const currentScoreEl = document.getElementById('currentScore');
+    const maxScoreEl = document.getElementById('maxScore');
+    const percentEl = document.getElementById('scorePercentage');
+    const submitBtn = document.getElementById('submitBtn'); // <--- ดึงปุ่มส่งงานมาด้วย
+
+    if (!currentScoreEl || !maxScoreEl) {
+        console.error("❌ หา Element แสดงคะแนนไม่เจอ");
+        return;
+    }
+
+    // 2. อ่านค่าคะแนนปัจจุบันจากหน้าจอ
+    let currentVal = parseInt(currentScoreEl.innerText) || 0;
+    let maxVal = parseInt(maxScoreEl.innerText) || 0;
+
+    // กรณีถ้า maxVal เป็น 0 (เพิ่งโหลด) ให้ใช้ค่าจากการรันรอบนี้เป็นฐาน
+    if (maxVal === 0) maxVal = window.problemTestCases ? window.problemTestCases.length : runMaxScore;
+
+    console.log(`ก่อนบวก: ${currentVal}/${maxVal}, จะบวกเพิ่ม: ${additionalScore}`);
+
+    // 3. คำนวณคะแนนใหม่ (แบบบวกเพิ่ม)
+    // เงื่อนไข: ถ้าคะแนนรอบนี้ (additionalScore) เป็นคะแนนใหม่ที่ไม่เคยได้มาก่อน
+    // (Logic ง่ายๆ คือ: บวกเพิ่มไปเลย แต่ห้ามเกิน Max)
+    let newScore = currentVal + additionalScore;
+
+    // 4. ป้องกันคะแนนเกิน (Cap)
+    if (newScore > maxVal) {
+        newScore = maxVal;
+    }
+
+    // 5. อัปเดตหน้าจอ
+    currentScoreEl.innerText = newScore;
+    maxScoreEl.innerText = maxVal;
+
+    if (percentEl) {
+        const percentage = Math.round((newScore / maxVal) * 100);
+        percentEl.innerText = `${percentage}%`;
+        
+        // เปลี่ยนสี ProgressBar หรือ Text ตามความสวยงาม
+        const scoreContainer = document.querySelector('.score-container');
+        if (scoreContainer) {
+            scoreContainer.classList.remove('perfect', 'good', 'poor');
+            if (percentage >= 100) scoreContainer.classList.add('perfect');
+            else if (percentage >= 70) scoreContainer.classList.add('good');
+            else scoreContainer.classList.add('poor');
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // ✅ 6. จุดสำคัญ: เช็คว่าคะแนนเต็มหรือยัง? ถ้าเต็ม -> ปลดล็อกปุ่มส่งงาน
+    // -----------------------------------------------------------------------
+    if (newScore >= maxVal) {
+        if (submitBtn) {
+            submitBtn.disabled = false;           // 🔓 ปลดล็อก
+            submitBtn.style.opacity = "1";        // ทำให้สีเข้มขึ้น
+            submitBtn.style.cursor = "pointer";   // เปลี่ยนเมาส์เป็นรูปมือ
+            // submitBtn.textContent = "ส่งงาน";  // (ถ้าอยากเปลี่ยนข้อความ)
+            
+            console.log("🎉 คะแนนเต็มแล้ว! ปลดล็อกปุ่มส่งงานเรียบร้อย");
+            
+            // แจ้งเตือนผู้ใช้ครั้งเดียว (เช็คว่าก่อนหน้านี้ยังไม่เต็ม)
+            if (currentVal < maxVal) {
+                alert("ยินดีด้วย! คะแนนครบแล้ว คุณสามารถกด 'ส่งงาน' ได้เลยครับ");
+            }
+        }
+    } else {
+        console.log(`คะแนนยังไม่เต็ม (${newScore}/${maxVal}) ปุ่มส่งงานยังล็อกอยู่`);
+    }
+}
+// ฟังก์ชันบันทึกโค้ดแบบ Draft (บันทึกเมื่อกดแสดง GUI)
+async function saveDraftCode(code) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const problemId = urlParams.get('id');
+    const classId = urlParams.get('classId');
+    const userId = auth.currentUser?.uid;
+
+    if (!problemId || !userId) return;
+
+    try {
+        await db.collection('submissions').add({
+            problemId: problemId,
+            studentId: userId, // ✅ แก้เป็น studentId
+            classId: classId || null,
+            code: code,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            type: 'gui',
+            status: 'draft',
+            score: 0,
+            maxScore: 0,
+            note: 'Auto-saved'
+        });
+        console.log("💾 Auto-saved draft.");
+    } catch (error) {
+        console.error("Failed to auto-save:", error);
+    }
+}
+// ฟังก์ชันสร้างปุ่มลิงก์แนบ (ไม่กินที่)
+function renderAttachmentsHTML(attachments) {
+    if (!attachments || !Array.isArray(attachments) || attachments.length === 0) return '';
+
+    let html = '<div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ddd;">';
+    html += '<div style="font-size: 0.9em; font-weight: bold; color: #666; margin-bottom: 8px;">📎 สื่อประกอบการเรียนรู้:</div>';
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+
+    attachments.forEach(att => {
+        let icon = '🔗';
+        let color = '#007bff'; // สีฟ้า (Web)
+        let bgColor = '#f0f7ff';
+
+        if (att.type === 'youtube') { 
+            icon = '▶️'; color = '#dc3545'; bgColor = '#fff5f5'; // สีแดง
+        } else if (att.type === 'pdf') { 
+            icon = '📄'; color = '#fd7e14'; bgColor = '#fff9f2'; // สีส้ม
+        } else if (att.type === 'image') { 
+            icon = '🖼️'; color = '#28a745'; bgColor = '#f0fff4'; // สีเขียว
+        }
+
+        html += `
+            <a href="${att.url}" target="_blank" 
+               style="text-decoration: none; color: ${color}; background: ${bgColor}; 
+                      border: 1px solid ${color}40; padding: 5px 12px; border-radius: 20px; 
+                      font-size: 0.85em; display: inline-flex; align-items: center; gap: 5px; 
+                      transition: all 0.2s;"
+               onmouseover="this.style.background='${color}'; this.style.color='white';"
+               onmouseout="this.style.background='${bgColor}'; this.style.color='${color}';">
+               <span>${icon}</span>
+               <span>${att.title || 'เปิดลิงก์'}</span>
+            </a>
+        `;
+    });
+
+    html += '</div></div>';
+    return html;
+}

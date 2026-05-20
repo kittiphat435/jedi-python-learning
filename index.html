@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Python Learning Platform</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo" class="python-logo">
+            <h1>Python Learning Platform</h1>
+            <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png" alt="Firebase Logo" class="firebase-logo">
+        </div>
+        
+        <!-- ส่วน login -->
+        <div class="auth-form" id="loginForm">
+            <h2>เข้าสู่ระบบ</h2>
+            <button id="googleLogin" class="google-btn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
+                เข้าสู่ระบบด้วย Google
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
+            authDomain: "python-learning-platform-596e1.firebaseapp.com",
+            projectId: "python-learning-platform-596e1",
+            storageBucket: "python-learning-platform-596e1.firebasestorage.app",
+            messagingSenderId: "5262153531",
+            appId: "1:5262153531:web:55f6246093e1780003491e"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let isProcessing = false;  // เพิ่มตัวแปรเพื่อป้องกันการเรียกซ้ำ
+
+        // Google Sign-in
+        document.getElementById('googleLogin').addEventListener('click', async () => {
+            if (isProcessing) return;  // ถ้ากำลังประมวลผลอยู่ ให้ return
+            isProcessing = true;
+
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                console.log("Logged in user:", user.email);
+
+                // เช็คว่าผู้ใช้มีข้อมูลใน Firestore หรือไม่
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                
+                if (!userDoc.exists) {
+                    // ถ้าเป็นผู้ใช้ใหม่ ให้เลือก role
+                    showRoleSelection(user.uid, user.email);
+                } else {
+                    // ถ้ามีข้อมูลแล้ว
+                    const userData = userDoc.data();
+                    redirectToRole(userData.role);
+                }
+            } catch (error) {
+                console.error("Login error:", error);
+                alert('Error signing in: ' + error.message);
+            } finally {
+                isProcessing = false;  // รีเซ็ตสถานะ
+            }
+        });
+
+        function showRoleSelection(userId, email) {
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <div class="auth-form">
+                    <h2>เลือกประเภทผู้ใช้</h2>
+                    <p>อีเมล: ${email}</p>
+                    <select id="userRole">
+                        <option value="teacher">ครู</option>
+                        <option value="student">นักเรียน</option>
+                    </select>
+                    <button onclick="submitRole('${userId}')">ยืนยัน</button>
+                </div>
+            `;
+        }
+
+        async function submitRole(userId) {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            try {
+                const role = document.getElementById('userRole').value;
+                await db.collection('users').doc(userId).set({
+                    role: role,
+                    createdAt: new Date()
+                });
+                redirectToRole(role);
+            } catch (error) {
+                console.error("Error saving role:", error);
+                alert('Error saving role: ' + error.message);
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        function redirectToRole(role) {
+            if (role === 'teacher') {
+                window.location.href = 'teacher-dashboard.html';
+            } else {
+                window.location.href = 'student-dashboard.html';
+            }
+        }
+
+        // เช็คสถานะการล็อกอินเมื่อโหลดหน้า
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // เช็คว่ามีข้อมูล role หรือไม่ก่อน redirect
+                db.collection('users').doc(user.uid).get()
+                    .then((doc) => {
+                        if (doc.exists && doc.data().role) {
+                            redirectToRole(doc.data().role);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error checking user role:", error);
+                    });
+            }
+        });
+
+        // Make function available globally
+        window.submitRole = submitRole;
+    </script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>รายละเอียดห้องเรียน - Python Learning Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="class-detail-create-problem-styles.css">
+    <link rel="stylesheet" href="class-detail.css">
+    <style>
+        .problem-card {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .student-list {
+            margin-top: 20px;
+        }
+
+        .student-card {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .tab.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo" class="python-logo">
+            <h1>รายละเอียดห้องเรียน</h1>
+            <button onclick="window.location.href='teacher-dashboard.html'" class="secondary-btn">กลับ</button>
+        </div>
+
+        <!-- ข้อมูลห้องเรียน -->
+        <div class="section">
+            <h2 id="className">ชื่อห้องเรียน</h2>
+            <p id="classCode">รหัสห้องเรียน: </p>
+        </div>
+        <div class="section">
+            <h3>โจทย์ในห้องเรียน</h3>
+            <div class="problem-actions">
+                <button onclick="showCreateProblemModal()" class="primary-btn">สร้างโจทย์ใหม่</button>
+                <button onclick="showProblemBankModal()" class="secondary-btn">เพิ่มจากคลังโจทย์</button>
+            </div>
+            <div id="problemList">
+                <!-- รายการโจทย์ในห้องเรียน -->
+            </div>
+        </div>
+        
+        <!-- Modal สำหรับคลังโจทย์ -->
+        <div id="problemBankModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>คลังโจทย์ของคุณ</h2>
+                <div id="problemBankList">
+                    <!-- รายการโจทย์ทั้งหมดของครู -->
+                </div>
+            </div>
+        </div>
+        <!-- สถิติ -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="studentCount">0</div>
+                <div>นักเรียน</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="problemCount">0</div>
+                <div>โจทย์</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="submissionCount">0</div>
+                <div>งานที่ส่ง</div>
+            </div>
+        </div>
+
+        <!-- แท็บ -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('problems')">โจทย์</div>
+            <div class="tab" onclick="showTab('students')">รายชื่อนักเรียน</div>
+        </div>
+
+        <!-- เนื้อหาแท็บโจทย์ -->
+        <div id="problemsTab" class="tab-content active">
+            <div class="section">
+                <h3>โจทย์ทั้งหมด</h3>
+                <div id="problemList">
+                    <!-- รายการโจทย์จะถูกเพิ่มที่นี่ -->
+                </div>
+            </div>
+        </div>
+
+        <!-- เนื้อหาแท็บนักเรียน -->
+        <div id="studentsTab" class="tab-content">
+            <div class="section">
+                <h3>รายชื่อนักเรียน</h3>
+                <div id="studentList">
+                    <!-- รายชื่อนักเรียนจะถูกเพิ่มที่นี่ -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+    <script src="class-detail.js"></script>
+
+    <script>
+        // ต่อในข้อความถัดไป...
+        // Initialize Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
+    authDomain: "python-learning-platform-596e1.firebaseapp.com",
+    projectId: "python-learning-platform-596e1",
+    storageBucket: "python-learning-platform-596e1.firebasestorage.app",
+    messagingSenderId: "5262153531",
+    appId: "1:5262153531:web:55f6246093e1780003491e"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// รับ class ID จาก URL
+const urlParams = new URLSearchParams(window.location.search);
+const classId = urlParams.get('id');
+
+// เช็คว่ามี class ID หรือไม่
+if (!classId) {
+    alert('ไม่พบรหัสห้องเรียน');
+    window.location.href = 'teacher-dashboard.html';
+}
+
+// โหลดข้อมูลห้องเรียน
+async function loadClassDetails() {
+    try {
+        const classDoc = await db.collection('classes').doc(classId).get();
+        if (!classDoc.exists) {
+            alert('ไม่พบห้องเรียน');
+            window.location.href = 'teacher-dashboard.html';
+            return;
+        }
+
+        const classData = classDoc.data();
+        document.getElementById('className').textContent = classData.name;
+        document.getElementById('classCode').textContent = `รหัสห้องเรียน: ${classData.code}`;
+
+        // โหลดโจทย์และนักเรียน
+        loadProblems();
+        loadStudents();
+        updateStats();
+    } catch (error) {
+        console.error("Error loading class details:", error);
+        alert('เกิดข้อผิดพลาดในการโหลดข้อมูลห้องเรียน');
+    }
+}
+
+// โหลดรายการโจทย์
+async function loadProblems() {
+    try {
+        const problemList = document.getElementById('problemList');
+        problemList.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
+
+        const snapshot = await db.collection('problems')
+            .where('classId', '==', classId)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        if (snapshot.empty) {
+            problemList.innerHTML = '<p>ยังไม่มีโจทย์</p>';
+            return;
+        }
+
+        problemList.innerHTML = '';
+        snapshot.forEach(doc => {
+            const problem = doc.data();
+            const div = document.createElement('div');
+            div.className = 'problem-card';
+            div.innerHTML = `
+                <h3>${problem.title}</h3>
+                <p>${problem.description.substring(0, 100)}...</p>
+                <button onclick="viewProblem('${doc.id}')" class="secondary-btn">ดูรายละเอียด</button>
+            `;
+            problemList.appendChild(div);
+        });
+    } catch (error) {
+        console.error("Error loading problems:", error);
+        document.getElementById('problemList').innerHTML = 
+            '<p>เกิดข้อผิดพลาดในการโหลดโจทย์</p>';
+    }
+}
+// แสดง Modal คลังโจทย์
+async function showProblemBank() {
+    const modal = document.getElementById('problemBankModal');
+    const problemBankList = document.getElementById('problemBankList');
+    modal.style.display = 'block';
+    
+    try {
+        const user = auth.currentUser;
+        // ดึงโจทย์ทั้งหมดที่ครูเคยสร้าง
+        const snapshot = await db.collection('problems')
+            .where('teacherId', '==', user.uid)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        // แสดงรายการโจทย์พร้อมช็อคบ็อกซ์
+        problemBankList.innerHTML = '';
+        snapshot.forEach(doc => {
+            const problem = doc.data();
+            const div = document.createElement('div');
+            div.className = 'problem-bank-item';
+            div.innerHTML = `
+                <input type="checkbox" id="prob_${doc.id}">
+                <label for="prob_${doc.id}">
+                    <h4>${problem.title}</h4>
+                    <p>${problem.description.substring(0, 100)}...</p>
+                    <small>ใช้ในห้อง: ${problem.classNames ? problem.classNames.join(', ') : 'ยังไม่ถูกใช้'}</small>
+                </label>
+            `;
+            problemBankList.appendChild(div);
+        });
+
+        // เพิ่มปุ่มเพิ่มโจทย์
+        const addButton = document.createElement('button');
+        addButton.className = 'primary-btn';
+        addButton.textContent = 'เพิ่มโจทย์ที่เลือก';
+        addButton.onclick = addSelectedProblems;
+        problemBankList.appendChild(addButton);
+
+    } catch (error) {
+        console.error("Error loading problem bank:", error);
+        problemBankList.innerHTML = '<p>เกิดข้อผิดพลาดในการโหลดคลังโจทย์</p>';
+    }
+}
+
+// เพิ่มโจทย์ที่เลือกเข้าห้องเรียน
+async function addSelectedProblems() {
+    try {
+        const checkboxes = document.querySelectorAll('.problem-bank-item input[type="checkbox"]:checked');
+        const promises = [];
+
+        for (let checkbox of checkboxes) {
+            const problemId = checkbox.id.replace('prob_', '');
+            
+            // สร้าง reference ใหม่ในห้องเรียนปัจจุบัน
+            const promise = db.collection('class_problems').add({
+                problemId: problemId,
+                classId: currentClassId, // ID ห้องเรียนปัจจุบัน
+                addedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            promises.push(promise);
+        }
+
+        await Promise.all(promises);
+        alert('เพิ่มโจทย์เรียบร้อย');
+        document.getElementById('problemBankModal').style.display = 'none';
+        loadProblems(); // โหลดรายการโจทย์ใหม่
+
+    } catch (error) {
+        console.error("Error adding problems:", error);
+        alert('เกิดข้อผิดพลาดในการเพิ่มโจทย์');
+    }
+}
+
+
+// โหลดรายชื่อนักเรียน
+async function loadStudents() {
+    // TODO: เพิ่มการโหลดรายชื่อนักเรียนเมื่อมีระบบลงทะเบียนนักเรียน
+    document.getElementById('studentList').innerHTML = 
+        '<p>อยู่ระหว่างการพัฒนา...</p>';
+}
+
+// อัพเดทสถิติ
+async function updateStats() {
+    try {
+        // จำนวนโจทย์
+        const problemsSnapshot = await db.collection('problems')
+            .where('classId', '==', classId)
+            .get();
+        document.getElementById('problemCount').textContent = 
+            problemsSnapshot.size;
+
+        // TODO: เพิ่มการนับจำนวนนักเรียนและการส่งงาน
+    } catch (error) {
+        console.error("Error updating stats:", error);
+    }
+}
+
+// สลับแท็บ
+function showTab(tabName) {
+    // ซ่อนทุกแท็บ
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // แสดงแท็บที่เลือก
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+    document.querySelector(`.tab[onclick="showTab('${tabName}')"]`)
+        .classList.add('active');
+}
+
+// ดูรายละเอียดโจทย์
+function viewProblem(problemId) {
+    // TODO: สร้างหน้าแสดงรายละเอียดโจทย์
+    alert('อยู่ระหว่างการพัฒนา...');
+}
+
+// เช็คสถานะการล็อกอิน
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        loadClassDetails();
+    } else {
+        window.location.href = 'index.html';
+    }
+});
+    </script>
+    <div id="createProblemModal">
+        <!-- เนื้อหาจาก class-detail-create-problem-modal.html -->
+    </div>
+    <script src="class-detail-create-problem.js"></script>
+    <!-- เพิ่มที่ส่วนท้าย body ของ class-detail.html -->
+<script src="class-detail.js"></script>
+</body>
+</html>

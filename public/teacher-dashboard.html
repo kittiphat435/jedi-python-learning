@@ -1,136 +1,54 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Teacher Dashboard - Python Learning Platform</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-        /* Dashboard Styles */
-        .user-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
+    <link rel="stylesheet" href="teacher-dashboard.css">
+    <!-- เพิ่ม SVG.js สำหรับจัดการ SVG -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.1.1/svg.min.js"></script>
 
-        .logout-btn {
-            background: #dc3545;
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .logout-btn:hover {
-            background: #c82333;
-        }
-
-        .section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .input-field {
-            width: 100%;
-            padding: 8px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .primary-btn {
-            background: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-        }
-
-        .primary-btn:hover {
-            background: #45a049;
-        }
-
-        .class-card {
-            background: #f8f9fa;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #ddd;
-        }
-
-        .class-info h3 {
-            margin: 0;
-            color: #333;
-        }
-
-        .class-code {
-            font-family: monospace;
-            color: #666;
-            margin: 5px 0;
-        }
-
-        .secondary-btn {
-            background: #6c757d;
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .secondary-btn:hover {
-            background: #5a6268;
-        }
-
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 30px;
-        }
-
-        .python-logo, .firebase-logo {
-            height: 40px;
-            width: auto;
-        }
-    </style>
+    <!-- เพิ่ม Draggable plugin สำหรับ SVG.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.draggy.js/1.1.1/svg.draggy.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/python/python.min.js"></script>
 </head>
+
 <body>
     <div class="container">
-        <div class="header">
-            <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo" class="python-logo">
-            <h1>Teacher Dashboard</h1>
-            <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png" alt="Firebase Logo" class="firebase-logo">
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
         </div>
 
         <!-- ข้อมูลผู้ใช้ -->
-        <!-- แก้ไขส่วน user-info -->
-    <div class="user-info">
-        <div>
-            <span id="userEmail"></span>
-            <div id="displayName">
-                <span id="userName"></span>
-                <button id="editNameBtn" class="edit-btn">แก้ไขชื่อ</button>
+        <div class="user-info">
+            <div>
+                <span id="userEmail"></span>
+                <div id="displayName">
+                    <span id="userName"></span>
+                    <button id="editNameBtn" class="edit-btn">แก้ไขชื่อ</button>
+                </div>
+                <div id="editNameForm" style="display: none;">
+                    <input type="text" id="newName" class="input-field" placeholder="ใส่ชื่อที่ต้องการ">
+                    <button id="saveNameBtn" class="primary-btn">บันทึก</button>
+                    <button id="cancelEditBtn" class="secondary-btn">ยกเลิก</button>
+                </div>
             </div>
-            <div id="editNameForm" style="display: none;">
-                <input type="text" id="newName" class="input-field" placeholder="ใส่ชื่อที่ต้องการ">
-                <button id="saveNameBtn" class="primary-btn">บันทึก</button>
-                <button id="cancelEditBtn" class="secondary-btn">ยกเลิก</button>
-            </div>
+            <button id="logoutBtn" class="logout-btn">ออกจากระบบ</button>
         </div>
-        <button id="logoutBtn" class="logout-btn">ออกจากระบบ</button>
-    </div>
 
         <!-- สร้างห้องเรียน -->
         <div class="section">
@@ -146,175 +64,428 @@
                 <!-- รายการห้องเรียนจะถูกเพิ่มที่นี่ด้วย JavaScript -->
             </div>
         </div>
+
+        <!-- คลังโจทย์ -->
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>คลังโจทย์</h2>
+                <div style="display: flex; gap: 10px;">
+                    <select id="filterProblemType" class="input-field" style="width: auto; margin-bottom: 0;">
+                        <option value="">ทุกประเภท</option>
+                        <option value="python">เขียนโค้ด Python</option>
+                        <option value="gui">สร้าง GUI (Tkinter)</option>
+                        <option value="flowchart">วาด Flowchart</option>
+                        <option value="comprehension">อ่านและทำความเข้าใจโค้ด</option>
+                        <option value="matching">จับคู่</option>
+                        <option value="quiz">ปรนัย (Multiple Choice)</option>
+                    </select>
+                    <button id="createProblemBtn" class="primary-btn" style="margin-top: 0;">สร้างโจทย์ใหม่</button>
+                </div>
+            </div>
+            <div id="problemList" class="problem-list">
+                <!-- รายการโจทย์จะถูกเพิ่มที่นี่ -->
+            </div>
+        </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Modal สร้างโจทย์ -->
+    <div id="problemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>สร้างโจทย์ใหม่</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
 
-    <script>
-        // Initialize Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
-            authDomain: "python-learning-platform-596e1.firebaseapp.com",
-            projectId: "python-learning-platform-596e1",
-            storageBucket: "python-learning-platform-596e1.firebasestorage.app",
-            messagingSenderId: "5262153531",
-            appId: "1:5262153531:web:55f6246093e1780003491e"
-        };
+            <div class="modal-body">
+                <form id="problemForm">
+                    <!-- ข้อมูลพื้นฐาน -->
+                    <div class="form-group">
+                        <label>ชื่อโจทย์ *</label>
+                        <input type="text" id="problemTitle" class="input-field" required>
+                    </div>
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+                    <div class="form-group">
+                        <label>ประเภทโจทย์ *</label>
+                        <select id="problemType" class="input-field" onchange="toggleProblemTypeFields()">
+                            <option value="python">Python Programming</option>
+                            <option value="comprehension">คำถามความเข้าใจ</option>
+                            <option value="matching">จับคู่</option>
+                            <option value="flowchart">Flowchart</option>
+                            <option value="gui">GUI (Graphical User Interface)</option>
+                        </select>
+                    </div>
 
-        // เช็คว่า user ล็อกอินอยู่หรือไม่
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                console.log('User is logged in:', user.email);
-                // แสดงอีเมลผู้ใช้
-                document.getElementById('userEmail').textContent = `ผู้ใช้: ${user.email}`;
-                // เช็คว่าเป็นครูหรือไม่
-                checkTeacherRole(user.uid);
-            } else {
-                // ถ้าไม่ได้ล็อกอิน ให้กลับไปหน้า login
-                window.location.href = 'index.html';
-            }
-        });
 
-        // เช็คว่าเป็นครูหรือไม่
-        async function checkTeacherRole(userId) {
-            try {
-                const userDoc = await db.collection('users').doc(userId).get();
-                if (userDoc.exists && userDoc.data().role === 'teacher') {
-                    // ถ้าเป็นครู โหลดรายการห้องเรียน
-                    loadClasses(userId);
-                } else {
-                    alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
-                    window.location.href = 'index.html';
-                }
-            } catch (error) {
-                console.error("Error checking role:", error);
-                alert('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์');
-            }
-        }
+                    <div class="form-group">
+                        <label>ระดับความยาก</label>
+                        <select id="problemDifficulty" class="input-field">
+                            <option value="easy">ง่าย</option>
+                            <option value="medium">ปานกลาง</option>
+                            <option value="hard">ยาก</option>
+                        </select>
+                    </div>
 
-        // สร้างรหัสห้องเรียนแบบสุ่ม
-        function generateClassCode() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
+                    <input type="hidden" id="problemImage">
+                    <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                        <label style="font-weight: bold; color: #1a73e8;">📎 สื่อประกอบการเรียนรู้ (แนบลิงก์ / อัปโหลดรูปภาพ)</label>
+                        <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                            รองรับ YouTube, PDF, รูปภาพ หรือเว็บไซต์ภายนอก (แสดงเป็นลิงก์ให้นักเรียนกด)
+                        </div>
+                        
+                        <div id="attachmentList"></div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                            <button type="button" class="secondary-btn" onclick="addAttachmentRow()" style="font-size: 14px;">
+                                + เพิ่ม URL สื่อการสอน
+                            </button>
+                            <input type="file" id="uploadImageFile" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                            <button type="button" class="preview-btn" onclick="document.getElementById('uploadImageFile').click()" style="background-color: #3498db; font-size: 14px; margin: 0;">
+                                อัปโหลดรูปภาพ
+                            </button>
+                        </div>
+                        <div id="uploadProgress" style="display: none; margin-top: 5px; font-size: 14px; color: #3498db;">กำลังอัปโหลด... 0%</div>
+                        <div id="imagePreview" class="image-preview" style="margin-top: 10px;"></div>
+                    </div>
 
-        // สร้างห้องเรียน
-        document.getElementById('createClassBtn').addEventListener('click', async () => {
-            const className = document.getElementById('className').value;
-            if (!className) {
-                alert('กรุณาใส่ชื่อห้องเรียน');
-                return;
-            }
 
-            try {
-                const user = auth.currentUser;
-                if (!user) {
-                    alert('กรุณาเข้าสู่ระบบก่อน');
-                    return;
-                }
 
-                const classCode = generateClassCode();
-                await db.collection('classes').add({
-                    name: className,
-                    code: classCode,
-                    teacherId: user.uid,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    <div id="pythonSection">
+                        <!-- คำอธิบายโจทย์ -->
+                        <div id="explanGroup" class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="problemDescription" class="input-field" required></textarea>
+                        </div>
 
-                alert(`สร้างห้องเรียนสำเร็จ!\nรหัสห้องเรียน: ${classCode}`);
-                document.getElementById('className').value = '';
-                loadClasses(user.uid);
-            } catch (error) {
-                console.error("Error creating class:", error);
-                alert('เกิดข้อผิดพลาดในการสร้างห้องเรียน');
-            }
-        });
 
-        // โหลดรายการห้องเรียน
-        async function loadClasses(userId) {
-    const classList = document.getElementById('classList');
-    classList.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
+                        <div id="templateCodeGroup" class="form-group">
+                            <label>โค้ดเริ่มต้น *</label>
+                            <textarea id="templateCode" class="code-editor" required></textarea>
+                        </div>
 
-    try {
-        const snapshot = await db.collection('classes')
-            .where('teacherId', '==', userId)
-            .orderBy('createdAt', 'desc')
-            .get();
+                        <!-- Test Cases -->
+                        <div id="testCasesSection" class="test-cases">
+                            <div class="test-cases-header">
+                                <h3>Test Cases</h3>
+                                <button type="button" class="primary-btn" onclick="addTestCase()">+ เพิ่ม Test
+                                    Case</button>
+                            </div>
+                            <div id="testCasesList"></div>
+                        </div>
+                    </div>
 
-        if (snapshot.empty) {
-            classList.innerHTML = '<p>ยังไม่มีห้องเรียน</p>';
-            return;
-        }
 
-        classList.innerHTML = '';
-        snapshot.forEach(doc => {
-            const classData = doc.data();
-            const classDiv = document.createElement('div');
-            classDiv.className = 'class-card';
-            // เปลี่ยนส่วนนี้
-            classDiv.innerHTML = `
-                <div class="class-info">
-                    <h3>${classData.name}</h3>
-                    <p class="class-code">รหัสห้องเรียน: ${classData.code}</p>
-                </div>
-                <div class="class-actions">
-                    <button onclick="viewClass('${doc.id}')" class="secondary-btn">ดูรายละเอียด</button>
-                     <button onclick="deleteClass('${doc.id}')" class="delete-btn">ลบห้องเรียน</button>
-                </div>
-            `;
-            classList.appendChild(classDiv);
-        });
-    } catch (error) {
-        console.error("Error loading classes:", error);
-        classList.innerHTML = '<p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
-    }
-}
-    // เพิ่มฟังก์ชัน deleteClass
-async function deleteClass(classId) {
-    if (!confirm('คุณแน่ใจหรือไม่ที่จะลบห้องเรียนนี้?')) {
-        return;
-    }
+                    <div id="comprehensionContentGroup" class="form-group" style="display: none;">
+                        <label>คำอธิบายโจทย์ *</label>
+                        <textarea id="comprehensionContent" class="input-field content-editor"
+                            placeholder="ใส่เนื้อหาหรือบทความที่ต้องการให้นักเรียนอ่าน"></textarea>
+                    </div>
 
-    try {
-        await db.collection('classes').doc(classId).delete();
-        alert('ลบห้องเรียนสำเร็จ');
-        const user = auth.currentUser;
-        if (user) {
-            loadClasses(user.uid);  // โหลดรายการใหม่
-        }
-    } catch (error) {
-        console.error("Error deleting class:", error);
-        alert('เกิดข้อผิดพลาดในการลบห้องเรียน');
-    }
-}
 
-// ทำให้ฟังก์ชันเรียกใช้ได้จาก HTML
-window.deleteClass = deleteClass;
-// แสดง Modal คลังโจทย์
 
-        // ออกจากระบบ
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            try {
-                await auth.signOut();
-                window.location.href = 'index.html';
-            } catch (error) {
-                console.error("Error signing out:", error);
-                alert('เกิดข้อผิดพลาดในการออกจากระบบ');
-            }
-        });
+                    <div id="questionsSection" class="questions" style="display: none;">
 
-        // ฟังก์ชันดูรายละเอียดห้องเรียน
-        // เปลี่ยนจาก alert เป็นการ redirect ไปหน้า class-detail.html
-window.viewClass = function(classId) {
-    window.location.href = `class-detail.html?id=${classId}`;
-}
-    </script>
+                        <div class="questions-header">
+                            <h3>คำถาม</h3>
+                            <button type="button" class="primary-btn" onclick="addComprehensionQuestion()">
+                                เพิ่มคำถาม
+                            </button>
+                        </div>
+
+
+
+
+                        <div id="questionsList"></div>
+
+
+                    </div>
+                    <!-- เพิ่มตรง modal-body ใน problemModal -->
+                    <div id="matchingSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="matchingDescription" class="input-field" required></textarea>
+                        </div>
+
+                        <div class="matching-pairs-section">
+                            <div class="matching-container">
+                                <div class="matching-column">
+                                    <div class="column-header">
+                                        <h4>คำถาม</h4>
+                                        <button type="button" class="add-btn" onclick="addMatchingQuestion()">+
+                                            เพิ่มคำถาม</button>
+                                    </div>
+                                    <div id="matchingQuestionsList" class="pairs-list">
+                                        <!-- คำถามจะถูกเพิ่มที่นี่ -->
+                                    </div>
+                                </div>
+                                <div class="matching-column">
+                                    <div class="column-header">
+                                        <h4>คำตอบ</h4>
+                                        <button type="button" class="add-btn" onclick="addMatchingAnswer()">+
+                                            เพิ่มคำตอบ</button>
+                                    </div>
+                                    <div id="matchingAnswersList" class="pairs-list">
+                                        <!-- คำตอบจะถูกเพิ่มที่นี่ -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px;">
+                                <label style="font-size: 1.1em; font-weight: bold; margin-bottom: 15px; display: block;">
+                                    🔗 กำหนดคู่ที่ถูกต้องและคะแนน
+                                </label>
+                                
+                                <div id="matchingPairsList"></div>
+                                
+                                <button type="button" class="secondary-btn" onclick="addMatchingPairRow()">
+                                    + เพิ่มคู่จับคู่ (กำหนดคะแนน)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="flowchartSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="flowchartDescription" class="input-field"
+                                placeholder="อธิบายโจทย์ที่ให้นักเรียนสร้าง Flowchart"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>ตัวแปรที่ใช้ในโจทย์</label>
+                            <div id="variablesContainer" class="variables-container">
+                                <div class="variables-header">
+                                    <button type="button" onclick="addVariable()" class="primary-btn add-var-btn">
+                                        + เพิ่มตัวแปร
+                                    </button>
+                                </div>
+                                <div id="variablesList" class="variables-list">
+                                    <!-- ตัวแปรจะถูกเพิ่มที่นี่ -->
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="form-group">
+                            <label>เฉลย Flowchart *</label>
+                            <div id="flowchartEditor" class="flowchart-editor">
+                                <div class="editor-toolbar">
+                                    <div class="toolbar-group">
+                                        <button type="button" class="tool-btn" draggable="true" data-type="start-end"
+                                            title="Start/End">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <rect x="0" y="0" rx="25" ry="25" width="100" height="50" fill="white"
+                                                    stroke="black" />
+                                            </svg>
+                                            <span>Start/End</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="process"
+                                            title="Process">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <rect x="0" y="0" width="100" height="50" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Process</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="document"
+                                            title="Document">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M0,0 L100,0 L100,40 Q50,60 0,40 Z" fill="white"
+                                                    stroke="black" />
+                                            </svg>
+                                            <span>Document</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="decision"
+                                            title="Decision">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M50,0 L100,25 L50,50 L0,25 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Decision</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="toolbar-group">
+                                        <button type="button" class="tool-btn" draggable="true" data-type="input-output"
+                                            title="Input/Output">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M15,0 L100,0 L85,50 L0,50 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Input/Output</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="manual-input"
+                                            title="Manual Input">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M0,10 L100,0 L100,50 L0,50 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Manual Input</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="display"
+                                            title="Display">
+                                            <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                                                <path d="M-30,-25 L30,-25 Q50,-25 50,0 Q50,25 30,25 L-30,25 L-50,0 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Display</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="data-storage"
+                                            title="Data Storage">
+                                            <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                                                <path d="M-35,-25 L50,-25 Q35,-25 35,0 Q35,25 50,25 L-35,25 Q-55,25 -55,0 Q-55,-25 -35,-25 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Data Storage</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="toolbar-group">
+                                        <button type="button" class="tool-btn" draggable="true" data-type="connector"
+                                            title="Connector">
+                                            <svg viewBox="0 0 50 50" class="symbol-icon">
+                                                <circle cx="25" cy="25" r="20" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Connector</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="arrow"
+                                            title="Arrow">
+                                            <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                                                <path d="M-30,-20 L30,20 M20,20 L30,20 L30,10" fill="none"
+                                                    stroke="black" stroke-width="2" />
+                                            </svg>
+                                            <span>Arrow</span>
+                                        </button>
+                                        <button type="button" class="tool-btn" data-type="move" title="Move">
+                                            <svg viewBox="0 0 50 50" class="symbol-icon">
+                                                <path
+                                                    d="M25,10 L25,40 M10,25 L40,25 M17,17 L10,25 L17,33 M33,17 L40,25 L33,33"
+                                                    fill="none" stroke="black" stroke-width="2" />
+                                            </svg>
+                                            <span>Move</span>
+                                        </button>
+                                        <button type="button" class="tool-btn delete" data-type="delete" title="Delete">
+                                            <svg viewBox="0 0 50 50" class="symbol-icon">
+                                                <path d="M10,10 L40,40 M40,10 L10,40" fill="none" stroke="red"
+                                                    stroke-width="2" />
+                                            </svg>
+                                            <span>Delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="flowchartCanvas" class="flowchart-canvas">
+                                    <!-- Canvas สำหรับวาด Flowchart -->
+                                </div>
+                                <div class="flowchart-controls">
+                                    <button type="button" 
+                                            class="tool-btn clear-btn" 
+                                            onclick="clearFlowchart()" 
+                                            title="Clear Flowchart">
+                                        ล้าง Flowchart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>คะแนนและเกณฑ์การตรวจ *</label>
+                            <div class="scoring-section">
+                                <div class="total-score">
+                                    <label>คะแนนเต็ม</label>
+                                    <input type="number" id="flowchartMaxScore" class="input-field" value="10" min="1"
+                                        max="100">
+                                </div>
+
+                                <div class="scoring-criteria">
+                                    <h4>เกณฑ์การให้คะแนน</h4>
+                                    <div class="criteria-item">
+                                        <span>1. รูปแบบ Flowchart ถูกต้อง (การใช้สัญลักษณ์)</span>
+                                        <input type="number" class="score-input" value="3" min="0" max="10">
+                                    </div>
+                                    <div class="criteria-item">
+                                        <span>2. การเชื่อมโยงแต่ละขั้นตอน</span>
+                                        <input type="number" class="score-input" value="3" min="0" max="10">
+                                    </div>
+                                    <div class="criteria-item">
+                                        <span>3. ลำดับขั้นตอนการทำงาน</span>
+                                        <input type="number" class="score-input" value="4" min="0" max="10">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>คำแนะนำสำหรับผู้ตรวจ</label>
+                            <textarea id="gradingInstructions" class="input-field"
+                                placeholder="คำแนะนำหรือหมายเหตุสำหรับผู้ตรวจในการพิจารณาให้คะแนน"></textarea>
+                        </div>
+                    </div>
+                    <!-- เพิ่ม Section สำหรับโจทย์ GUI -->
+                    <div id="guiSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ GUI *</label>
+                            <textarea id="guiDescription" class="input-field" rows="4" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Template Code *</label>
+                            <textarea id="guiTemplate" class="code-editor" rows="10" required>
+ 
+                            </textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>เฉลยโค้ด (สำหรับครู) *</label>
+                            <textarea id="guiSolution" class="code-editor solution-editor" rows="15" required>from tkinter import *
+from tkinter import ttk
+                    
+def calculate():
+    # เขียนเฉลยที่นี่
+    pass
+                    
+root = Tk()
+root.title("โปรแกรมของฉัน")
+root.geometry("400x300")
+                    
+# เขียนโค้ดเฉลยตรงนี้
+                    
+root.mainloop()
+                            </textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>กำหนด Widgets ที่ต้องการ</label>
+                            <div id="guiRequirements"></div>
+                            <button type="button" class="secondary-btn" onclick="addGUIRequirement()">+ เพิ่ม Widget</button>
+                        </div>
+                        
+                        <!-- เพิ่ม Test Cases ที่นี่ -->
+                        <div class="form-group">
+                            <h3>Test Cases</h3>
+                            <div id="guiTestCasesList"></div>
+                            <button type="button" class="secondary-btn" onclick="addGUITestCase()">+ เพิ่ม Test Case</button>
+                        </div>
+                        
+                        <button type="button" class="secondary-btn" onclick="previewGUI()">ดูตัวอย่าง GUI</button>
+                        <div id="guiPreview" class="gui-preview" style="display: none;"></div>
+                        <div id="guiValidationMessage" class="validation-message" style="display: none;"></div>
+                    </div>
+
+    
+            </div>
+            </form>
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal()" class="secondary-btn">ยกเลิก</button>
+                <button type="button" onclick="saveProblem()" class="primary-btn">บันทึก</button>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+    <script src="flowchart-editor.js"></script>
+    <script src="teacher-dashboard.js"></script>
 </body>
+
 </html>

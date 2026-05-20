@@ -1,0 +1,73 @@
+<div class="container">
+    <!-- Header -->
+    <header class="header">
+        <link rel="stylesheet" href="class-detail.css">
+        <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+            class="python-logo">
+        <h1>รายละเอียดห้องเรียน</h1>
+        <button onclick="window.history.back()" class="back-btn">กลับ</button>
+    </header>
+
+    <!-- Class Info Section -->
+    <section class="section">
+        <h2 id="className">ชื่อห้องเรียน</h2>
+        <p id="classCode">รหัสห้องเรียน:</p>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <div id="studentCount" class="stat-number">0</div>
+            <div>นักเรียน</div>
+        </div>
+        <div class="stat-card">
+            <div id="problemCount" class="stat-number">0</div>
+            <div>โจทย์</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('problems')">โจทย์</div>
+        <div class="tab" onclick="showTab('students')">รายชื่อนักเรียน</div>
+    </div>
+
+    <!-- Problems Tab Content -->
+    <div id="problemsTab" class="tab-content active">
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="ค้นหาโจทย์..." onkeyup="searchProblems(this.value)">
+        </div>
+        <div class="problem-actions">
+            <button onclick="showProblemBankModal()" class="primary-btn">
+                เพิ่มจากคลังโจทย์
+            </button>
+        </div>
+        <div id="problemList"></div>
+    </div>
+
+    <!-- Students Tab Content -->
+    <div id="studentsTab" class="tab-content">
+        <div id="studentList"></div>
+    </div>
+
+    <!-- Problem Bank Modal -->
+    <div id="problemBankModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>คลังโจทย์ของคุณ</h2>
+                <button onclick="closeProblemBankModal()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="problemBankList" class="problem-bank-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeProblemBankModal()" class="secondary-btn">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+<link rel="stylesheet" href="class-detail.css">
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+<script src="class-detail.js"></script>

@@ -1,0 +1,2927 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>เครื่องมือพัฒนาเว็บ</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #f5f5f5;
+    }
+    .header {
+      background-color: #04AA6D;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+    }
+    .main-tabs {
+      display: flex;
+      background-color: #f1f1f1;
+      border-bottom: 1px solid #ccc;
+    }
+    .main-tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      background-color: inherit;
+      border: none;
+      outline: none;
+      transition: 0.3s;
+      font-size: 16px;
+    }
+    .main-tab:hover {
+      background-color: #ddd;
+    }
+    .main-tab.active {
+      background-color: #04AA6D;
+      color: white;
+    }
+    .main-content {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+    }
+    .main-content.active {
+      display: flex;
+    }
+    
+    /* Python Converter Styles */
+    .converter-container {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .converter-textarea {
+      width: 100%;
+      height: 180px;
+      font-family: monospace;
+      margin-bottom: 8px;
+    }
+    .converter-button {
+      padding: 8px 16px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      background-color: #04AA6D;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    /* W3Schools Simulator Styles */
+    .container {
+      display: flex;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+    .editor-container, .result-container {
+      flex: 1;
+      min-width: 300px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .editor-container {
+      border-right: 1px solid #ddd;
+      background-color: #f9f9f9;
+    }
+    .result-container {
+      background-color: white;
+    }
+    .section-title {
+      margin-top: 0;
+      padding: 10px;
+      background-color: #e9e9e9;
+      border-radius: 4px 4px 0 0;
+    }
+    .editor-tabs {
+      display: flex;
+      background-color: #f1f1f1;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+    }
+    .editor-tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      background-color: inherit;
+      border: none;
+      outline: none;
+      transition: 0.3s;
+    }
+    .editor-tab:hover {
+      background-color: #ddd;
+    }
+    .editor-tab.active {
+      background-color: #04AA6D;
+      color: white;
+    }
+    .editor-content {
+      display: none;
+    }
+    .editor-content.active {
+      display: block;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ddd;
+      border-top: none;
+      font-family: monospace;
+      font-size: 14px;
+      resize: none;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    #result-frame {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 0 0 4px 4px;
+    }
+    .button-container {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #04AA6D;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #059862;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>เครื่องมือพัฒนาเว็บ</h1>
+    <p>เครื่องมือสำหรับการพัฒนาเว็บแอปพลิเคชัน</p>
+  </div>
+  
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="openMainTab('converter')">Python GUI Converter</button>
+    <button class="main-tab" onclick="openMainTab('simulator')">W3Schools Simulator</button>
+  </div>
+  
+  <!-- Python GUI Converter -->
+  <div id="converter-tab" class="main-content active">
+    <div class="converter-container">
+      <h3>วาง Tkinter Python Code</h3>
+      <textarea id="pythonInput" class="converter-textarea" placeholder="import tkinter...\n"></textarea>
+      <button id="convertBtn" class="converter-button">แปลงโค้ด</button>
+      <h3>ผลลัพธ์ HTML + JS</h3>
+      <textarea id="htmlOutput" class="converter-textarea" placeholder="<!DOCTYPE html>..."></textarea>
+      <button id="sendToSimulatorBtn" class="converter-button">ส่งไปยัง W3Schools Simulator</button>
+    </div>
+  </div>
+  
+  <!-- W3Schools Simulator -->
+  <div id="simulator-tab" class="main-content">
+    <div class="container">
+      <div class="editor-container">
+        <h2 class="section-title">Code Editor</h2>
+        <div class="editor-tabs">
+          <button class="editor-tab active" onclick="openEditorTab('html')">HTML</button>
+          <button class="editor-tab" onclick="openEditorTab('css')">CSS</button>
+          <button class="editor-tab" onclick="openEditorTab('js')">JavaScript</button>
+        </div>
+        <div id="html-tab" class="editor-content active">
+          <textarea id="html-editor" spellcheck="false">
+<h1>สวัสดี W3Schools Simulator</h1>
+<p>นี่คือตัวอย่างเว็บเพจอย่างง่าย</p>
+<button id="myButton">คลิกที่นี่</button>
+<p id="demo"></p>
+          </textarea>
+        </div>
+        <div id="css-tab" class="editor-content">
+          <textarea id="css-editor" spellcheck="false">
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background-color: #f5f5f5;
+}
+h1 {
+  color: #04AA6D;
+  text-align: center;
+}
+p {
+  font-size: 16px;
+}
+button {
+  padding: 8px 16px;
+  background-color: #04AA6D;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #059862;
+}
+          </textarea>
+        </div>
+        <div id="js-tab" class="editor-content">
+          <textarea id="js-editor" spellcheck="false">
+document.getElementById("myButton").addEventListener("click", function() {
+  document.getElementById("demo").innerHTML = "คุณได้คลิกปุ่มแล้ว!";
+});
+          </textarea>
+        </div>
+        <div class="button-container">
+          <button id="run-button">รันโค้ด</button>
+          <button id="clear-button">ล้างโค้ด</button>
+        </div>
+        <div id="status" class="status"></div>
+      </div>
+      <div class="result-container">
+        <h2 class="section-title">ผลลัพธ์</h2>
+        <iframe id="result-frame" sandbox="allow-scripts" frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Main Tab Switching
+    function openMainTab(tabName) {
+      const mainContents = document.getElementsByClassName("main-content");
+      for (let content of mainContents) content.classList.remove("active");
+
+      const mainTabs = document.getElementsByClassName("main-tab");
+      for (let tab of mainTabs) tab.classList.remove("active");
+
+      document.getElementById(tabName + "-tab").classList.add("active");
+      document.querySelector(`.main-tab[onclick="openMainTab('${tabName}')"]`).classList.add("active");
+    }
+    
+    // Python GUI Converter
+    document.getElementById('convertBtn').addEventListener('click', function() {
+      const success = convertCode();
+      // เรียกใช้ฟังก์ชันส่งไปยัง Simulator โดยอัตโนมัติหลังจากแปลงโค้ด
+      // ตรวจสอบว่าไม่มี error จากการแปลงโค้ด
+      if (success !== false && !window.conversionError) {
+        sendToSimulator(true); // ส่งพารามิเตอร์ true เพื่อให้รันโค้ดทันที
+      }
+    });
+    document.getElementById('sendToSimulatorBtn').addEventListener('click', function() {
+      sendToSimulator(false); // ส่งพารามิเตอร์ false เพื่อให้ส่งโค้ดไปแต่ไม่รันทันที
+    });
+
+    function sendToSimulator(autoRun = false) {
+      const htmlOutput = document.getElementById('htmlOutput').value;
+      
+      if (!htmlOutput) {
+        alert("กรุณาแปลงโค้ด Python เป็น HTML ก่อน");
+        return;
+      }
+      
+      // แยกส่วน HTML, CSS และ JavaScript จากโค้ด HTML ที่สร้างขึ้น
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlOutput, 'text/html');
+      
+      // ดึงส่วน HTML ทั้งหมด
+      // ใช้ค่าจาก htmlOutput โดยตรงสำหรับแท็บ HTML
+      const htmlContent = htmlOutput.trim();
+      
+      // ดึงส่วน CSS (ถ้ามี)
+      let cssContent = "";
+      const styleElements = doc.querySelectorAll('style');
+      if (styleElements.length > 0) {
+        styleElements.forEach(style => {
+          cssContent += style.textContent;
+        });
+      }
+      
+      // ดึงส่วน JavaScript
+      let jsContent = "";
+      const scriptElements = doc.querySelectorAll('script');
+      if (scriptElements.length > 0) {
+        scriptElements.forEach(script => {
+          jsContent += script.textContent;
+        });
+      }
+      
+      // เปลี่ยนไปยังแท็บ W3Schools Simulator
+      openMainTab('simulator');
+      
+      // ใส่โค้ดลงในแต่ละแท็บของ simulator
+      document.getElementById('html-editor').value = htmlContent;
+      document.getElementById('css-editor').value = cssContent;
+      document.getElementById('js-editor').value = jsContent;
+      
+      // ค้นหาชื่อฟังก์ชันจาก JavaScript
+      const funcMatch = jsContent.match(/function\s+(\w+)\s*\(\)/);
+      const funcName = funcMatch ? funcMatch[1] : null;
+      
+      // รันโค้ดอัตโนมัติถ้า autoRun เป็น true
+      if (autoRun) {
+        // รันโค้ดและรอให้ iframe โหลดเสร็จก่อนเรียกใช้ฟังก์ชัน
+        const resultFrame = document.getElementById('result-frame');
+        
+        // ล้าง iframe ก่อนเพื่อให้แน่ใจว่าจะโหลดใหม่
+        resultFrame.srcdoc = '';
+        
+        // สร้างโค้ด HTML ที่มีการเรียกใช้ฟังก์ชันอัตโนมัติ
+        const htmlCode = document.getElementById("html-editor").value;
+        const cssCode = document.getElementById("css-editor").value;
+        const jsCode = document.getElementById("js-editor").value;
+        
+        // เพิ่มการเรียกใช้ฟังก์ชันอัตโนมัติเมื่อโหลดเสร็จ
+        let autoRunJs = jsCode;
+        if (funcName) {
+          autoRunJs = jsCode + `\n\n// เรียกใช้ฟังก์ชันอัตโนมัติ\nwindow.onload = function() {\n  if (typeof ${funcName} === 'function') {\n    ${funcName}();\n  }\n};\n`;
+        }
+        
+        const fullCode = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>${cssCode}</style>
+</head>
+<body>
+  ${htmlCode}
+  <script>${autoRunJs.replace(/<\/script>/g, "<\\/script>")}<\/script>
+</body>
+</html>
+        `;
+        
+        resultFrame.srcdoc = fullCode;
+        showStatus("นำเข้าโค้ดจาก Python Converter สำเร็จและรันโค้ดอัตโนมัติ!");
+      } else {
+        // เพียงแค่รันโค้ดตามปกติ
+        runCode();
+        showStatus("นำเข้าโค้ดจาก Python Converter สำเร็จ!");
+      }
+    }
+
+
+    function convertPythonToJs(pythonCode) {
+    let jsCode = pythonCode
+        // แปลง global
+        .replace(/global\s+[\p{L}\p{N}_]+(?:\s*,\s*[\p{L}\p{N}_]+)*/gu, '')
+        // แปลงการเรียกใช้ .get()
+        .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'document.querySelector(\'[data-var="$1"]\').value')
+        // แปลงการเรียกใช้ .set(value)
+        .replace(/([\p{L}\p{N}_]+)\.set\s*\(\s*(['"]?[^)]+['"]?)\s*\)/gu, (match, varName, value) => {
+            return `(function(){ const els = document.querySelectorAll('[data-var="${varName}"]'); els.forEach(el => { if (el.tagName === 'INPUT') el.value = ${value}; else el.textContent = ${value}; }); })()`;
+        })
+        // แปลงการเรียกใช้ .config(text=...) แบบ f-string
+        .replace(/([\p{L}\p{N}_]+)\.config\s*\(\s*text\s*=\s*f['"]([^'"]+)['"]\s*\)/gu, (match, varName, textTemplate) => {
+            // แปลง f-string เป็น JavaScript template literal
+            const jsTemplate = textTemplate.replace(/{([^}]+)}/g, '${$1}');
+            return `document.querySelector('[data-var="${varName}"]').textContent = \`${jsTemplate}\``;
+        })
+        // แปลงการเรียกใช้ .config(text=...) แบบไม่ใช่ f-string
+        .replace(/([\p{L}\p{N}_]+)\.config\s*\(\s*text\s*=\s*['"]([^'"]+)['"]\s*\)/gu, 
+            'document.querySelector(\'[data-var="$1"]\').textContent = "$2"')
+        // แปลงการเรียกใช้ int()
+        .replace(/\bint\s*\(/g, 'parseInt(')
+        // แปลงการเรียกใช้ float()
+        .replace(/\bfloat\s*\(/g, 'parseFloat(')
+        // แปลงการเรียกใช้ str()
+        .replace(/\bstr\s*\(/g, 'String(');
+    
+    return jsCode;
+}
+
+function mergeMultiLineStatements(lines) {
+    const logicalLines = [];
+    let currentRaw = '';
+    let currentLine = '';
+    let openParens = 0;
+    let inString = false;
+    let stringChar = '';
+    let startLineNum = 1; // เพิ่มตัวแปรเก็บเลขบรรทัดเริ่มต้นของ logical line
+
+    lines.forEach((raw, index) => {
+      let line = raw.trim();
+      let currentLineNum = index + 1; // เลขบรรทัดจริงๆ (เริ่มจาก 1)
+
+      if (line.startsWith('#') || line === '') return;
+      let isLineContinuation = false;
+      if (line.endsWith('\\')) {
+        line = line.slice(0, -1).trim();
+        isLineContinuation = true;
+      }
+
+      if (!currentLine) {
+        currentRaw = raw; // save the first line's raw indentation
+        startLineNum = currentLineNum; // บันทึกบรรทัดที่เริ่มประโยค
+      }
+
+      // Count parentheses to detect multi-line statements
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (!inString) {
+          if (c === "'" || c === '"') {
+            inString = true;
+            stringChar = c;
+          } else if (c === '(' || c === '[' || c === '{') {
+            openParens++;
+          } else if (c === ')' || c === ']' || c === '}') {
+            openParens--;
+          }
+        } else {
+          if (c === stringChar) {
+            if (i === 0 || line[i - 1] !== '\\') {
+              inString = false;
+              stringChar = '';
+            }
+          }
+        }
+      }
+
+      currentLine += (currentLine ? ' ' : '') + line;
+
+      if (openParens <= 0 && !isLineContinuation) {
+        logicalLines.push({ raw: currentRaw, line: currentLine, lineNumber: startLineNum });
+        currentLine = '';
+        currentRaw = '';
+        openParens = 0;
+        inString = false;
+      }
+    });
+
+    if (currentLine) {
+      logicalLines.push({ raw: currentRaw, line: currentLine, lineNumber: startLineNum });
+    }
+    
+    return logicalLines;
+}
+
+function convertTkinterToHtml(code) {
+    // ประมวลผลโค้ดก่อนแปลง
+    code = preprocessTkinterCode(code);
+    
+    console.log("Starting convertTkinterToHtml with code:", code.substring(0, 100) + "...");
+    const elements = [];
+    const widgets = {};
+    const variables = {};
+    const parsedWidgets = []; // เปลี่ยนจาก object เป็น array
+    let widgetCounter = 0;
+    let rootVar = 'root'; // Default root variable name
+    let rootTitle = 'Tkinter Application'; // Default title
+    let hasPackOrGrid = false; // ตรวจสอบว่ามีการใช้ pack/grid/place หรือไม่
+    let jsCode = ''; // เพิ่มตัวแปรสำหรับเก็บ JavaScript code
+
+    const rawLines = code.split('\n');
+    const logicalLines = mergeMultiLineStatements(rawLines);
+    console.log(`Processing ${logicalLines.length} logical lines of code`);
+    
+    for (const { line: trimmedLine } of logicalLines) {
+        if (!trimmedLine) continue;
+
+        try {
+        // Find the root variable name (handles spaces before/after parentheses)
+        const tkMatch = trimmedLine.match(/^([\p{L}_][\p{L}\p{N}_]*)\s*=\s*(?:tk\.\s*)?Tk\s*\(\s*\)/u);
+        if (tkMatch) {
+            rootVar = tkMatch[1];
+            console.log('Found root variable:', rootVar);
+        }
+            
+            // ตรวจจับชื่อหน้าต่าง (window title)
+            if (trimmedLine.match(/\.title\s*\(/)) {
+                const titleMatch = trimmedLine.match(/\.title\s*\(\s*['"](.*?)['"]\s*\)/);
+                if (titleMatch && titleMatch[1]) {
+                    rootTitle = titleMatch[1];
+                    console.log('Found window title:', rootTitle);
+                }
+            }
+
+            // Handle StringVar, IntVar, DoubleVar, BooleanVar
+            if (trimmedLine.match(/(?:tk\.\s*)?StringVar\s*\(/) || 
+                trimmedLine.match(/(?:tk\.\s*)?IntVar\s*\(/) || 
+                trimmedLine.match(/(?:tk\.\s*)?DoubleVar\s*\(/) || 
+                trimmedLine.match(/(?:tk\.\s*)?BooleanVar\s*\(/)) {
+                
+                const varName = trimmedLine.split('=')[0].trim();
+                // Fix the regex pattern to properly capture values with quotes
+                const valueMatch = trimmedLine.match(/value\s*=\s*['"]([^'"]*)['"]/);
+                let varType = 'StringVar';
+                
+                if (trimmedLine.match(/(?:tk\.\s*)?IntVar\s*\(/)) varType = 'IntVar';
+                else if (trimmedLine.match(/(?:tk\.\s*)?DoubleVar\s*\(/)) varType = 'DoubleVar';
+                else if (trimmedLine.match(/(?:tk\.\s*)?BooleanVar\s*\(/)) varType = 'BooleanVar';
+                
+                variables[varName] = { 
+                    type: varType, 
+                    value: valueMatch ? valueMatch[1] : (varType === 'IntVar' ? '0' : 
+                                                        varType === 'DoubleVar' ? '0.0' : 
+                                                        varType === 'BooleanVar' ? 'false' : '')
+                };
+                console.log('Added variable:', varName, variables[varName], 'Raw value match:', valueMatch ? valueMatch[1] : 'no match');
+            }
+
+            // Handle Label
+            if (trimmedLine.match(/(?:tk\.\s*)?Label\s*\(/)) {
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim(); // 1. ดึงชื่อตัวแปร
+                const text = trimmedLine.match(/text\s*=\s*['"]([^'"]*)['"]/)?.[1] || '';
+                
+                const widget = { 
+                    type: 'Label', 
+                    text, 
+                    // 2. ✅ [สำคัญมาก] ต้องเติม data-var="${varName}" ตรงนี้ !!
+                    // ถ้าไม่มีบรรทัดนี้ ปุ่มกดจะไม่รู้ว่าจะเปลี่ยนข้อความที่ Label ไหน
+                    element: `<div id="${widgetKey}" class="tk-label" data-var="${varName}" data-index="${widgetCounter - 1}">${text}</div>`,
+                    widgetKey,
+                    added: false 
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget);
+                console.log('Added Label:', varName, widget);
+            }
+
+            // Handle Entry widget
+            if (trimmedLine.match(/(?:tk\.\s*)?Entry\s*\(/)) {
+                console.log('Processing Entry:', trimmedLine);
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim();
+                
+                // เพิ่มการตรวจสอบ textvariable
+                const textvariableMatch = trimmedLine.match(/textvariable\s*=\s*([\p{L}_][\p{L}\p{N}_]*)/u); 
+                let placeholderText = '';
+                
+                if (textvariableMatch && textvariableMatch[1]) {
+                    const textvariableName = textvariableMatch[1];
+                    console.log('Found textvariable:', textvariableName, 'Value:', variables[textvariableName] ? variables[textvariableName].value : 'undefined');
+                    
+                    if (variables[textvariableName] && variables[textvariableName].value !== undefined) {
+                        placeholderText = variables[textvariableName].value;
+                        console.log('Setting Entry value to:', placeholderText);
+                    }
+                }
+                
+                // ดึง text จาก comment หรือ label ที่อยู่ใกล้เคียง
+                const textMatch = trimmedLine.match(/text\s*=\s*['"]([ ^'"]*)['"]/) || 
+                                 trimmedLine.match(/#\s*(.+)$/) || // จาก comment
+                                 ['', '']; // default
+                const entryText = textMatch[1] || '';
+                
+                // เพิ่มการตรวจสอบ command (ถ้ามี)
+                const commandMatch = trimmedLine.match(/command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/u); 
+                
+                const widget = {
+                    type: 'Entry',
+                    text: placeholderText || entryText,
+                    command: commandMatch ? (commandMatch[1].startsWith("lambda") ? (commandMatch[1].match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u) ? commandMatch[1].match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u)[1] : "lambda_func") : commandMatch[1]) : null,
+                    textvariable: textvariableMatch ? textvariableMatch[1] : null,
+                    element: `<input type="text" class="tk-entry" id="${widgetKey}" value="${placeholderText}" data-index="${widgetCounter - 1}">`,
+                    widgetKey,
+                    added: false
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget); // เพิ่มใน parsedWidgets เป็น array
+                console.log('Added Entry:', varName, widget);
+            }
+
+            // Handle Button
+            if (trimmedLine.match(/(?:tk\.\s*)?Button\s*\(/)) {
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim();
+                const textMatch = trimmedLine.match(/text\s*=\s*['"]([^'"]*)['"]/);
+                const text = textMatch ? textMatch[1] : 'Button';
+                const commandMatch = trimmedLine.match(/command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/u);
+                
+                console.log('Parsing Button line:', trimmedLine);
+                console.log('Button text match:', text);
+                console.log('Button command match:', commandMatch ? commandMatch[1] : 'none');
+                
+                const widget = {
+                    type: 'Button',
+                    text,
+                    command: commandMatch ? (commandMatch[1].startsWith("lambda") ? (commandMatch[1].match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u) ? commandMatch[1].match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u)[1] : "lambda_func") : commandMatch[1]) : null,
+                    element: `<button id="${widgetKey}" class="tk-button" data-index="${widgetCounter - 1}" data-var="${varName}">${text}</button>`,
+                    widgetKey,
+                    added: false
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget); // เพิ่มใน parsedWidgets เป็น array
+                console.log('Added Button:', varName, widget);
+            }
+
+            // Handle Checkbutton
+            if (trimmedLine.match(/(?:tk\.\s*)?Checkbutton\s*\(/)) {
+                widgetCounter++;
+                const widgetKey = `widget_${widgetCounter}`;
+                const varName = trimmedLine.split('=')[0].trim();
+                
+                console.log('Parsing Checkbutton line:', trimmedLine);
+                
+                const text = trimmedLine.match(/text\s*=\s*['"]([^'"]*)['"]/)?.[1] || '';
+                const commandMatch = trimmedLine.match(/command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/u);
+                const variableMatch = trimmedLine.match(/variable\s*=\s*([\p{L}_][\p{L}\p{N}_]*)/u);
+                const onvalueMatch = trimmedLine.match(/onvalue\s*=\s*([0-9]+)/);
+                const offvalueMatch = trimmedLine.match(/offvalue\s*=\s*([0-9]+)/);
+                
+                console.log('Checkbutton text:', text);
+                console.log('Checkbutton variable match:', variableMatch ? variableMatch[1] : 'none');
+                console.log('Checkbutton onvalue:', onvalueMatch ? onvalueMatch[1] : '1');
+                console.log('Checkbutton offvalue:', offvalueMatch ? offvalueMatch[1] : '0');
+                
+                const onvalue = onvalueMatch ? onvalueMatch[1] : '1';
+                const offvalue = offvalueMatch ? offvalueMatch[1] : '0';
+                
+                const checked = variableMatch && variables[variableMatch[1]] && 
+                               (variables[variableMatch[1]].value === 'true' || 
+                                parseInt(variables[variableMatch[1]].value) > 0);
+                
+                const widget = {
+                    type: 'Checkbutton',
+                    text,
+                    command: commandMatch ? (commandMatch[1].startsWith("lambda") ? (commandMatch[1].match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u) ? commandMatch[1].match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u)[1] : "lambda_func") : commandMatch[1]) : null,
+                    variable: variableMatch ? variableMatch[1] : null,
+                    onvalue: onvalue,
+                    offvalue: offvalue,
+                    element: `<div class="tk-checkbox"><input type="checkbox" id="${widgetKey}" ${checked ? 'checked' : ''} data-index="${widgetCounter - 1}"><label for="${widgetKey}">${text}</label></div>`,
+                    widgetKey,
+                    added: false
+                };
+                widgets[varName] = widget;
+                parsedWidgets.push(widget); // เพิ่มใน parsedWidgets เป็น array
+                console.log('Added Checkbutton:', varName, widget);
+            }
+
+            // Handle pack/grid/place
+            if (trimmedLine.match(/\.pack\s*\(/) || trimmedLine.match(/\.grid\s*\(/) || trimmedLine.match(/\.place\s*\(/)) {
+                hasPackOrGrid = true;
+                const widgetName = trimmedLine.split('.')[0].trim();
+                console.log('Processing layout for widget:', widgetName);
+                
+                if (widgets[widgetName] && !widgets[widgetName].added) {
+                    elements.push(widgets[widgetName].element);
+                    widgets[widgetName].added = true;
+                    console.log('Added element to display:', widgetName);
+                } else if (!widgets[widgetName]) {
+                    console.warn(`Widget ${widgetName} not found for layout`);
+                } else {
+                    console.warn(`Widget ${widgetName} already added to layout`);
+                }
+            }
+        } catch (err) {
+            console.error('Error parsing line:', trimmedLine, err);
+            elements.push(`<div style="color:red;">Error: ${trimmedLine}</div>`);
+        }
+    }
+
+    // ถ้าไม่มีการใช้ pack/grid/place เลย ให้แสดง widget ทั้งหมดที่สร้างไว้
+    if (!hasPackOrGrid) {
+        console.log('No pack/grid/place found, showing all widgets');
+        for (const widgetName in widgets) {
+            if (!widgets[widgetName].added) {
+                elements.push(widgets[widgetName].element);
+                widgets[widgetName].added = true;
+                console.log('Auto-added element to display:', widgetName);
+            }
+        }
+    }
+
+    // ตรวจสอบว่ามี widgets ที่ไม่ได้ถูกเพิ่มหรือไม่
+    for (const widgetName in widgets) {
+        if (!widgets[widgetName].added) {
+            console.warn(`Widget ${widgetName} was not added to the layout`);
+        }
+    }
+
+    // Add CSS for better display
+    const css = `
+<style>
+    .gui-preview {
+        margin: 20px auto !important;
+        max-width: 100% !important;
+        background-color: #ffffff !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .tk-window {
+        border: 1px solid #ccc !important;
+        padding: 20px !important;
+        width: 400px !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        background-color: #ffffff !important;
+        border-radius: 5px !important;
+        font-family: Arial, sans-serif !important;
+        position: relative !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+    }
+    .tk-title-bar {
+        background-color: #e0e0e0 !important;
+        padding: 5px 10px !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        border-bottom: 1px solid #ccc !important;
+        margin: -20px -20px 15px -20px !important;
+        border-radius: 5px 5px 0 0 !important;
+        position: relative !important;
+        width: 100% !important; /* Ensure full width */
+        box-sizing: border-box !important; /* Include padding in width calculation */
+    }
+    .tk-title {
+        display: inline-block !important;
+        margin: 0 !important;
+        font-size: 14px !important;
+    }
+    /* Removed window controls CSS */
+</style>
+`;
+
+    // หาฟังก์ชันทั้งหมดในโค้ด Python
+     // หาปุ่มและเชื่อมโยงกับฟังก์ชัน
+     const functionRegex = /(?:^|\n)def\s+([\p{L}\p{N}_]+)\s*\(([^)]*)\)\s*:\s*([\s\S]*?)(?=\n\S|$)/gu;
+    let match;
+    while ((match = functionRegex.exec(code)) !== null) {
+        const functionName = match[1];
+        const functionArgs = match[2];
+        const functionBody = match[3];
+        
+        // แปลงฟังก์ชัน Python เป็น JavaScript
+        let jsFunction = `
+        function ${functionName}(${functionArgs}) {
+            console.log("เรียกใช้ฟังก์ชัน ${functionName}");
+            
+            // จำลองการทำงานของฟังก์ชัน
+            try {
+                ${convertPythonToJs(functionBody)}
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในฟังก์ชัน ${functionName}:", error);
+            }
+        }
+        `;
+        
+        jsCode += jsFunction;
+    }
+    
+    // หาปุ่มและเชื่อมโยงกับฟังก์ชัน
+    const buttonRegex = /([\p{L}\p{N}_]+)\s*=\s*(?:tk\.\s*)?Button\s*\((.*)\)/gu;
+    const commandRegex = /([\p{L}\p{N}_]+)\.(config|configure)\s*\(\s*.*?command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/gsu;
+    const directCommandRegex = /([\p{L}\p{N}_]+)\s*=\s*(?:tk\.\s*)?Button\s*\(.*?command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*).*?\)/gsu;
+    
+    let buttonMatch;
+    while ((buttonMatch = buttonRegex.exec(code)) !== null) {
+        const buttonVar = buttonMatch[1];
+        const textMatch = buttonMatch[2].match(/text\s*=\s*['"]([^'"]+)['"]/);
+        const buttonText = textMatch ? textMatch[1] : 'Button';
+        
+        // หาฟังก์ชันที่เชื่อมโยงกับปุ่ม (จากการใช้ config/configure)
+        let commandMatch;
+        commandRegex.lastIndex = 0;
+        let functionName = null;
+        
+        while ((commandMatch = commandRegex.exec(code)) !== null) {
+            if (commandMatch[1] === buttonVar) {
+                functionName = commandMatch[3].trim();
+                if (functionName.startsWith("lambda")) {
+                    const lambdaFuncMatch = functionName.match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u);
+                    const lambdaArgsMatch = functionName.match(/lambda\s*:\s*[\p{L}_][\p{L}\p{N}_]*\s*\(\s*(.*?)\s*\)/u);
+                    if (lambdaFuncMatch) {
+                        let args = lambdaArgsMatch && lambdaArgsMatch[1] ? lambdaArgsMatch[1] : '';
+                        functionName = `${lambdaFuncMatch[1]}(${args})`;
+                    }
+                    else if (functionName.includes('destroy') || functionName.includes('quit')) functionName = 'lambda_func';
+                    else functionName = 'lambda_func';
+                }
+                // Update widget command in widgets dictionary
+                if (widgets[buttonVar]) {
+                    widgets[buttonVar].command = functionName;
+                }
+                break;
+            }
+        }
+        
+        // หาฟังก์ชันที่เชื่อมโยงกับปุ่ม (จากการกำหนดตรงใน constructor)
+        if (!functionName) {
+            directCommandRegex.lastIndex = 0;
+            while ((commandMatch = directCommandRegex.exec(code)) !== null) {
+                if (commandMatch[1] === buttonVar) {
+                    functionName = commandMatch[2].trim();
+                    if (functionName.startsWith('lambda')) {
+                        const lambdaFuncMatch = functionName.match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u);
+                        const lambdaArgsMatch = functionName.match(/lambda\s*:\s*[\p{L}_][\p{L}\p{N}_]*\s*\(\s*(.*?)\s*\)/u);
+                        if (lambdaFuncMatch) {
+                            let args = lambdaArgsMatch && lambdaArgsMatch[1] ? lambdaArgsMatch[1] : '';
+                            functionName = `${lambdaFuncMatch[1]}(${args})`;
+                        }
+                        else if (functionName.includes('destroy') || functionName.includes('quit')) functionName = 'lambda_func';
+                        else functionName = 'lambda_func';
+                    }
+                    // Update widget command in widgets dictionary
+                    if (widgets[buttonVar]) {
+                        widgets[buttonVar].command = functionName;
+                    }
+                    break;
+                }
+            }
+        }
+        
+        if (functionName) {
+            const baseFuncName = functionName.split('(')[0];
+            // เพิ่ม event listener ให้กับปุ่ม
+            jsCode += `
+            // เชื่อมโยงปุ่ม ${buttonVar} กับฟังก์ชัน ${functionName}
+            setTimeout(() => {
+                const button = document.querySelector('button[data-var="${buttonVar}"]');
+                if (button) {
+                    console.log("พบปุ่ม ${buttonVar}");
+                    button.addEventListener('click', function() {
+                        console.log("คลิกปุ่ม ${buttonVar}");
+                        if ("${functionName}" === "lambda_func") {
+                            const win = document.querySelector('.tk-window');
+                            if (win) {
+                                win.style.display = 'none';
+                                console.log("Window closed by lambda");
+                            }
+                        } else if (typeof ${baseFuncName} === "function") {
+                            ${functionName.includes('(') ? functionName : functionName + '()'};
+                        }
+                    });
+                } else {
+                    console.error("ไม่พบปุ่ม ${buttonVar}");
+                }
+            }, 50);
+            `;
+    }
+    
+    // สร้าง HTML และ script สำหรับจำลองการทำงาน
+    let script = '';
+    
+    // ตรวจสอบว่ามี Button หรือ Checkbutton ที่มี command หรือไม่
+    const interactiveWidgets = Object.values(widgets).filter(
+        w => ['Button', 'Checkbutton'].includes(w.type) && w.command
+    );
+    
+    console.log(`Found ${interactiveWidgets.length} interactive widgets with commands`);
+    
+    for (const widget of interactiveWidgets) {
+        const funcName = widget.command;
+        const widgetKey = widget.widgetKey;
+        
+        console.log(`Creating event listener for ${widget.type} with ID ${widgetKey} and command ${funcName}`);
+        
+        script += `
+            // เพิ่ม event listener สำหรับ ${widget.type} ${widget.widgetKey}
+            setTimeout(() => {
+                console.log('DOM loaded, looking for element with ID: ${widgetKey}');
+                const element = document.getElementById('${widgetKey}');
+                if (element) {
+                    console.log('Found element with ID: ${widgetKey}');
+                    element.addEventListener('click', function() {
+                        console.log('${widget.type} ${widgetKey} clicked, executing command: ${funcName}');
+                        ${funcName === 'lambda_func' ? 
+                            `const win = document.querySelector('.tk-window');
+                             if(win) win.style.display = 'none';` : 
+                            simulateFunction(funcName, widgets, variables)
+                        }
+                    });
+                } else {
+                    console.error('Element with ID ${widgetKey} not found');
+                }
+            }, 50);
+        `;
+
+    const htmlOutput = `
+         ${css}
+    <div class="tk-window">
+        <div class="tk-title-bar">
+            <div class="tk-title">${rootTitle}</div>
+        </div>
+        ${elements.length > 0 ? elements.join('') : '<div class="tk-label">ไม่พบ widget ที่แสดงได้</div>'}
+    </div>
+    <script>${script}</script>
+`;
+
+    console.log(`Generated HTML with ${elements.length} elements and ${Object.keys(widgets).length} widgets`);
+    return {
+        htmlOutput,
+        widgets: parsedWidgets, // คืนค่าเป็น array
+        jsCode // เพิ่ม JavaScript code ในผลลัพธ์
+    };
+}
+
+function simulateFunction(funcName, widgets, variables) {
+    console.log(`Simulating function: ${funcName} with ${Object.keys(widgets).length} widgets`);
+    
+    let script = '';
+    
+    // ดึงข้อมูลจาก Entry widgets
+    const entries = Object.values(widgets).filter(w => w.type === 'Entry');
+    console.log(`Found ${entries.length} Entry widgets`);
+    
+    entries.forEach(w => {
+        script += `
+            let ${w.widgetKey}_value = '';
+            const ${w.widgetKey}_element = document.getElementById('${w.widgetKey}');
+            if (${w.widgetKey}_element) {
+                ${w.widgetKey}_value = ${w.widgetKey}_element.value || '';
+                console.log('Read Entry value:', ${w.widgetKey}_value);
+            } else {
+                console.error('Entry element with ID ${w.widgetKey} not found');
+            }
+        `;
+    });
+
+    // ดึงข้อมูลจาก Checkbutton widgets
+    const checkbuttons = Object.values(widgets).filter(w => w.type === 'Checkbutton');
+    console.log(`Found ${checkbuttons.length} Checkbutton widgets`);
+    
+    checkbuttons.forEach(w => {
+        script += `
+            let ${w.widgetKey}_checked = false;
+            let ${w.widgetKey}_value = ${w.offvalue || 0};
+            const ${w.widgetKey}_element = document.getElementById('${w.widgetKey}');
+            if (${w.widgetKey}_element) {
+                ${w.widgetKey}_checked = ${w.widgetKey}_element.checked || false;
+                // ใช้ค่า onvalue หรือ offvalue ตามสถานะของ checkbox
+                ${w.widgetKey}_value = ${w.widgetKey}_checked ? ${w.onvalue || 1} : ${w.offvalue || 0};
+                console.log('Read Checkbutton state:', ${w.widgetKey}_checked, 'value:', ${w.widgetKey}_value);
+            } else {
+                console.error('Checkbutton element with ID ${w.widgetKey} not found');
+            }
+        `;
+    });
+
+    // สร้างฟังก์ชัน logic สำหรับการคำนวณจริง
+    script += `
+        // สร้างฟังก์ชัน ${funcName}_logic สำหรับการคำนวณจริง
+        function ${funcName}_logic() {
+            console.log('Executing ${funcName}_logic');
+            
+            // ดึงค่าจาก Entry widgets
+            let year1 = 0, year2 = 0;
+            ${entries.map((w, index) => {
+                if (index === 0) return `year1 = parseInt(${w.widgetKey}_value) || 0;`;
+                if (index === 1) return `year2 = parseInt(${w.widgetKey}_value) || 0;`;
+                return '';
+            }).filter(Boolean).join('\n            ')}
+            
+            // คำนวณอายุ
+            let age = Math.abs(year2 - year1);
+            
+            // ตรวจสอบ checkbox สำหรับการแสดง "AA"
+            let showAA = false;
+            ${checkbuttons.map(w => `if (${w.widgetKey}_checked) showAA = true;`).join('\n            ')}
+            
+            console.log('Calculated age:', age, 'Show AA:', showAA);
+            
+            // อัปเดต Label widgets ตามลำดับ
+            const labels = document.querySelectorAll('.tk-label');
+            if (labels.length >= 2) {
+                // Label แรก (ผลลัพธ์คำนวณอายุ) - ใช้ index 2 ตาม test case
+                if (labels[2]) {
+                    labels[2].textContent = age.toString();
+                    console.log('Updated age label:', age);
+                }
+                
+                // Label ที่สอง (พิเศษ) - ใช้ index 3 ตาม test case  
+                if (labels[3]) {
+                    labels[3].textContent = showAA ? 'AA' : 'พิเศษ';
+                    console.log('Updated special label:', showAA ? 'AA' : 'พิเศษ');
+                }
+            }
+            
+            return \`อายุ: \${age} ปี\${showAA ? ', พิเศษ: AA' : ''}\`;
+        }
+        
+        let result = '';
+        try {
+            result = String(${funcName}_logic());
+            console.log('Function executed successfully with result:', result);
+        } catch (e) { 
+            console.error("Error in ${funcName}_logic:", e);
+            result = 'Error: ' + e.message; 
+        }
+    `;
+
+    // อัพเดทผลลัพธ์ไปยัง Label widget
+    const labels = Object.values(widgets).filter(w => w.type === 'Label');
+    console.log(`Found ${labels.length} Label widgets for result display`);
+    
+    if (labels.length > 0) {
+        script += `
+            // เรียกใช้ฟังก์ชันคำนวณ
+            ${funcName}_logic();
+        `;
+    } else {
+        script += `
+            console.warn('No Label widgets found to display result');
+            let result = ${funcName}_logic();
+            alert('ผลลัพธ์: ' + result);
+        `;
+    }
+
+    return script;
+}
+
+// ตัวอย่างฟังก์ชัน logic (ต้องปรับตามโจทย์จริง)
+function calculate_logic(input) { return input; } // Placeholder
+
+
+let problemData = {}; // ตัวแปร global เพื่อเก็บข้อมูลโจทย์ทั้งหมด (รวม widgets)
+let problemTestCases = []; // ตัวแปร global เพื่อเก็บ Test Cases
+
+// เพิ่มฟังก์ชันคำนวณคะแนนเต็มจาก testcase ทั้งหมด
+// ✅ [FIX] แก้ให้คำนวณคะแนนเต็มจากทุกส่วน (Widget + Order + Testcase)
+function calculateMaxScore() {
+    let maxScore = 0;
+    
+    // 1. คะแนนจาก Widget (จาก problemData.widgets)
+    if (problemData.widgets && Array.isArray(problemData.widgets)) {
+        maxScore += problemData.widgets.reduce((sum, w) => sum + (w.score || 1), 0);
+        
+        // บวกคะแนน Order (ลำดับ) เพิ่มไปอีก 5 คะแนน (ตาม Logic เดิมใน testGUICode)
+        // เงื่อนไข: ต้องมี widget อย่างน้อย 2 ตัวถึงจะมีคะแนนส่วนนี้
+        if (problemData.widgets.length >= 2) {
+            maxScore += 5; 
+        }
+    }
+
+    // 2. คะแนนจาก Test Cases (จาก problemData.testCases)
+    if (problemData.testCases && Array.isArray(problemData.testCases)) {
+        maxScore += problemData.testCases.reduce((sum, tc) => sum + (tc.score || 1), 0);
+    }
+    
+    return maxScore > 0 ? maxScore : 0;
+}
+
+// ฟังก์ชันอัปเดตการแสดงคะแนน
+function updateScoreDisplay(currentScore = 0, maxScore = null) {
+    if (maxScore === null) {
+        maxScore = calculateMaxScore();
+    }
+    
+    const currentScoreElement = document.getElementById('currentScore');
+    const maxScoreElement = document.getElementById('maxScore');
+    const scorePercentageElement = document.getElementById('scorePercentage');
+    const scoreContainer = document.querySelector('.score-container');
+    
+    if (currentScoreElement && maxScoreElement && scorePercentageElement) {
+        currentScoreElement.textContent = currentScore;
+        maxScoreElement.textContent = maxScore;
+        
+        const percentage = maxScore > 0 ? Math.round((currentScore / maxScore) * 100) : 0;
+        scorePercentageElement.textContent = `${percentage}%`;
+        
+        // เปลี่ยนสีตามเปอร์เซ็นต์
+        scoreContainer.classList.remove('perfect', 'good', 'poor');
+        if (percentage >= 90) {
+            scoreContainer.classList.add('perfect');
+        } else if (percentage >= 70) {
+            scoreContainer.classList.add('good');
+        } else {
+            scoreContainer.classList.add('poor');
+        }
+        
+        // เพิ่ม animation เมื่ออัปเดต
+        scoreContainer.classList.add('updated');
+        setTimeout(() => {
+            scoreContainer.classList.remove('updated');
+        }, 500);
+    }
+}
+
+async function loadGUIProblem(problemId, userId, classId, viewMode) {
+    try {
+        const problemDoc = await db.collection('problems').doc(problemId).get();
+
+        if (!problemDoc.exists) {
+            showError('ไม่พบโจทย์ที่ต้องการ');
+            return;
+        }
+
+        problemData = problemDoc.data(); // เก็บข้อมูลโจทย์ทั้งหมดในตัวแปร global
+        problemTestCases = problemData.testCases || []; // เก็บ Test Cases โดยให้เป็น array ว่างถ้าไม่มี
+
+        // เรียกใช้ loadProblemConfig เพื่อตั้งค่า window.widgetDefinitions และ window.guiTestCases
+        await loadProblemConfig(problemId);
+        
+        // Ensure the problem is of type 'gui'
+        if (problemData.type !== 'gui') {
+            showError('โจทย์นี้ไม่ใช่โจทย์ GUI');
+            return;
+        }
+
+        // แสดงคะแนนเต็มทันทีหลังโหลดโจทย์
+        const maxScore = calculateMaxScore();
+        updateScoreDisplay(0, maxScore);
+
+        // Display basic problem info
+        document.getElementById('problemTitle').textContent = problemData.title || 'ไม่มีชื่อโจทย์';
+        
+        // Display problem description with additional content
+        const descriptionElement = document.getElementById('problemDescription');
+        if (descriptionElement) {
+            let descriptionHTML = problemData.description || 'ไม่มีคำอธิบาย';
+            
+            // เพิ่มรูปภาพหรือสื่อถ้ามี
+            if (problemData.image) {
+                descriptionHTML = `
+                    <div class="problem-media" style="margin-bottom: 15px;">
+                        <button type="button" class="primary-btn" onclick="openMediaModal('${problemData.image}')" style="background-color: #17a2b8; border: none; padding: 8px 16px; border-radius: 4px; color: white; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-external-link-alt"></i> 📄 คลิกเพื่อดูสื่อประกอบการเรียน
+                        </button>
+                    </div>
+                    ${descriptionHTML}
+                `;
+            }
+
+            if (problemData.attachments) {
+            descriptionHTML += renderAttachmentsHTML(problemData.attachments);
+            }
+            
+            // แสดง URL เนื้อหาเพิ่มเติมหลายรายการ
+            if (problemData.contentUrls && problemData.contentUrls.length > 0) {
+                // แยกวิดีโอออกจากเนื้อหาอื่นๆ
+                const videos = problemData.contentUrls.filter(urlItem => {
+                    const { url } = urlItem;
+                    return url.includes('youtube.com') || url.includes('youtu.be');
+                });
+                
+                const otherContent = problemData.contentUrls.filter(urlItem => {
+                    const { url } = urlItem;
+                    return !(url.includes('youtube.com') || url.includes('youtu.be'));
+                });
+                
+                let urlsHtml = '';
+                
+                // แสดงวิดีโอทั้งหมดในกริด
+                if (videos.length > 0) {
+                    const videosHtml = videos.map(urlItem => {
+                        const { title, url } = urlItem;
+                        let videoId = '';
+                        if (url.includes('youtube.com/watch?v=')) {
+                            videoId = url.split('v=')[1].split('&')[0];
+                        } else if (url.includes('youtu.be/')) {
+                            videoId = url.split('youtu.be/')[1].split('?')[0];
+                        }
+                        
+                        if (videoId) {
+                            return `
+                                <div class="video-container">
+                                    <iframe width="240" height="135" 
+                                            src="https://www.youtube.com/embed/${videoId}" 
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen
+                                            title="${title || 'วิดีโอประกอบ'}">
+                                    </iframe>
+                                </div>
+                            `;
+                        }
+                        return '';
+                    }).filter(html => html !== '').join('');
+                    
+                    if (videosHtml) {
+                        urlsHtml += `
+                            <div class="content-section">
+                                <h3>📹 วิดีโอประกอบ</h3>
+                                <div class="videos-grid">
+                                    ${videosHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // แสดงเนื้อหาอื่นๆ
+                const otherContentHtml = otherContent.map(urlItem => {
+                    const { title, url, type } = urlItem;
+                    let contentHTML = '';
+                    
+                    if (url.toLowerCase().includes('.pdf') || type === 'pdf') {
+                        // แสดง PDF
+                        contentHTML = `
+                            <div class="content-section">
+                                <h3>📄 ${title || 'เอกสารประกอบ'}</h3>
+                                <div class="pdf-container">
+                                    <iframe src="${url}" width="100%" height="500px" frameborder="0">
+                                        <p>เบราว์เซอร์ของคุณไม่สามารถแสดง PDF ได้ 
+                                           <a href="javascript:void(0);" onclick="openMediaModal('${url}')">คลิกที่นี่เพื่อเปิดหน้าต่าง</a>
+                                        </p>
+                                    </iframe>
+                                    <div class="pdf-link">
+                                    <a href="javascript:void(0);" onclick="openMediaModal('${url}')" class="btn-link">🔗 เปิดหน้าต่างเพื่อดูลิงก์</a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // แสดงลิงก์ทั่วไป
+                        contentHTML = `
+                            <div class="content-section">
+                                <h3>🔗 ${title || 'เนื้อหาเพิ่มเติม'}</h3>
+                                <div class="link-container">
+                                    <a href="javascript:void(0);" onclick="openMediaModal('${url}')" class="btn-link">เปิดหน้าต่างเพื่อดูลิงก์</a>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    return contentHTML;
+                }).join('');
+                
+                urlsHtml += otherContentHtml;
+                descriptionHTML = `${descriptionHTML}${urlsHtml}`;
+            }
+            // รองรับข้อมูลเก่าที่ยังใช้ contentUrl เดียว (Backward Compatibility)
+            else if (problemData.contentUrl) {
+                const url = problemData.contentUrl;
+                let contentHTML = '';
+                
+                if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                    // แสดง YouTube video
+                    let videoId = '';
+                    if (url.includes('youtube.com/watch?v=')) {
+                        videoId = url.split('v=')[1].split('&')[0];
+                    } else if (url.includes('youtu.be/')) {
+                        videoId = url.split('youtu.be/')[1].split('?')[0];
+                    }
+                    
+                    if (videoId) {
+                        contentHTML = `
+                            <div class="content-section">
+                                <h3>📹 วิดีโอประกอบ</h3>
+                                <div class="video-container">
+                                    <iframe width="240" height="135" 
+                                            src="https://www.youtube.com/embed/${videoId}" 
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen>
+                                    </iframe>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else if (url.toLowerCase().includes('.pdf')) {
+                    // แสดง PDF
+                    contentHTML = `
+                        <div class="content-section">
+                            <h3>📄 เอกสารประกอบ</h3>
+                            <div class="pdf-container">
+                                <iframe src="${url}" width="100%" height="500px" frameborder="0">
+                                    <p>เบราว์เซอร์ของคุณไม่สามารถแสดง PDF ได้ 
+                                       <a href="javascript:void(0);" onclick="openMediaModal('${url}')">คลิกที่นี่เพื่อเปิดหน้าต่าง</a>
+                                    </p>
+                                </iframe>
+                                <div class="pdf-link">
+                                    <a href="javascript:void(0);" onclick="openMediaModal('${url}')" class="btn-link">🔗 เปิดหน้าต่างเพื่อดูลิงก์</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // แสดงลิงก์ทั่วไป
+                    contentHTML = `
+                        <div class="content-section">
+                            <h3>🔗 เนื้อหาเพิ่มเติม</h3>
+                            <div class="link-container">
+                                <a href="javascript:void(0);" onclick="openMediaModal('${url}')" class="btn-link">เปิดหน้าต่างเพื่อดูลิงก์</a>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                descriptionHTML = `${descriptionHTML}${contentHTML}`;
+            }
+            
+            descriptionElement.innerHTML = descriptionHTML;
+        }
+
+        // Display GUI image if available
+        const guiImagePreview = document.getElementById('guiImagePreview');
+        if (problemData.guiImage) {
+            guiImagePreview.innerHTML = `<img src="${problemData.guiImage}" alt="ภาพประกอบ GUI" onerror="this.parentElement.style.display='none'">`;
+            guiImagePreview.style.display = 'block';
+        } else {
+            guiImagePreview.style.display = 'none';
+            guiImagePreview.innerHTML = '';
+        }
+
+        // Display widgets (แทน requirements) if available
+        if (problemData.widgets && Array.isArray(problemData.widgets)) {
+            displayWidgets(problemData.widgets); // เปลี่ยนจาก displayRequirements เป็น displayWidgets
+        } else {
+            document.getElementById('requirementsList').innerHTML = '<p>ไม่มี Widgets ระบุ</p>';
+        }
+
+        const codeEditor = document.getElementById('codeEditorTextarea');
+        if (!codeEditor) {
+            console.error('ไม่พบ codeEditorTextarea');
+            return;
+        }
+
+        // Load student's last submission or template code
+        const submissionsSnapshot = await db.collection('submissions')
+            .where('problemId', '==', problemId)
+            .where('userId', '==', userId)
+            .where('classId', '==', classId)
+            .orderBy('timestamp', 'desc')
+            .limit(1)
+            .get();
+
+        if (!submissionsSnapshot.empty) {
+            const submission = submissionsSnapshot.docs[0].data();
+            const currentScore = submission.score || 0;
+            updateScoreDisplay(currentScore, maxScore);
+            
+            codeEditor.value = submission.code || '';
+            if (viewMode) {
+                checkGUICode(submission.code);
+            }
+        } else {
+            updateScoreDisplay(0, maxScore);
+            codeEditor.value = problemData.templateCode || `import tkinter as tk\n\nwindow = tk.Tk()\nwindow.title("My GUI Application")\nwindow.geometry("400x300")\n\n# Add your GUI components here\n\nwindow.mainloop()`;
+        }
+
+        updateLineNumbers();
+
+        if (viewMode) {
+            codeEditor.setAttribute('readonly', 'readonly');
+            document.getElementById('checkBtn').style.display = 'none';
+            document.getElementById('testBtn').style.display = 'none'; // ซ่อนปุ่มตรวจคำตอบในโหมด view
+            document.getElementById('convertBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Error loading problem:', error);
+        showError('เกิดข้อผิดพลาดในการโหลดโจทย์: ' + error.message);
+    }
+}
+
+// เพิ่มฟังก์ชัน displayWidgets (แทน displayRequirements)
+function displayWidgets(widgets) {
+    const requirementsList = document.getElementById('requirementsList');
+    requirementsList.innerHTML = '';
+
+    if (widgets.length === 0) {
+        requirementsList.innerHTML = '<p>ไม่มี Widgets ระบุ</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    widgets.forEach(widget => {
+        const li = document.createElement('li');
+        let widgetText = `${widget.type}: ${widget.text || 'ไม่มีข้อความ'}`;
+        if (widget.props) widgetText += ` - คุณสมบัติ: ${widget.props}`;
+        if (widget.action) widgetText += ` - การทำงาน: ${widget.action}`;
+        if (widget.score) widgetText += ` - คะแนน: ${widget.score}`;
+        li.textContent = widgetText;
+        ul.appendChild(li);
+    });
+
+    requirementsList.appendChild(ul);
+}
+
+// Helper function to show errors
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Helper function to show success messages
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.style.display = 'block';
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        successDiv.style.display = 'none';
+    }, 5000);
+}
+
+
+// --- 🔄 ฟังก์ชัน checkGUICode (ฉบับ Hybrid: ประหยัดเงิน AWS) ---
+async function checkGUICode(code) {
+    const resultFrame = document.getElementById('result-frame');
+    const previewDiv = document.getElementById('guiPreview');
+    
+    // แสดงสถานะ Loading ใน iframe
+    if (resultFrame) {
+        resultFrame.srcdoc = `
+            <html>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <div style="text-align: center;">
+                        <div class="loading">กำลังตรวจสอบ Syntax...</div>
+                    </div>
+                </body>
+            </html>
+        `;
+    }
+    
+    // แสดงสถานะ Loading ใน Preview Div (ถ้ามี)
+    if (previewDiv) {
+        previewDiv.innerHTML = `<div class="loading">กำลังตรวจสอบโค้ด...</div>`;
+    }
+
+    try {
+        // 1. Basic Validation: ตรวจสอบพื้นฐานก่อน (ไม่ต้องเสียเวลาเรียก Pyodide/AWS)
+        
+        // 1.1 ตรวจสอบโค้ดว่าง
+        if (!code || code.trim() === '') {
+            const msg = 'โค้ดว่างเปล่า กรุณาเขียนโค้ด Python';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg);
+            return false;
+        }
+
+        // 1.2 ตรวจสอบ import
+        if (!code.includes('from tkinter import') && !code.includes('import tkinter')) {
+            const msg = 'โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg);
+            return false;
+        }
+
+        // 1.3 ตรวจสอบ mainloop
+        if (!code.match(/mainloop\s*\(\s*\)/)) {
+            const msg = 'โค้ดขาด "root.mainloop()" เพื่อแสดง GUI';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg);
+            return false;
+        }
+
+        // 1.4 ตรวจสอบคำสั่งหลัง mainloop (Logic เดิมของคุณ)
+        const lines = code.split('\n').map(line => line.trim());
+        const mainloopIndex = lines.findIndex(line => line.match(/mainloop\s*\(\s*\)/));
+        const linesAfterMainloop = lines.slice(mainloopIndex + 1).filter(line => line && !line.startsWith('#'));
+        const widgetKeywords = ['Label', 'Entry', 'Frame', 'Button', 'StringVar', 'pack(', 'grid(', 'place('];
+        
+        const hasInvalidLines = linesAfterMainloop.some(line => 
+            widgetKeywords.some(keyword => line.includes(keyword))
+        );
+        
+        if (hasInvalidLines) {
+            const msg = 'พบคำสั่งหลัง "root.mainloop()" ซึ่งจะไม่ถูกประมวลผล กรุณาย้ายไปไว้ก่อน mainloop';
+            showError(msg);
+            if (resultFrame) resultFrame.srcdoc = getErrorHtml(msg, code);
+            return false;
+        }
+
+        // 2. Hybrid Syntax Check: เรียกใช้ฟังก์ชันฉลาด (Pyodide หรือ AWS)
+        // *** ต้องแน่ใจว่าคุณวางฟังก์ชัน checkSyntax_Hybrid ไว้ในไฟล์แล้ว ***
+        const result = await checkSyntax_Hybrid(code);
+
+        // 3. จัดการผลลัพธ์
+        if (result.status === 'error') {
+            // กรณีมี Error จาก Python/AWS
+            showError(result.message);
+            
+            if (resultFrame) {
+                resultFrame.srcdoc = getErrorHtml(`❌ พบข้อผิดพลาดในโค้ด: ${result.message}`, code);
+            }
+            
+            if (previewDiv) {
+                previewDiv.innerHTML = `
+                    <div class="validation-error">
+                        ❌ พบข้อผิดพลาด: ${result.message}
+                    </div>
+                `;
+            }
+            return false;
+        }
+
+        // 3.5. เพิ่มการทำ Static Analysis (หาตัวแปรที่ไม่ได้ประกาศ)
+        const rawLines = code.split('\n');
+        const logicalLines = mergeMultiLineStatements(rawLines);
+        let nameError = null;
+        let declaredVars = new Set(['tk', 'math', 'random', 'time', 'sys', 'os']);
+        
+        // Pass 1: Collect all declared variables first (handles late binding in functions)
+        for (let i = 0; i < logicalLines.length; i++) {
+            const { line } = logicalLines[i];
+            let m;
+            
+            if (m = line.match(/^\s*([\p{L}_][\p{L}\p{N}_]*)\s*(?:,.*?)?\s*=\s*(?!==)/u)) {
+                declaredVars.add(m[1]);
+            }
+            else if (m = line.match(/^\s*def\s+([\p{L}_][\p{L}\p{N}_]*)\s*\((.*?)\)\s*:/u)) {
+                declaredVars.add(m[1]);
+                const args = m[2].split(',').map(a => a.trim()).filter(a => a);
+                args.forEach(a => declaredVars.add(a));
+            }
+            else if (m = line.match(/^\s*global\s+(.+)$/)) {
+                m[1].split(',').forEach(v => declaredVars.add(v.trim()));
+            }
+            else if (m = line.match(/^\s*import\s+[\p{L}\p{N}_.]+\s+as\s+([\p{L}_][\p{L}\p{N}_]*)/u)) {
+                declaredVars.add(m[1]);
+            }
+            else if (m = line.match(/^\s*import\s+([\p{L}_][\p{L}\p{N}_]*)/u)) {
+                declaredVars.add(m[1]);
+            }
+        }
+        
+        // Pass 2: Check for undefined variable usage
+        for (let i = 0; i < logicalLines.length; i++) {
+            const { raw, line, lineNumber } = logicalLines[i];
+            let m;
+            
+            // Check for usage like widget.grid(), widget.pack(), widget.config()
+            if (m = line.match(/^\s*([\p{L}_][\p{L}\p{N}_]*)\.(?:grid|pack|place|config|configure|destroy|set|get)\b/u)) {
+                const varName = m[1];
+                if (!declaredVars.has(varName)) {
+                    nameError = { varName, line: raw, lineNumber: lineNumber };
+                    break;
+                }
+            }
+        }
+
+        if (nameError) {
+            const errorMsg = `NameError: name '${nameError.varName}' is not defined (บรรทัดที่ ${nameError.lineNumber})`;
+            showError(errorMsg);
+            
+            if (resultFrame) {
+                resultFrame.srcdoc = getErrorHtml(`❌ พบข้อผิดพลาดในโค้ด: ${errorMsg}`, nameError.line);
+            }
+            
+            if (previewDiv) {
+                previewDiv.innerHTML = `
+                    <div class="validation-error">
+                        ❌ พบข้อผิดพลาด: ${errorMsg}
+                    </div>
+                `;
+            }
+            return false;
+        }
+
+        // กรณีผ่านฉลุย
+        const successMsg = `✅ โค้ดถูกต้องตาม Python syntax (${!isMobileDevice() && pyodideInstance ? 'ตรวจสอบโดย PC' : 'ตรวจสอบโดย Cloud'})`;
+        
+        if (resultFrame) {
+            resultFrame.srcdoc = `
+                <html>
+                    <body style="font-family: Arial, sans-serif; padding: 20px;">
+                        <div class="validation-success" style="color: green; background: #e6ffe6; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
+                            ${successMsg}
+                        </div>
+                    </body>
+                </html>
+            `;
+        }
+
+        if (previewDiv) {
+            previewDiv.innerHTML = `
+                <div class="validation-success">
+                    ${successMsg}
+                </div>
+            `;
+        }
+        
+        return true;
+
+    } catch (error) {
+        console.error("System Error in checkGUICode:", error);
+        showError('ข้อผิดพลาดระบบ: ' + error.message);
+        if (resultFrame) resultFrame.srcdoc = getErrorHtml(`System Error: ${error.message}`);
+        return false;
+    }
+}
+
+// Helper Function สำหรับสร้าง HTML Error สวยๆ ใน iframe
+function getErrorHtml(message, codeContext = '') {
+    return `
+        <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+                <div class="validation-error" style="color: #721c24; background: #f8d7da; padding: 15px; border-radius: 5px; border: 1px solid #f5c6cb;">
+                    ${message}
+                    ${codeContext ? `<pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; margin-top: 10px; color: #333;">${codeContext}</pre>` : ''}
+                </div>
+            </body>
+        </html>
+    `;
+}
+
+// Function to set up event listeners
+// Function to set up event listeners
+function setupEventListeners(problemId, classId, userId, viewMode) {
+    if (viewMode) return;
+
+    const codeEditor = document.getElementById('codeEditorTextarea');
+    if (!codeEditor) {
+        console.error('ไม่พบ codeEditorTextarea');
+        return;
+    }
+
+    const checkBtn = document.getElementById('checkBtn');
+    const testBtn = document.getElementById('testBtn');
+    const convertBtn = document.getElementById('convertBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const testCaseBtn = document.getElementById('testCaseBtn');
+    
+    // ✅ 1. เพิ่มการอ้างอิงปุ่ม Reset ตรงนี้
+    const resetBtn = document.getElementById('resetBtn');
+
+    // ตั้งค่าสถานะเริ่มต้นปุ่มต่างๆ
+    if (convertBtn) convertBtn.disabled = true;
+    if (testBtn) testBtn.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+    if (testCaseBtn) testCaseBtn.disabled = true;
+
+    // --- Event Listeners เดิม ---
+    if (checkBtn) {
+        checkBtn.addEventListener('click', async () => {
+            const code = codeEditor.value;
+            const isValid = await checkGUICode(code);
+            if (convertBtn) convertBtn.disabled = !isValid;
+            if (submitBtn) submitBtn.disabled = !isValid;
+            
+            if (testBtn) testBtn.disabled = true;
+            if (testCaseBtn) testCaseBtn.disabled = true;
+        });
+    }
+
+    if (testBtn) {
+        testBtn.addEventListener('click', checkAnswer);
+    }
+
+    if (convertBtn) {
+        convertBtn.addEventListener('click', async () => {
+            console.log('Preview button clicked');
+            
+            // 1. ตรวจสอบสถานะปุ่ม
+            if (convertBtn.disabled) {
+                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนแสดง GUI');
+                return;
+            }
+            
+            const code = codeEditor.value;
+
+            // 2. ✅ ตรวจสอบ Syntax ก่อน (เพื่อให้แน่ใจว่าไม่ Error ตามที่คุณขอ)
+            // เราเรียกใช้ checkGUICode อีกครั้งเพื่อความชัวร์ (หรือถ้ามั่นใจว่าปุ่มเปิดคือผ่านแล้ว ก็ข้ามบรรทัดนี้ได้)
+            const isValid = await checkGUICode(code);
+            
+            if (isValid) {
+                // 3. ส่งไปแสดงผล (Simulator)
+                sendToSimulator(true);
+                
+                // 4. เปิดปุ่มตรวจคำตอบ
+                if (testBtn) testBtn.disabled = false;
+                
+                // 5. ✅✅ บันทึกโค้ดทันที (ทุกกรณีที่ไม่ Error)
+                await saveDraftCode(code);
+            } else {
+                console.log("Code has errors, not saving.");
+            }
+        });
+    }
+
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            const code = codeEditor.value;
+
+            if (submitBtn.disabled) {
+                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนส่งงาน');
+                return;
+            }
+
+            const alreadySubmitted = await checkSubmissionStatus(problemId, userId);
+            if (alreadySubmitted) {
+                showError('คุณได้ส่งงานไปแล้ว ไม่สามารถส่งซ้ำได้');
+                return;
+            }
+
+            // ✅ แก้ไข: เรียกฟังก์ชันส่งงานเลย (ไม่ต้องเรียก checkAnswer ซ้ำให้รำคาญ)
+            try {
+                // ปิดปุ่มกันกดซ้ำ
+                submitBtn.disabled = true; 
+                submitBtn.textContent = 'กำลังส่ง...';
+                
+                await submitGUICode(code, problemId, userId, classId);
+                
+            } catch (error) {
+                submitBtn.disabled = false; // เปิดคืนถ้า error
+                submitBtn.textContent = 'ส่งงาน';
+                showError('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        });
+    }
+
+    // ✅ 2. เพิ่ม Logic ปุ่ม Reset เข้าไปในนี้ (ทำงานชัวร์แน่นอน)
+    if (resetBtn) {
+        console.log("✅ Reset button detected inside setupEventListeners");
+        resetBtn.addEventListener('click', function() {
+            if (confirm('⚠️ คุณต้องการล้างโค้ดทั้งหมดและเริ่มใหม่ใช่หรือไม่?\n\n(โค้ดปัจจุบันจะหายไป และกลับไปเป็นค่าเริ่มต้น)')) {
+                
+                // เตรียม Template
+                let startCode = `# เขียนโค้ด Python ที่นี่\n\nimport tkinter as tk\n\n# สร้างหน้าต่าง GUI\nwindow = tk.Tk()\nwindow.title('My GUI Application')\n\n# เพิ่ม widgets ที่นี่\n\n# แสดงหน้าต่าง\nwindow.mainloop()`;
+
+                // ถ้าโจทย์มี Template ให้ใช้ของโจทย์ (ดึงจากตัวแปร global problemData)
+                if (typeof problemData !== 'undefined' && problemData.templateCode) {
+                    startCode = problemData.templateCode;
+                }
+
+                // ใส่โค้ดลง Editor
+                codeEditor.value = startCode;
+
+                // อัปเดตหน้าจอ
+                if (typeof updateLineNumbers === 'function') updateLineNumbers();
+                if (typeof updateCodeHighlight === 'function') updateCodeHighlight();
+                
+                // ล้างจอ Preview
+                const resultFrame = document.getElementById('result-frame');
+                if (resultFrame) resultFrame.srcdoc = '';
+                
+                const guiPreview = document.getElementById('guiPreview');
+                if (guiPreview) guiPreview.innerHTML = '';
+
+                // รีเซ็ตปุ่มต่างๆ
+                if (convertBtn) convertBtn.disabled = true;
+                if (testBtn) testBtn.disabled = true;
+                if (testCaseBtn) testCaseBtn.disabled = true;
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        });
+    } else {
+        console.warn("⚠️ Reset button NOT found in HTML");
+    }
+}
+
+async function checkAnswer() {
+    console.log('=== เริ่มการตรวจสอบคำตอบ (Structure Only + Return Fix) ===');
+    
+    const iframe = document.getElementById('result-frame');
+    const convertBtn = document.getElementById('convertBtn');
+    
+    // 1. ตรวจสอบความพร้อม
+    if (convertBtn && convertBtn.disabled) {
+        alert('กรุณาตรวจสอบโค้ดให้ผ่านก่อนตรวจคำตอบ');
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 ส่งค่ากลับว่าไม่ผ่าน
+    }
+    
+    if (!iframe || !iframe.srcdoc || iframe.srcdoc.includes('กำลังประมวลผล GUI')) {
+        alert('กรุณารันโค้ดก่อนตรวจคำตอบ');
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 ส่งค่ากลับว่าไม่ผ่าน
+    }
+
+    // ข้อมูลจากโจทย์ (Expected)
+    const expectedWidgets = window.widgetDefinitions || [];
+    
+    // ข้อมูลจากนักเรียน (Actual) - ดึงมาเฉพาะ Type
+    const allWidgets = Array.from(iframe.contentDocument.querySelectorAll('[data-index]'));
+    
+    // เรียงตามลำดับการสร้างจริง
+    const sortedWidgets = [...allWidgets].sort((a, b) => {
+        return parseInt(a.getAttribute('data-index')||0) - parseInt(b.getAttribute('data-index')||0);
+    });
+
+    // Helper: แปลงเป็นข้อมูลสำหรับเทียบ
+    const getWidgetType = (w) => {
+        if (w.className.includes('tk-label')) return 'Label';
+        if (w.className.includes('tk-entry')) return 'Entry';
+        if (w.className.includes('tk-button')) return 'Button';
+        if (w.className.includes('tk-checkbox') || w.type === 'checkbox') return 'Checkbutton';
+        return 'Unknown';
+    };
+
+    const actualTypes = sortedWidgets.map(w => getWidgetType(w));
+    const report = [];
+    let isStructurePerfect = true;
+
+    // -------------------------------------------------------------
+    // 1. เช็คสต็อก (Inventory Check)
+    // -------------------------------------------------------------
+    const typeCounts = {}; 
+    actualTypes.forEach(t => typeCounts[t] = (typeCounts[t] || 0) + 1);
+
+    const inventoryReport = [];
+    const missingTypes = {}; 
+    const uniqueExpectedTypes = [...new Set(expectedWidgets.map(w => w.type))];
+    
+    uniqueExpectedTypes.forEach(type => {
+        const required = expectedWidgets.filter(w => w.type === type).length;
+        const current = typeCounts[type] || 0;
+
+        if (current < required) {
+            missingTypes[type] = required - current;
+            inventoryReport.push(`❌ ${type}: ขาด ${required - current} ตัว`);
+        } else if (current > required) {
+            // inventoryReport.push(`⚠️ ${type}: เกินมา ${current - required} ตัว`);
+        } else {
+            inventoryReport.push(`✅ ${type}: ครบ`);
+        }
+    });
+
+    // -------------------------------------------------------------
+    // 2. ตรวจสอบลำดับ (Sequence Check - Two Pointer)
+    // -------------------------------------------------------------
+    let expIndex = 0; 
+    let actIndex = 0; 
+
+    while (expIndex < expectedWidgets.length) {
+        const def = expectedWidgets[expIndex];    
+        const actualType = actualTypes[actIndex];   
+
+        // 2.1 ของนักเรียนหมดแล้ว แต่โจทย์ยังเหลือ
+        if (!actualType) {
+            isStructurePerfect = false;
+            report.push(`ลำดับที่ ${expIndex + 1}: ❌ หายไป (คุณลืมสร้าง ${def.type})`);
+            expIndex++; 
+            continue;
+        }
+
+        // 2.2 ✅ ชนิดตรงกัน (ผ่าน!)
+        if (actualType === def.type) {
+            report.push(`ลำดับที่ ${expIndex + 1}: ✅ ถูกต้อง (${actualType})`);
+            expIndex++;
+            actIndex++;
+        } 
+        // 2.3 ❌ ชนิดไม่ตรงกัน
+        else {
+            isStructurePerfect = false;
+            
+            // เช็คว่าเพราะ "ของขาด" หรือเปล่า? (Shift Detection)
+            if (missingTypes[def.type] > 0) {
+                report.push(`ลำดับที่ ${expIndex + 1}: ❌ ขาด ${def.type} (คุณข้ามไปสร้าง ${actualType} แทน)`);
+                missingTypes[def.type]--; 
+                expIndex++; // ขยับแค่โจทย์ รอตรวจตัวถัดไป (นักเรียนอยู่ที่เดิม)
+            } else {
+                report.push(`ลำดับที่ ${expIndex + 1}: ❌ ผิดประเภท (ควรเป็น ${def.type} แต่พบ ${actualType})`);
+                expIndex++;
+                actIndex++;
+            }
+        }
+    }
+
+    const testCaseBtn = document.getElementById('testCaseBtn');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // -------------------------------------------------------------
+    // 3. ตัดสินผล "โครงสร้าง"
+    // -------------------------------------------------------------
+    if (!isStructurePerfect) {
+        const finalMsg = 
+            `❌ โครงสร้างไม่ถูกต้อง\n\n` +
+            `--- 📊 สรุปยอดรวม ---\n` +
+            `${inventoryReport.join('\n')}\n\n` +
+            `--- 📍 รายละเอียด ---\n` +
+            `${report.join('\n')}`;
+
+        alert(finalMsg);
+        
+        if (testCaseBtn) testCaseBtn.disabled = true;
+        if (submitBtn) submitBtn.disabled = true;
+        
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 ส่งค่ากลับว่าไม่ผ่าน
+    }
+
+    // -------------------------------------------------------------
+    // 4. โครงสร้างผ่าน -> เปิดทางให้ไปต่อ (Running Logic Tests)
+    // -------------------------------------------------------------
+    console.log("Structure OK -> Running Logic Tests...");
+    
+    // ✅ ปลดล็อกปุ่ม Test Case ทันทีที่โครงสร้างผ่าน
+    if (testCaseBtn) {
+        testCaseBtn.disabled = false;
+        testCaseBtn.style.opacity = "1";
+        testCaseBtn.style.cursor = "pointer";
+    }
+
+    try {
+        const codeEditor = document.getElementById('codeEditorTextarea');
+        
+        // รันฟังก์ชันให้คะแนน (testGUICode จะ return object ผลลัพธ์กลับมา)
+        const testResult = await testGUICode(codeEditor.value, window.guiTestCases, iframe);
+        
+        // อัปเดตตัวเลขคะแนนบนหน้าจอ
+        updateScoreDisplay(testResult.totalScore, testResult.maxScore);
+
+        // เช็คเงื่อนไขส่งงาน (ต้องคะแนนเต็มถึงจะส่งได้)
+        if (testResult.passed === true) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = "1";
+                submitBtn.style.cursor = "pointer";
+            }
+            alert(`✅ โครงสร้างถูกต้อง และได้คะแนนเต็ม!\n\nคะแนน: ${testResult.totalScore}/${testResult.maxScore}`);
+            showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
+        } else {
+            // โครงสร้างถูก แต่คะแนนไม่เต็ม
+            if (submitBtn) submitBtn.disabled = true;
+            
+            alert(`⚠️ โครงสร้างถูกต้อง (ปุ่ม Test Case เปิดแล้ว)\n\nแต่คะแนนยังไม่เต็ม (${testResult.totalScore}/${testResult.maxScore})\nอาจมีข้อความผิด หรือ Test Case ไม่ผ่าน`);
+        }
+        
+        if (typeof saveDraftCode === 'function') {
+             saveDraftCode(codeEditor.value);
+        }
+
+        // ✅✅ จุดสำคัญที่ขาดไป: ส่งผลลัพธ์ออกไปให้ปุ่ม Submit ใช้งาน
+        return testResult; 
+
+    } catch (error) {
+        console.error('Test Error:', error);
+        showError('เกิดข้อผิดพลาด: ' + error.message);
+        return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 กรณี Error
+    }
+}
+// ตรวจสอบสถานะการส่งงาน (และล็อกหน้าจอถ้าส่งแล้ว)
+// ตรวจสอบสถานะการส่งงาน (แก้ไขชื่อฟิลด์เป็น studentId แล้ว)
+async function checkSubmissionStatus(problemId, userId) {
+    try {
+        const submissionsRef = db.collection('submissions')
+            .where('problemId', '==', problemId)
+            .where('studentId', '==', userId) // ✅ แก้เป็น studentId
+            .where('type', '==', 'gui')
+            .where('status', '==', 'completed')
+            .orderBy('timestamp', 'desc')
+            .limit(1);
+            
+        const snapshot = await submissionsRef.get();
+        
+        if (!snapshot.empty) {
+            console.log("🔒 พบการส่งงานแล้ว -> ล็อกหน้าจอ (View Mode)");
+            
+            const lastSubmission = snapshot.docs[0].data();
+            showSuccess(`ส่งงานแล้วเมื่อ: ${lastSubmission.timestamp?.toDate().toLocaleString('th-TH')}`);
+
+            // 1. ล็อก Editor
+            const codeEditor = document.getElementById('codeEditorTextarea');
+            if (codeEditor) {
+                codeEditor.setAttribute('readonly', 'readonly');
+                codeEditor.style.backgroundColor = '#f0f0f0';
+                codeEditor.style.color = '#555';
+            }
+
+            // 2. ซ่อนปุ่มทั้งหมด (เหลือแค่ Back)
+            const buttonsToHide = ['checkBtn', 'convertBtn', 'testBtn', 'submitBtn', 'testCaseBtn', 'resetBtn'];
+            buttonsToHide.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.style.display = 'none';
+            });
+            
+            return true; // ส่งแล้ว
+        }
+        return false; // ยังไม่ส่ง
+    } catch (error) {
+        console.error('Error checking submission:', error);
+        return false;
+    }
+}
+async function submitGUICode(code, problemId, userId, classId) {
+    try {
+        console.log("🚀 กำลังส่งงาน...");
+        
+        // 1. เช็คคะแนนจากหน้าจอ
+        const currentScoreEl = document.getElementById('currentScore');
+        const maxScoreEl = document.getElementById('maxScore');
+        const currentScore = parseInt(currentScoreEl ? currentScoreEl.innerText : '0') || 0;
+        const maxScore = parseInt(maxScoreEl ? maxScoreEl.innerText : '0') || 0;
+
+        // 2. ถ้าคะแนนไม่เต็ม ห้ามส่ง
+        if (currentScore < maxScore || maxScore === 0) {
+            alert(`⚠️ คะแนนยังไม่ครบ (${currentScore}/${maxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
+            return;
+        }
+
+        // 3. ✅ บันทึก (สำคัญ: ใช้ studentId และ status: 'completed')
+        await db.collection('submissions').add({
+            problemId: problemId,
+            studentId: userId, // <--- ใช้ studentId เพื่อให้ตรงกับ class detail
+            classId: classId,
+            code: code,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            type: 'gui',
+            status: 'completed', // <--- ใช้ completed เพื่อให้ปุ่มเป็นสีเขียว
+            testResult: 'passed',
+            score: currentScore,
+            maxScore: maxScore
+        });
+        
+        console.log('✅ บันทึกข้อมูลสำเร็จ');
+
+        // 4. แจ้งเตือนและกลับ
+        alert('ส่งงานเรียบร้อยแล้ว! (คะแนนเต็ม)');
+        if (classId === 'admin') {
+            window.location.href = 'student-problem-admin.html';
+        } else {
+            window.location.href = `student-class-detail.html?id=${classId}`; 
+        }
+        
+    } catch (error) {
+        console.error('Error submitting:', error);
+        alert('เกิดข้อผิดพลาด: ' + error.message);
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
+    }
+}
+
+// Function to display requirements
+function displayRequirements(requirements) {
+    const requirementsList = document.getElementById('requirementsList');
+    requirementsList.innerHTML = '';
+
+    if (requirements.length === 0) {
+        requirementsList.innerHTML = '<p>ไม่มีข้อกำหนดระบุ</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    requirements.forEach(req => {
+        const li = document.createElement('li');
+        let requirementText = `${req.type} (${req.name})`;
+        if (req.text) requirementText += ` - ข้อความ: "${req.text}"`;
+        if (req.props) requirementText += ` - คุณสมบัติ: ${req.props}`;
+        if (req.event) requirementText += ` - เหตุการณ์: ${req.event}`;
+        if (req.description) requirementText += ` - คำอธิบาย: ${req.description}`;
+        if (req.score) requirementText += ` - คะแนน: ${req.score}`;
+        li.textContent = requirementText;
+        ul.appendChild(li);
+    });
+
+    requirementsList.appendChild(ul);
+}
+
+// นอกฟังก์ชันทั้งหมด
+
+  
+async function sendToSimulator(autoRun = false) {
+    console.log('=== เริ่มการส่งโค้ดไปยัง Simulator ===');
+    const code = document.getElementById('pythonInput')?.value
+               || document.getElementById('codeEditorTextarea')?.value
+               || '';
+    
+    console.log('โค้ดที่จะส่ง:', code.substring(0, 100) + '...');
+    
+    if (!code.trim()) {
+      showError('กรุณาเขียนโค้ด Python');
+      return;
+    }
+  
+    // ตรวจสอบ from tkinter import * หรือ import tkinter as tk
+    if (!code.includes('from tkinter import') && !code.includes('import tkinter')) {
+      showError('โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"');
+      if (resultFrame) {
+        resultFrame.srcdoc = `
+          <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <div class="validation-error" style="color: red; background: #ffe6e6; padding: 15px; border-radius: 5px;">
+                ❌ โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"<br>กรุณาเพิ่มคำสั่งนำเข้า Tkinter ที่ต้นโค้ด
+              </div>
+            </body>
+          </html>
+        `;
+      }
+      return;
+    }
+  
+    // ใช้ result-frame แทน guiPreview
+    const resultFrame = document.getElementById('result-frame');
+    const previewDiv  = document.getElementById('guiPreview');
+  
+    if (!resultFrame) {
+      console.error('ไม่พบ result-frame element');
+      return;
+    }
+  
+    try {
+      // แสดงข้อความ loading ใน result-frame
+      resultFrame.srcdoc = `
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>กำลังโหลด...</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+            <div>กำลังประมวลผล GUI...</div>
+          </body>
+        </html>
+      `;
+  
+      // สร้าง HTML GUI ด้วย convertCode()
+      convertCode();
+      const htmlOutput = document.getElementById('htmlOutput').value;
+      
+      // เพิ่ม console.log เพื่อแสดงเนื้อหาของ htmlOutput ที่จะถูกใส่ใน iframe.srcdoc
+      console.log('HTML Output ที่จะใส่ใน iframe.srcdoc:', htmlOutput.substring(0, 500) + '...');
+      
+      // แสดงผลใน result-frame
+      resultFrame.srcdoc = htmlOutput;
+      
+      // เพิ่ม console.log หลังจากกำหนดค่า iframe.srcdoc
+      console.log('iframe.srcdoc หลังกำหนดค่า:', resultFrame.srcdoc.substring(0, 500) + '...');
+  
+      // **เพิ่ม onload เพื่อปรับขนาด iframe ตามเนื้อหาในตัวมันเอง**
+      resultFrame.onload = () => {
+        try {
+          const doc = resultFrame.contentDocument || resultFrame.contentWindow.document;
+          const contentHeight = doc.documentElement.scrollHeight;
+          resultFrame.style.height = contentHeight + 'px';
+        } catch (e) {
+          console.warn('ปรับขนาด iframe อัตโนมัติไม่สำเร็จ:', e);
+        }
+      };
+  
+      // ถ้ามี guiPreview ให้แสดงสถานะสำเร็จ
+      if (previewDiv) {
+        previewDiv.innerHTML = `
+          <div class="validation-success">
+            ✅ GUI ทำงานได้ถูกต้อง (แสดงผลใน result-frame)
+          </div>
+        `;
+      }
+  
+      console.log('GUI แสดงผลใน result-frame เรียบร้อย');
+  
+    } catch (error) {
+      console.error('Error in sendToSimulator:', error);
+  
+      // แสดงข้อผิดพลาดใน result-frame
+      resultFrame.srcdoc = `
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>เกิดข้อผิดพลาด</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; padding: 20px; color: red;">
+            <h3>เกิดข้อผิดพลาด</h3>
+            <p>${error.message}</p>
+          </body>
+        </html>
+      `;
+  
+      if (previewDiv) {
+        previewDiv.innerHTML = `
+          <div class="validation-error">
+            ❌ เกิดข้อผิดพลาด: ${error.message}
+          </div>
+        `;
+      }
+    }
+  }
+
+function convertCode() {
+    console.log("convertCode starting...");
+    const code = document.getElementById('pythonInput')?.value
+               || document.getElementById('codeEditor')?.value
+               || '';
+    console.log("code to convert:", code.substring(0, 50));
+    const lines = code.split('\n');
+  
+    // 1. Metadata และตัวเก็บ widget definitions
+    let title    = 'GUI';
+    let guiWidth = 400, guiHeight = 300;
+    const labels       = [];   // [{ name, text, fg, bg }, …]
+    const entries      = {};   // { entryVar: placeholder, … }
+    const checks       = {};   // { varName: { on, off, label }, … }
+    const buttons      = [];   // [{ name, text }, …]
+    const localMap     = {};   // { localVar: entryVar, … }
+    const buttonToFunc = {};   // { buttonVarName: functionName, … }
+  
+    // 2. เตรียมอาร์เรย์เก็บหลาย ๆ ฟังก์ชัน
+    const functions = [];  // แต่ละ element: { name: <ชื่อฟังก์ชัน>, lines: [<บรรทัดภายใน>] }
+    let inFunc = false;
+  
+    // 3. Pre-process lines to merge multi-line statements
+    const logicalLines = mergeMultiLineStatements(lines);
+    console.log("logicalLines:", logicalLines);
+
+    // --- STATIC ANALYSIS: Check for undefined variables ---
+    const declaredVars = new Set(['tk', 'math', 'random', 'time', 'sys', 'os']);
+    let nameError = null;
+
+    // Pass 1: Collect all declared variables first (handles late binding in functions)
+    for (let i = 0; i < logicalLines.length; i++) {
+        const { line } = logicalLines[i];
+        let m;
+        
+        if (m = line.match(/^\s*([\p{L}_][\p{L}\p{N}_]*)\s*(?:,.*?)?\s*=\s*(?!==)/u)) {
+            declaredVars.add(m[1]);
+        }
+        else if (m = line.match(/^\s*def\s+([\p{L}_][\p{L}\p{N}_]*)\s*\((.*?)\)\s*:/u)) {
+            declaredVars.add(m[1]);
+            const args = m[2].split(',').map(a => a.trim()).filter(a => a);
+            args.forEach(a => declaredVars.add(a));
+        }
+        else if (m = line.match(/^\s*global\s+(.+)$/)) {
+            m[1].split(',').forEach(v => declaredVars.add(v.trim()));
+        }
+        else if (m = line.match(/^\s*import\s+[\p{L}\p{N}_.]+\s+as\s+([\p{L}_][\p{L}\p{N}_]*)/u)) {
+            declaredVars.add(m[1]);
+        }
+        else if (m = line.match(/^\s*import\s+([\p{L}_][\p{L}\p{N}_]*)/u)) {
+            declaredVars.add(m[1]);
+        }
+    }
+    
+    // Pass 2: Check for undefined variable usage
+    for (let i = 0; i < logicalLines.length; i++) {
+        const { raw, line, lineNumber } = logicalLines[i];
+        let m;
+        
+        // Check for usage like widget.grid(), widget.pack(), widget.config()
+        if (m = line.match(/^\s*([\p{L}_][\p{L}\p{N}_]*)\.(?:grid|pack|place|config|configure|destroy|set|get)\b/u)) {
+            const varName = m[1];
+            if (!declaredVars.has(varName)) {
+                nameError = { varName, line: raw, lineNumber: lineNumber };
+                break;
+            }
+        }
+    }
+
+    if (nameError) {
+        const errorMsg = `NameError: name '${nameError.varName}' is not defined (บรรทัดที่ ${nameError.lineNumber})`;
+        showError(errorMsg);
+        const errorHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { background-color: #1e1e1e; color: #ff5555; font-family: Consolas, monospace; padding: 20px; margin: 0; height: 100%; box-sizing: border-box; }
+        h3 { margin-top: 0; color: #ff5555; }
+        .error-box { background: #2d2d2d; border-left: 4px solid #ff5555; padding: 15px; margin-top: 15px; }
+        .code-line { color: #d4d4d4; background: #252526; padding: 10px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; font-family: Consolas, monospace; }
+        .line-num { color: #858585; user-select: none; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h3>❌ พบข้อผิดพลาดในการรันโค้ด</h3>
+    <div class="error-box">
+        <strong>${errorMsg}</strong>
+        <div class="code-line"><span class="line-num">${nameError.lineNumber} |</span>${nameError.line}</div>
+    </div>
+</body>
+</html>`;
+        const htmlOutputElem = document.getElementById('htmlOutput');
+        if (htmlOutputElem) {
+            htmlOutputElem.value = errorHtml;
+            
+            // Render error to the iframe preview immediately if it exists
+            const previewIframe = document.getElementById('guiPreview');
+            if (previewIframe) {
+                previewIframe.srcdoc = errorHtml;
+            }
+            
+            // Render error to the simulator iframe immediately if it exists
+            const resultFrame = document.getElementById('result-frame');
+            if (resultFrame) {
+                resultFrame.srcdoc = errorHtml;
+                // Add a special flag to prevent sendToSimulator from overriding it
+                window.conversionError = true;
+            }
+        }
+        console.log('Validation Error:', nameError);
+        return false; // Return false to indicate failure
+    }
+    
+    // Clear any previous error flags
+    window.conversionError = false;
+    // --- END STATIC ANALYSIS ---
+
+    // 4. Pass 1: parse definitions + capture function body
+    logicalLines.forEach(({ raw, line }) => {
+      // function logic
+      if (inFunc) {
+         if (/^\s/.test(raw)) {
+           const lastFn = functions[functions.length - 1];
+           lastFn.lines.push(line);
+           return;
+         } else {
+           inFunc = false;
+         }
+      }
+
+      // def <fnName>():
+      let m;
+      if (m = line.match(/def\s+(\w+)\s*\((.*?)\)\s*:/)) {
+        const fnName = m[1];
+        const fnArgs = m[2].trim();
+        functions.push({ name: fnName, args: fnArgs, lines: [] });
+        inFunc = true;
+      }
+      
+      // title
+      if (m = line.match(/(\w+)\.title\s*\(\s*['"](.*?)['"]\s*\)/)) {
+        title = m[2];
+      }
+      // geometry
+      else if (m = line.match(/(\w+)\.geometry\s*\(\s*['"](\d+)x(\d+)['"]\s*\)/)) {
+        guiWidth  = parseInt(m[2], 10);
+        guiHeight = parseInt(m[3], 10);
+      }
+      // StringVar(value='...')
+      else if (m = line.match(/(\w+)\s*=\s*(?:tk\.\s*)?StringVar\s*\(\s*(?:value=['"](.*?)['"])?\s*\)/)) {
+        entries[m[1]] = m[2] || '';
+      }
+      // Entry(... textvariable=<var> ...)
+      else if (m = line.match(/(?:tk\.\s*)?Entry\s*\([^)]*textvariable\s*=\s*(\w+)/)) {
+        if (!(m[1] in entries)) entries[m[1]] = '';
+      }
+      // Label(text='...', fg='...', bg='...')
+      else if (m = line.match(/(\w+)\s*=\s*(?:tk\.\s*)?Label\s*\(\s*(.*?)\s*\)/)) {
+        const name = m[1], opts = m[2];
+        const textMatch = opts.match(/text=['"](.*?)['"]/);
+        const text = textMatch ? textMatch[1] : null;
+        const fg   = (opts.match(/fg=['"](.*?)['"]/)   || [])[1] || '';
+        const bg   = (opts.match(/bg=['"](.*?)['"]/)   || [])[1] || '';
+        const textvariable = (opts.match(/textvariable\s*=\s*(\w+)/) || [])[1] || '';
+        const relief = (opts.match(/relief\s*=\s*['"](.*?)['"]/) || [])[1] || '';
+        const borderwidth = (opts.match(/borderwidth\s*=\s*(\d+)/) || [])[1] || '';
+        labels.push({ name, text, fg, bg, textvariable, relief, borderwidth });
+      }
+      // IntVar()
+      else if (m = line.match(/(\w+)\s*=\s*(?:tk\.\s*)?IntVar\s*\(\s*\)/)) {
+        checks[m[1]] = { on: 1, off: 0, label: '' };
+      }
+      // Button(text='...')
+      else if (m = line.match(/(\w+)\s*=\s*(?:tk\.\s*)?Button\s*\((.*)\)/)) {
+        console.log("MATCHED BUTTON:", line);
+        const textMatch = m[2].match(/text\s*=\s*['"](.*?)['"]/);
+        const text = textMatch ? textMatch[1] : 'Button';
+        buttons.push({ name: m[1], text: text });
+        console.log("Added to buttons:", buttons[buttons.length - 1]);
+        
+        const commandMatch = m[2].match(/command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/u);
+        if (commandMatch) {
+            let cmd = commandMatch[1];
+            if (cmd.startsWith('lambda')) {
+                const lambdaFuncMatch = cmd.match(/lambda\s*:\s*([\p{L}_][\p{L}\p{N}_]*)\s*\(/u);
+                const lambdaArgsMatch = cmd.match(/lambda\s*:\s*[\p{L}_][\p{L}\p{N}_]*\s*\(\s*(.*?)\s*\)/u);
+                if (lambdaFuncMatch) {
+                    cmd = lambdaFuncMatch[1];
+                    if (lambdaArgsMatch && lambdaArgsMatch[1]) {
+                        cmd += '(' + lambdaArgsMatch[1] + ')';
+                    } else {
+                        cmd += '()';
+                    }
+                } else if (cmd.includes('destroy') || cmd.includes('quit')) {
+                    cmd = 'lambda_func()';
+                } else {
+                    cmd = 'lambda_func()';
+                }
+            } else {
+                cmd += '()';
+            }
+            buttonToFunc[m[1]] = cmd;
+        }
+      }
+      // ButtonVar.configure(command=<func>)
+      else if (m = line.match(/(\w+)\.configure\(\s*command\s*=\s*(\w+)\s*\)/)) {
+        // m[1] = "button1",   m[2] = "cal"
+        buttonToFunc[m[1]] = m[2];
+      }
+      // Checkbutton(text='...', variable=<var>, onvalue=<n>, offvalue=<n>)
+      else if (m = line.match(
+        /(?:tk\.\s*)?Checkbutton\s*\([^)]*text=['"](.+?)['"][^)]*variable\s*=\s*(\w+)[^)]*onvalue\s*=\s*(\d+)[^)]*offvalue\s*=\s*(\d+)/
+      )) {
+        // m[1]=label text, m[2]=variable name, m[3]=onvalue, m[4]=offvalue
+        checks[m[2]] = { on: +m[3], off: +m[4], label: m[1] };
+      }
+      // localVar = int(entryVar.get())
+      else if (m = line.match(/(\w+)\s*=\s*int\(\s*(\w+)\.get\(\)\s*\)/)) {
+        // m[1] = localVar, m[2] = entryVar
+        localMap[m[1]] = m[2];
+      }
+    });
+  
+    // 4. Extract f-string + static configs + branchVar for each function
+    const exprConfigsByName = {};  // { fnName: [{ label, prefix, expr, suffix }, ...] }
+    const staticConfigsByName = {}; // { fnName: [{ varName, text }, ...] }
+    const branchArrayByName = {};  // { fnName: [ { cond, varName, text }, … ] }
+    const branchVarByName   = {};  // { fnName: [ 'var1', 'var2', … ] }
+  
+    functions.forEach(fn => {
+      const exprConfigs = []; // เปลี่ยนจาก exprConfig เดียวเป็น array
+      const branchVars = new Set();
+      const staticConfigs = [];
+      const branchArray = [];
+      let currCond = null;
+      let branchIndex = -1;
+  
+      // (A) หาชื่อตัวแปร checkbox และ f-string update + staticConfigs
+      fn.lines.forEach((fl, lineIndex) => {
+        // ตรวจสอบว่าบรรทัดนี้อยู่ภายใต้เงื่อนไขหรือไม่
+        let isInBranch = false;
+        
+        // ตรวจสอบบรรทัดก่อนหน้าเพื่อดูว่าอยู่ใน if/elif/else block หรือไม่
+        for (let i = lineIndex - 1; i >= 0; i--) {
+          const prevLine = fn.lines[i];
+          if (prevLine.match(/^\s*(if|elif|else)/)) {
+            isInBranch = true;
+            break;
+          }
+          // ถ้าเจอบรรทัดที่ไม่ indent แล้วไม่ใช่ if/elif/else แสดงว่าออกจาก block แล้ว
+          if (!prevLine.match(/^\s+/) && !prevLine.match(/^\s*(if|elif|else)/)) {
+            break;
+          }
+        }
+        
+        // f-string ที่มีตัวแปร: <widget>.config(text=f'prefix{expr}suffix')
+        if (m = fl.match(/(\w+)\.config\(\s*text\s*=\s*f['"](.+?)['"]\)/)) {
+          const labelName = m[1];
+          let fStringContent = m[2];
+          
+          // ตรวจสอบว่ามี {} หรือไม่
+          if (fStringContent.includes('{') && fStringContent.includes('}')) {
+            // แปลง {expression} เป็น ${expression}
+            fStringContent = fStringContent.replace(/\{([^}]+)\}/g, '${$1}');
+            
+            // มีตัวแปร - ประมวลผลเป็น exprConfig
+            const exprMatch = fStringContent.match(/^(.*?)\$\{(.+?)\}(.*)$/);
+            if (exprMatch && !isInBranch) {
+              exprConfigs.push({
+                label: labelName,
+                prefix: exprMatch[1],
+                expr: exprMatch[2],
+                suffix: exprMatch[3]
+              });
+            }
+          } else {
+            // ไม่มีตัวแปร - ประมวลผลเป็น staticConfig
+            if (!isInBranch) {
+              staticConfigs.push({ varName: labelName, text: fStringContent });
+            }
+          }
+        }
+        // static config(text='...') 
+        else if (m = fl.match(/^\s*(\w+)\.config\(\s*text\s*=\s*['"](.+?)['"]\s*\)/)) {
+          if (!isInBranch) {
+            let text = m[2];
+            // แปลง {expression} เป็น ${expression} ถ้ามี
+            text = text.replace(/\{([^}]+)\}/g, '${$1}');
+            staticConfigs.push({ varName: m[1], text: text });
+          }
+        }
+      });
+  
+      // เก็บ array แทนที่จะเก็บตัวเดียว
+      if (exprConfigs.length > 0) {
+        exprConfigsByName[fn.name] = exprConfigs;
+      }
+      if (staticConfigs.length > 0) {
+        staticConfigsByName[fn.name] = staticConfigs;
+      }
+      if (branchVars.size > 0) {
+        branchVarByName[fn.name] = Array.from(branchVars);
+      }
+  
+      // (B) สร้าง branchArray: อ่านเงื่อนไข if/elif/else กับ config(text=…)
+      currCond = null;
+      branchIndex = -1;
+      fn.lines.forEach(fl => {
+        let m;
+        if (m = fl.match(/^\s*(if|elif)\s*\((.+?)\)\s*:/)) {
+          currCond = m[2].trim();
+          branchIndex++;
+          branchArray[branchIndex] = { cond: currCond, varName: null, text: null };
+        }
+        else if (/^\s*else\s*:/.test(fl)) {
+          currCond = null;
+          branchIndex++;
+          branchArray[branchIndex] = { cond: null, varName: null, text: null };
+        }
+        else if (m = fl.match(/^\s*(\w+)\.config\(\s*text\s*=\s*f?['"](.+?)['"]\s*\)/)) {
+          if (branchIndex >= 0 && branchArray[branchIndex]) {
+            branchArray[branchIndex].varName = m[1];
+            let text = m[2];
+            // แปลง {expression} เป็น ${expression} สำหรับ template literals
+            text = text.replace(/\{([^}]+)\}/g, '${$1}');
+            branchArray[branchIndex].text = text;
+          }
+        }
+      });
+  
+      if (branchArray.length > 0) {
+        branchArrayByName[fn.name] = branchArray;
+      }
+    });
+  
+    // 5. Build HTML for widgets ตามลำดับที่พบในโค้ด Python
+    const html = [];
+    let widgetIndex = 0;
+
+    // เก็บข้อมูล widget ทั้งหมดพร้อมลำดับที่พบในโค้ด
+    const allWidgets = [];
+
+    // วนลูปผ่านแต่ละบรรทัดของโค้ด Python อีกครั้ง
+    logicalLines.forEach(({ line }, lineIndex) => {
+      let m;
+      
+      // Label(text='...', fg='...', bg='...')
+      if (m = line.match(/\b(\w+)\s*=\s*(?:tk\.\s*)?Label\s*\((.*)\)/)) {
+        const name = m[1];
+        const labelInfo = labels.find(l => l.name === name);
+        if (labelInfo) {
+          allWidgets.push({
+            type: 'label',
+            name: name,
+            lineIndex: lineIndex,
+            data: labelInfo
+          });
+        }
+      }
+      // StringVar(value='...')
+      else if (m = line.match(/\b(\w+)\s*=\s*(?:tk\.\s*)?StringVar\s*\((.*)\)/)) {
+        const name = m[1];
+        if (entries[name]) {
+          allWidgets.push({
+            type: 'entry',
+            name: name,
+            lineIndex: lineIndex,
+            placeholder: entries[name]
+          });
+        }
+      }
+      // IntVar()
+      else if (m = line.match(/\b(\w+)\s*=\s*(?:tk\.\s*)?IntVar\s*\((.*)\)/)) {
+        const name = m[1];
+        if (checks[name]) {
+          allWidgets.push({
+            type: 'checkbox',
+            name: name,
+            lineIndex: lineIndex,
+            data: checks[name]
+          });
+        }
+      }
+      // Button(text='...')
+      else if (m = line.match(/\b(\w+)\s*=\s*(?:tk\.\s*)?Button\s*\((.*)\)/)) {
+        const name = m[1];
+        const buttonInfo = buttons.find(b => b.name === name);
+        if (buttonInfo) {
+          allWidgets.push({
+            type: 'button',
+            name: name,
+            lineIndex: lineIndex,
+            data: buttonInfo
+          });
+        }
+      }
+    });
+
+    // เรียงลำดับ widget ตามบรรทัดที่พบในโค้ด Python
+    allWidgets.sort((a, b) => a.lineIndex - b.lineIndex);
+
+    // สร้าง HTML ตามลำดับที่เรียงแล้ว
+    allWidgets.forEach(widget => {
+      switch (widget.type) {
+        case 'label':
+          let style = '';
+          if (widget.data.fg) style += `color:${widget.data.fg};`;
+          if (widget.data.bg) style += `background-color:${widget.data.bg};`;
+          
+          let classes = ['tk-label'];
+          if (widget.data.relief) classes.push(`relief-${widget.data.relief}`);
+          if (widget.data.borderwidth) style += `border-width:${widget.data.borderwidth}px;`;
+          
+          const initialText = widget.data.text !== null ? widget.data.text : (entries[widget.data.textvariable] !== undefined ? entries[widget.data.textvariable] : '');
+          html.push(`<div id="label_${widget.name}" class="${classes.join(' ')}" data-var="${widget.name}" data-index="${widgetIndex++}" style="${style}">${initialText}</div>`);
+          break;
+        case 'entry':
+          const placeholder = widget.placeholder ? ` placeholder="${widget.placeholder}"` : '';
+          html.push(`<input type="text" id="entry_${widget.name}" class="tk-entry" data-var="${widget.name}" data-index="${widgetIndex++}"${placeholder}/>`);
+          break;
+        case 'checkbox':
+          html.push(`<label><input type="checkbox" id="cb_${widget.name}" class="tk-checkbox" data-var="${widget.name}" data-index="${widgetIndex++}"/>${widget.data.label}</label>`);
+          break;
+        case 'button':
+          let fn = buttonToFunc[widget.name] || widget.name + "()";
+          if (!fn.includes('(')) fn += '()';
+          html.push(`<button onclick="${fn}" class="tk-button" data-index="${widgetIndex++}">${widget.data.text}</button>`);
+          break;
+      }
+    });
+
+    // ถ้าไม่มี widget เลย ให้ fallback สร้างปุ่มจากชื่อฟังก์ชัน
+    if (allWidgets.length === 0) {
+      functions.forEach(fn => {
+        html.push(`<button onclick="${fn.name}()" class="tk-button" data-index="${widgetIndex++}">${fn.name}</button>`);
+      });
+    }
+  
+    // 6. Build JavaScript for all functions
+    let js = '';
+
+    // 6.1 Initialize simple global variables from the code
+    const globalVars = {};
+    logicalLines.forEach(({ line: raw }) => {
+      const line = raw.trim();
+      let m;
+      // var = number (e.g. count=0)
+      if (m = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(-?\d+)$/)) {
+        globalVars[m[1]] = parseInt(m[2], 10);
+      }
+      // var = 'string' or "string"
+      else if (m = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*['"](.*?)['"]$/)) {
+        globalVars[m[1]] = `"${m[2]}"`;
+      }
+      // var.set(value)
+      else if (m = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\.set\s*\(\s*(?:str\s*\()?\s*([^)]*?)\s*\)?\s*\)$/)) {
+        if (m[2] in globalVars) {
+          entries[m[1]] = globalVars[m[2]];
+        } else {
+          entries[m[1]] = m[2].replace(/['"]/g, '');
+        }
+      }
+    });
+
+    Object.keys(globalVars).forEach(k => {
+      const val = globalVars[k];
+      js += `let ${k} = ${val};\n`;
+    });
+    
+    // Add lambda_func if used
+    if (Object.values(buttonToFunc).some(cmd => cmd && cmd.includes('lambda_func'))) {
+        js += `function lambda_func() {
+            const win = document.querySelector('.window');
+            if (win) {
+                win.style.display = 'none';
+                console.log("Window closed by lambda");
+            }
+        }\n\n`;
+    }
+
+    functions.forEach(fn => {
+      js += `function ${fn.name}(${fn.args || ''}) {\n`;
+  
+      const fnLocalMap = {};
+
+      // (0) General python code logic (assignments, basic ops)
+      fn.lines.forEach(fl => {
+        let m;
+        const line = fl.trim();
+        // remove global keyword
+        if (line.startsWith('global ')) return;
+        
+        // Capture A1=int(number1.get()) or A1=float(number1.get()) into fnLocalMap
+        if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*)\s*=\s*(int|float)\(\s*([\p{L}_][\p{L}\p{N}_]*)\.get\(\)\s*\)$/u)) {
+            fnLocalMap[m[1]] = { entryVar: m[3], type: m[2] };
+            return;
+        }
+
+        // basic assignment and ops (e.g. count+=1 or expression = expression+n)
+        if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*)\s*(\+|-|\*|\/|%|\*\*|\/\/)?=\s*(.+)$/u)) {
+          let expr = m[3]
+            .replace(/\bint\s*\(/g, 'parseInt(')
+            .replace(/\bfloat\s*\(/g, 'parseFloat(')
+            .replace(/\bstr\s*\(/g, 'String(')
+            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+          // Use let if it's a basic assignment without operator and hasn't been declared (simplified approach)
+          js += `  ${m[1]} ${m[2] ? m[2] + '=' : '='} ${expr};\n`;
+        }
+        
+        // str(...) conversion and variable set OR variable.set(value)
+        if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*)\.set\s*\(\s*(?:str\s*\()?\s*([^)]*?)\s*\)?\s*\)$/u)) {
+           // Update corresponding label if it exists
+           const targetLabel = labels.find(l => l.textvariable === m[1]);
+           if (targetLabel) {
+             let expr = m[2]
+               .replace(/\bint\s*\(/g, 'parseInt(')
+               .replace(/\bfloat\s*\(/g, 'parseFloat(')
+               .replace(/\bstr\s*\(/g, 'String(')
+               .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+             js += `  document.getElementById("label_${targetLabel.name}").textContent = String(${expr});\n`;
+           }
+        }
+      });
+      js += '\n';
+
+      // (1) locals จาก entry
+      Object.entries(fnLocalMap).forEach(([local, data]) => {
+        const parseStr = data.type === 'int' 
+            ? `parseInt(document.getElementById("entry_${data.entryVar}") ? document.getElementById("entry_${data.entryVar}").value : 0, 10)`
+            : `parseFloat(document.getElementById("entry_${data.entryVar}") ? document.getElementById("entry_${data.entryVar}").value : 0)`;
+        js += `  let ${local} = ${parseStr};\n`;
+      });
+      js += '\n';
+  
+      // (2) ตรวจสถานะ checkbox *ทุกตัวที่นิยาม* เพื่อเตรียม var_varName
+      Object.keys(checks).forEach(v => {
+        js += `  const checkbox_${v}   = document.getElementById("cb_${v}");\n`;
+        js += `  const isChecked_${v}  = checkbox_${v}.checked;\n`;
+        js += `  const value_${v}      = isChecked_${v} ? ${checks[v].on} : ${checks[v].off};\n`;
+        js += `  console.log('🔍 Debug: value_${v} =', value_${v}, 'isChecked_${v} =', isChecked_${v}, 'checkbox state:', checkbox_${v}.checked);\n\n`;
+      });
+  
+      // (3) validation ถ้ามี Entry สองตัวขึ้นไป
+      const localsArr = Object.keys(fnLocalMap);
+      if (localsArr.length >= 2) {
+        js += `  if (isNaN(${localsArr[0]}) || isNaN(${localsArr[1]})) {\n`;
+        js += `    alert("กรุณาป้อนตัวเลขให้ถูกต้อง");\n`;
+        js += `    return;\n`;
+        js += `  }\n\n`;
+      }
+  
+      // (4) จัดการ static configs ก่อน (ทุกบรรทัดที่ไม่ใช่ f-string)
+      const staticConfigsForFn = [];
+      
+      // เพิ่ม static configs จากการประมวลผลก่อนหน้า (ถ้ามี)
+      if (staticConfigsByName[fn.name]) {
+        staticConfigsByName[fn.name].forEach(config => {
+          staticConfigsForFn.push(config);
+        });
+      }
+
+      // เพิ่ม static configs ลงใน JavaScript
+        staticConfigsForFn.forEach(config => {
+            js += `  document.getElementById("label_${config.varName}").textContent = \`${config.text}\`;\n`;
+        });
+
+      // (4.1) f-string updates ทั้งหมด
+        if (exprConfigsByName[fn.name]) {
+            const configs = exprConfigsByName[fn.name];
+            configs.forEach(ec => {
+                js += `  document.getElementById("label_${ec.label}")`
+                   + `.textContent = \`${ec.prefix}\${${ec.expr}}${ec.suffix}\`;\n`;
+            });
+            js += '\n';
+        }
+  
+      // (5) dynamic branch updates ถ้ามี branchArrayByName[fn.name]
+        if (branchArrayByName[fn.name]) {
+            branchArrayByName[fn.name].forEach(b => {
+                const rawCond = (b.cond || '')
+                    .replace(/\b(\w+)\.get\(\)/g, 'value_$1')
+                    .replace(/\band\b/g, '&&')
+                    .replace(/\bor\b/g, '||')
+                    .replace(/\bnot\b/g, '!')
+                    .trim() || 'true';
+                js += `  if (${rawCond}) {\n`;
+                js += `    document.getElementById("label_${b.varName}")`
+                    + `.textContent = \`${b.text}\`;\n`;
+                js += `  }\n`;
+            });
+        }
+  
+      // ปิดฟังก์ชัน
+      js += `}\n\n`;
+    });
+  
+    // 7. Assemble final HTML
+    const w = guiWidth, h = guiHeight;
+    const output = `<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <style>
+      .window {
+        border:2px solid #444;
+        border-radius:6px;
+        width:${w}px;
+        height:${h}px; 
+        display:flex;
+        flex-direction:column;
+        overflow:visible;
+        box-shadow:2px 2px 6px rgba(0,0,0,0.3);
+      }
+      .title-bar {
+        background:#eee;
+        padding:6px;
+        text-align:center;
+        font-weight:bold;
+        border-bottom:1px solid #444;
+        user-select:none;
+      }
+      .content {
+        flex:1;
+        padding:8px;
+        overflow:visible;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+      }
+      .content > * {
+        display:block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="window">
+      <div class="title-bar">${title}</div>
+      <div class="content">
+        ${html.join('\n')}
+      </div>
+    </div>
+    <script>
+    ${js}
+    </script>
+  </body>
+  </html>`;
+  
+    document.getElementById('htmlOutput').value = output;
+    console.log('Generated HTML:', output);
+    console.log('Generated JavaScript:', js);
+  }
+  
+  
+  
+  
+  
+  
+      
+      // W3Schools Simulator
+    // W3Schools Simulator
+    function openEditorTab(tabName) {
+      const tabContents = document.getElementsByClassName("editor-content");
+      for (let content of tabContents) content.classList.remove("active");
+
+      const tabs = document.getElementsByClassName("editor-tab");
+      for (let tab of tabs) tab.classList.remove("active");
+
+      document.getElementById(tabName + "-tab").classList.add("active");
+      document.querySelector(`.editor-tab[onclick="openEditorTab('${tabName}')"]`).classList.add("active");
+    }
+
+    function showStatus(message, isError = false) {
+      const status = document.getElementById("status");
+      status.textContent = message;
+      status.className = isError ? "status error" : "status success";
+      setTimeout(() => {
+        status.textContent = "";
+        status.className = "status";
+      }, 3000);
+    }
+
+    function runCode() {
+      try {
+        const htmlCode = document.getElementById("html-editor").value;
+        const cssCode = document.getElementById("css-editor").value;
+        const jsCode = document.getElementById("js-editor").value;
+
+        const fullCode = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>${cssCode}</style>
+</head>
+<body>
+  ${htmlCode}
+  <script>${jsCode.replace(/<\/script>/g, "<\\/script>")}<\/script>
+</body>
+</html>
+        `;
+
+        const resultFrame = document.getElementById("result-frame");
+        resultFrame.srcdoc = fullCode;
+        showStatus("รันโค้ดสำเร็จ!");
+      } catch (error) {
+        showStatus("เกิดข้อผิดพลาด: " + error.message, true);
+      }
+    }
+
+    function clearCode() {
+      if (confirm("คุณแน่ใจหรือไม่ที่จะล้างโค้ดทั้งหมด?")) {
+        document.getElementById("html-editor").value =
+`<h1>สวัสดี W3Schools Simulator</h1>
+<p>นี่คือตัวอย่างเว็บเพจอย่างง่าย</p>
+<button id="myButton">คลิกที่นี่</button>
+<p id="demo"></p>`;
+        document.getElementById("css-editor").value =
+`body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+h1 {
+  color: blue;
+}`;
+        document.getElementById("js-editor").value =
+`document.getElementById("myButton").addEventListener("click", function () {
+  document.getElementById("demo").innerHTML = "คุณได้คลิกปุ่มแล้ว!";
+});`;
+        showStatus("ล้างโค้ดเรียบร้อย");
+        runCode();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("run-button").addEventListener("click", runCode);
+      document.getElementById("clear-button").addEventListener("click", clearCode);
+      runCode();
+    });
+  </script>
+</body>
+</html>

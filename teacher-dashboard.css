@@ -1,0 +1,541 @@
+/* ==================
+   Main Container 
+   ================== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ==================
+   Header Styles 
+   ================== */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.python-logo,
+.firebase-logo {
+    height: 40px;
+}
+
+/* ==================
+   Profile & User Info 
+   ================== */
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.profile-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.profile-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-name {
+    font-weight: 600;
+    color: var(--theme-text);
+    font-size: 1.1rem;
+}
+
+.profile-email {
+    color: var(--theme-text-secondary);
+    font-size: 0.9rem;
+}
+
+.profile-name-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ==================
+   Sections & Cards 
+   ================== */
+.section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.class-card,
+.problem-card {
+    background: #f8f9fa;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.class-info,
+.problem-info {
+    flex: 1;
+}
+
+.class-actions,
+.problem-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ==================
+   Form Elements 
+   ================== */
+.form-group {
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.input-field {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.input-field:focus {
+    border-color: #1a73e8;
+    outline: none;
+}
+
+textarea.input-field {
+    min-height: 100px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.content-editor {
+    min-height: 200px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ==================
+   Buttons 
+   ================== */
+.primary-btn {
+    background: #1a73e8;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 5px 0;
+}
+
+.secondary-btn {
+    background: #e2e8f0;
+    color: #2d3748;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.secondary-btn:hover {
+    background: #cbd5e0;
+}
+
+.delete-btn {
+    background: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.logout-btn {
+    background: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.edit-btn {
+    background: none;
+    border: none;
+    color: #1a73e8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.edit-btn:hover {
+    background-color: #f1f3f4;
+}
+
+.save-btn {
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.save-btn:hover {
+    background-color: #1557b0;
+}
+
+.cancel-btn {
+    background-color: #f1f3f4;
+    color: #5f6368;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.cancel-btn:hover {
+    background-color: #e8eaed;
+}
+
+/* ==================
+   Modal Styles 
+   ================== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 800px;
+    margin: 20px auto;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal-body {
+    margin-bottom: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+    position: sticky;
+    bottom: 0;
+}
+
+.modal-footer button {
+    padding: 8px 16px;
+    min-width: 100px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* ==================
+   Question Styles 
+   ================== */
+.questions {
+    margin-top: 20px;
+}
+
+.questions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px 0;
+}
+
+.questions-header button {
+    padding: 8px 16px;
+}
+
+.question-item {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 1px solid #e5e7eb;
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.question-header h4 {
+    margin: 0;
+    color: #1a73e8;
+}
+
+.question-text {
+    min-height: 80px;
+}
+
+.correct-answer,
+.question-explanation {
+    min-height: 60px;
+}
+
+.correct-answer {
+    background-color: #e8f5e9;
+    border: 1px solid #c8e6c9;
+}
+
+.question-explanation {
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* ==================
+   Test Cases Styles 
+   ================== */
+.test-cases {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.test-cases-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.test-case {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.test-case-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.inputs-section {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.inputs-section h4 {
+    margin: 0 0 15px 0;
+    color: #2d3748;
+}
+
+.input-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.input-entry {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.input-entry-content {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+}
+
+.input-entry .form-group {
+    flex: 1;
+    margin: 0;
+}
+
+/* ==================
+   Code Editor 
+   ================== */
+.code-editor {
+    width: 100%;
+    min-height: 200px;
+    padding: 15px;
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #333;
+    border-radius: 6px;
+    resize: vertical;
+}
+
+/* ==================
+   Image Handling 
+   ================== */
+.image-input-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.image-preview {
+    margin-top: 10px;
+    max-width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    display: none;
+}
+
+.image-preview img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.preview-container {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #ddd;
+    max-width: 50%;
+}
+
+.preview-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    margin: 0 auto;
+}
+
+/* ==================
+   Responsive Design 
+   ================== */
+@media (max-width: 768px) {
+
+    .class-card,
+    .problem-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .class-actions,
+    .problem-actions {
+        margin-top: 10px;
+        width: 100%;
+    }
+
+    .modal-content {
+        margin: 10px;
+        padding: 15px;
+    }
+}
+
+/* ==================
+   Animations 
+   ================== */
+.form-group,
+.test-cases,
+.questions {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.form-group[style*="display: none"],
+.test-cases[style*="display: none"],
+.questions[style*="display: none"] {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.test-score {
+    width: 100px;
+}
+
+/* ปรับ layout ของ form-group ใน test case */
+.test-case .form-group {
+    margin-bottom: 15px;
+}
+
+.test-case .test-score {
+    max-width: 120px;
+}

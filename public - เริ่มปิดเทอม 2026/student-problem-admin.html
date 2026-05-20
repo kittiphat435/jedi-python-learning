@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายละเอียดห้องเรียน | Python Learning Platform</title>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./student-class-detail.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Updated Header -->
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
+
+            <a href="student-dashboard.html" class="back-btn">กลับ</a>
+        </div>
+
+        <!-- Class Info -->
+        <div class="section class-info">
+            <h2 id="className">ชื่อห้องเรียน</h2>
+            <div class="class-details">
+                <div class="detail-item">รหัสห้องเรียน: <span id="classCode"></span></div>
+                <div class="detail-item">ผู้สอน: <span id="teacherName"></span></div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div id="totalProblems" class="stat-number">0</div>
+                <div>โจทย์ทั้งหมด</div>
+            </div>
+
+            <div class="stat-card">
+                <div id="completedProblems" class="stat-number">0</div>
+                <div>โจทย์ที่ทำสำเร็จ</div>
+            </div>
+
+            <div class="stat-card">
+                <div id="problemProgress" class="stat-number">0%</div>
+                <div>ความคืบหน้า</div>
+            </div>
+
+            <div class="stat-card">
+                <div id="totalScore" class="stat-number">0/0</div>
+                <div>
+                    คะแนนรวม
+                    <span id="scorePercentage" class="score-percentage">(0%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Problems Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>โจทย์ในห้องเรียน</h2>
+                <div class="search-box">
+                    <input type="text" id="searchProblem" placeholder="ค้นหาโจทย์...">
+                </div>
+            </div>
+            <div id="problemList" class="problem-list">
+                <!-- จะถูกเติมด้วย JavaScript -->
+            </div>
+        </div>
+
+        <!-- Progress Chart -->
+        <div class="section">
+            <h2>ความคืบหน้าของฉัน</h2>
+            <div class="progress-chart">
+                <canvas id="progressChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">กำลังโหลด...</div>
+    </div>
+
+    <!-- Custom JavaScript -->
+    <script src="./student-class-detail.js"></script>
+
+    <!-- เพิ่มส่วนแสดงคำถาม Admin หลังจากส่วนอื่นๆ -->
+    <div class="section" id="adminQuestionsSection">
+        <h2>คำถามจาก Admin</h2>
+        <div id="adminQuestionsList" class="admin-questions-list">
+            <!-- คำถามจาก admin จะแสดงที่นี่ -->
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Teacher Dashboard - Python Learning Platform</title>
+    <link rel="stylesheet" href="teacher-dashboard.css">
+    <!-- เพิ่ม SVG.js สำหรับจัดการ SVG -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.1.1/svg.min.js"></script>
+
+    <!-- เพิ่ม Draggable plugin สำหรับ SVG.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.draggy.js/1.1.1/svg.draggy.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/python/python.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
+        </div>
+
+        <!-- ข้อมูลผู้ใช้ -->
+        <div class="user-info">
+            <div>
+                <span id="userEmail"></span>
+                <div id="displayName">
+                    <span id="userName"></span>
+                    <button id="editNameBtn" class="edit-btn">แก้ไขชื่อ</button>
+                </div>
+                <div id="editNameForm" style="display: none;">
+                    <input type="text" id="newName" class="input-field" placeholder="ใส่ชื่อที่ต้องการ">
+                    <button id="saveNameBtn" class="primary-btn">บันทึก</button>
+                    <button id="cancelEditBtn" class="secondary-btn">ยกเลิก</button>
+                </div>
+            </div>
+            <button id="logoutBtn" class="logout-btn">ออกจากระบบ</button>
+        </div>
+
+        <!-- สร้างห้องเรียน -->
+        <div class="section">
+            <h2>สร้างห้องเรียนใหม่</h2>
+            <input type="text" id="className" placeholder="ชื่อห้องเรียน" class="input-field">
+            <button id="createClassBtn" class="primary-btn">สร้างห้องเรียน</button>
+        </div>
+
+        <!-- รายการห้องเรียน -->
+        <div class="section">
+            <h2>ห้องเรียนของฉัน</h2>
+            <div id="classList" class="class-list">
+                <!-- รายการห้องเรียนจะถูกเพิ่มที่นี่ด้วย JavaScript -->
+            </div>
+        </div>
+
+        <!-- คลังโจทย์ -->
+        <div class="section">
+            <h2>คลังโจทย์</h2>
+            <button id="createProblemBtn" class="primary-btn">สร้างโจทย์ใหม่</button>
+            <div id="problemList" class="problem-list">
+                <!-- รายการโจทย์จะถูกเพิ่มที่นี่ -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สร้างโจทย์ -->
+    <div id="problemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>สร้างโจทย์ใหม่</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <form id="problemForm">
+                    <!-- ข้อมูลพื้นฐาน -->
+                    <div class="form-group">
+                        <label>ชื่อโจทย์ *</label>
+                        <input type="text" id="problemTitle" class="input-field" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>ประเภทโจทย์ *</label>
+                        <select id="problemType" class="input-field" onchange="toggleProblemTypeFields()">
+                            <option value="python">Python Programming</option>
+                            <option value="comprehension">คำถามความเข้าใจ</option>
+                            <option value="matching">จับคู่</option>
+                            <option value="flowchart">Flowchart</option>
+                            <option value="gui">GUI (Graphical User Interface)</option>
+                        </select>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label>ระดับความยาก</label>
+                        <select id="problemDifficulty" class="input-field">
+                            <option value="easy">ง่าย</option>
+                            <option value="medium">ปานกลาง</option>
+                            <option value="hard">ยาก</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>รูปภาพประกอบ (URL ของรูปภาพ, ไม่บังคับ)</label>
+                        <div class="image-input-container">
+                            <input type="text" id="problemImage" class="input-field"
+                                placeholder="https://example.com/image.jpg" onchange="previewImage()">
+                            <button type="button" class="preview-btn" onclick="previewImage()">ดูตัวอย่าง</button>
+                        </div>
+                        <div id="imagePreview" class="image-preview"></div>
+                    </div>
+
+                    <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                        <label style="font-weight: bold; color: #1a73e8;">📎 สื่อประกอบการเรียนรู้ (แนบลิงก์)</label>
+                        <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                            รองรับ YouTube, PDF, รูปภาพ หรือเว็บไซต์ภายนอก (แสดงเป็นลิงก์ให้นักเรียนกด)
+                        </div>
+                        
+                        <div id="attachmentList"></div>
+                        
+                        <button type="button" class="secondary-btn" onclick="addAttachmentRow()" style="font-size: 14px;">
+                            + เพิ่ม URL สื่อการสอน
+                        </button>
+                    </div>
+
+
+
+                    <div id="pythonSection">
+                        <!-- คำอธิบายโจทย์ -->
+                        <div id="explanGroup" class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="problemDescription" class="input-field" required></textarea>
+                        </div>
+
+
+                        <div id="templateCodeGroup" class="form-group">
+                            <label>โค้ดเริ่มต้น *</label>
+                            <textarea id="templateCode" class="code-editor" required></textarea>
+                        </div>
+
+                        <!-- Test Cases -->
+                        <div id="testCasesSection" class="test-cases">
+                            <div class="test-cases-header">
+                                <h3>Test Cases</h3>
+                                <button type="button" class="primary-btn" onclick="addTestCase()">+ เพิ่ม Test
+                                    Case</button>
+                            </div>
+                            <div id="testCasesList"></div>
+                        </div>
+                    </div>
+
+
+                    <div id="comprehensionContentGroup" class="form-group" style="display: none;">
+                        <label>คำอธิบายโจทย์ *</label>
+                        <textarea id="comprehensionContent" class="input-field content-editor"
+                            placeholder="ใส่เนื้อหาหรือบทความที่ต้องการให้นักเรียนอ่าน"></textarea>
+                    </div>
+
+
+
+                    <div id="questionsSection" class="questions" style="display: none;">
+
+                        <div class="questions-header">
+                            <h3>คำถาม</h3>
+                            <button type="button" class="primary-btn" onclick="addComprehensionQuestion()">
+                                เพิ่มคำถาม
+                            </button>
+                        </div>
+
+
+
+
+                        <div id="questionsList"></div>
+
+
+                    </div>
+                    <!-- เพิ่มตรง modal-body ใน problemModal -->
+                    <div id="matchingSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="matchingDescription" class="input-field" required></textarea>
+                        </div>
+
+                        <div class="matching-pairs-section">
+                            <div class="matching-container">
+                                <div class="matching-column">
+                                    <div class="column-header">
+                                        <h4>คำถาม</h4>
+                                        <button type="button" class="add-btn" onclick="addMatchingQuestion()">+
+                                            เพิ่มคำถาม</button>
+                                    </div>
+                                    <div id="matchingQuestionsList" class="pairs-list">
+                                        <!-- คำถามจะถูกเพิ่มที่นี่ -->
+                                    </div>
+                                </div>
+                                <div class="matching-column">
+                                    <div class="column-header">
+                                        <h4>คำตอบ</h4>
+                                        <button type="button" class="add-btn" onclick="addMatchingAnswer()">+
+                                            เพิ่มคำตอบ</button>
+                                    </div>
+                                    <div id="matchingAnswersList" class="pairs-list">
+                                        <!-- คำตอบจะถูกเพิ่มที่นี่ -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px;">
+                                <label style="font-size: 1.1em; font-weight: bold; margin-bottom: 15px; display: block;">
+                                    🔗 กำหนดคู่ที่ถูกต้องและคะแนน
+                                </label>
+                                
+                                <div id="matchingPairsList"></div>
+                                
+                                <button type="button" class="secondary-btn" onclick="addMatchingPairRow()">
+                                    + เพิ่มคู่จับคู่ (กำหนดคะแนน)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="flowchartSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="flowchartDescription" class="input-field"
+                                placeholder="อธิบายโจทย์ที่ให้นักเรียนสร้าง Flowchart"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>ตัวแปรที่ใช้ในโจทย์</label>
+                            <div id="variablesContainer" class="variables-container">
+                                <div class="variables-header">
+                                    <button type="button" onclick="addVariable()" class="primary-btn add-var-btn">
+                                        + เพิ่มตัวแปร
+                                    </button>
+                                </div>
+                                <div id="variablesList" class="variables-list">
+                                    <!-- ตัวแปรจะถูกเพิ่มที่นี่ -->
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="form-group">
+                            <label>เฉลย Flowchart *</label>
+                            <div id="flowchartEditor" class="flowchart-editor">
+                                <div class="editor-toolbar">
+                                    <div class="toolbar-group">
+                                        <button type="button" class="tool-btn" draggable="true" data-type="start-end"
+                                            title="Start/End">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <rect x="0" y="0" rx="25" ry="25" width="100" height="50" fill="white"
+                                                    stroke="black" />
+                                            </svg>
+                                            <span>Start/End</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="process"
+                                            title="Process">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <rect x="0" y="0" width="100" height="50" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Process</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="document"
+                                            title="Document">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M0,0 L100,0 L100,40 Q50,60 0,40 Z" fill="white"
+                                                    stroke="black" />
+                                            </svg>
+                                            <span>Document</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="decision"
+                                            title="Decision">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M50,0 L100,25 L50,50 L0,25 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Decision</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="toolbar-group">
+                                        <button type="button" class="tool-btn" draggable="true" data-type="input-output"
+                                            title="Input/Output">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M15,0 L100,0 L85,50 L0,50 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Input/Output</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="manual-input"
+                                            title="Manual Input">
+                                            <svg viewBox="0 0 100 50" class="symbol-icon">
+                                                <path d="M0,10 L100,0 L100,50 L0,50 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Manual Input</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="display"
+                                            title="Display">
+                                            <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                                                <path d="M-50,-25 L40,-25 
+                                                         Q50,-25 50,0 
+                                                         Q50,25 40,25 
+                                                         L-50,25 
+                                                         Q-60,25 -60,0 
+                                                         Q-60,-25 -50,-25 Z" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Display</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="data-storage"
+                                            title="Data Storage">
+                                            <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                                                <path d="M-50,-25 
+                                                         Q-40,-25 -40,0 
+                                                         Q-40,25 -50,25 
+                                                         L40,25 
+                                                         Q50,25 50,0 
+                                                         Q50,-25 40,-25 
+                                                         L-50,-25" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Data Storage</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="toolbar-group">
+                                        <button type="button" class="tool-btn" draggable="true" data-type="connector"
+                                            title="Connector">
+                                            <svg viewBox="0 0 50 50" class="symbol-icon">
+                                                <circle cx="25" cy="25" r="20" fill="white" stroke="black" />
+                                            </svg>
+                                            <span>Connector</span>
+                                        </button>
+
+                                        <button type="button" class="tool-btn" draggable="true" data-type="arrow"
+                                            title="Arrow">
+                                            <svg viewBox="-60 -30 120 60" class="symbol-icon">
+                                                <path d="M-30,-20 L30,20 M20,20 L30,20 L30,10" fill="none"
+                                                    stroke="black" stroke-width="2" />
+                                            </svg>
+                                            <span>Arrow</span>
+                                        </button>
+                                        <button type="button" class="tool-btn" data-type="move" title="Move">
+                                            <svg viewBox="0 0 50 50" class="symbol-icon">
+                                                <path
+                                                    d="M25,10 L25,40 M10,25 L40,25 M17,17 L10,25 L17,33 M33,17 L40,25 L33,33"
+                                                    fill="none" stroke="black" stroke-width="2" />
+                                            </svg>
+                                            <span>Move</span>
+                                        </button>
+                                        <button type="button" class="tool-btn delete" data-type="delete" title="Delete">
+                                            <svg viewBox="0 0 50 50" class="symbol-icon">
+                                                <path d="M10,10 L40,40 M40,10 L10,40" fill="none" stroke="red"
+                                                    stroke-width="2" />
+                                            </svg>
+                                            <span>Delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="flowchartCanvas" class="flowchart-canvas">
+                                    <!-- Canvas สำหรับวาด Flowchart -->
+                                </div>
+                                <div class="flowchart-controls">
+                                    <button type="button" 
+                                            class="tool-btn clear-btn" 
+                                            onclick="clearFlowchart()" 
+                                            title="Clear Flowchart">
+                                        ล้าง Flowchart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>คะแนนและเกณฑ์การตรวจ *</label>
+                            <div class="scoring-section">
+                                <div class="total-score">
+                                    <label>คะแนนเต็ม</label>
+                                    <input type="number" id="flowchartMaxScore" class="input-field" value="10" min="1"
+                                        max="100">
+                                </div>
+
+                                <div class="scoring-criteria">
+                                    <h4>เกณฑ์การให้คะแนน</h4>
+                                    <div class="criteria-item">
+                                        <span>1. รูปแบบ Flowchart ถูกต้อง (การใช้สัญลักษณ์)</span>
+                                        <input type="number" class="score-input" value="3" min="0" max="10">
+                                    </div>
+                                    <div class="criteria-item">
+                                        <span>2. การเชื่อมโยงแต่ละขั้นตอน</span>
+                                        <input type="number" class="score-input" value="3" min="0" max="10">
+                                    </div>
+                                    <div class="criteria-item">
+                                        <span>3. ลำดับขั้นตอนการทำงาน</span>
+                                        <input type="number" class="score-input" value="4" min="0" max="10">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>คำแนะนำสำหรับผู้ตรวจ</label>
+                            <textarea id="gradingInstructions" class="input-field"
+                                placeholder="คำแนะนำหรือหมายเหตุสำหรับผู้ตรวจในการพิจารณาให้คะแนน"></textarea>
+                        </div>
+                    </div>
+                    <!-- เพิ่ม Section สำหรับโจทย์ GUI -->
+                    <div id="guiSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ GUI *</label>
+                            <textarea id="guiDescription" class="input-field" rows="4" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Template Code *</label>
+                            <textarea id="guiTemplate" class="code-editor" rows="10" required>
+ 
+                            </textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>เฉลยโค้ด (สำหรับครู) *</label>
+                            <textarea id="guiSolution" class="code-editor solution-editor" rows="15" required>from tkinter import *
+from tkinter import ttk
+                    
+def calculate():
+    # เขียนเฉลยที่นี่
+    pass
+                    
+root = Tk()
+root.title("โปรแกรมของฉัน")
+root.geometry("400x300")
+                    
+# เขียนโค้ดเฉลยตรงนี้
+                    
+root.mainloop()
+                            </textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>กำหนด Widgets ที่ต้องการ</label>
+                            <div id="guiRequirements"></div>
+                            <button type="button" class="secondary-btn" onclick="addGUIRequirement()">+ เพิ่ม Widget</button>
+                        </div>
+                        
+                        <!-- เพิ่ม Test Cases ที่นี่ -->
+                        <div class="form-group">
+                            <h3>Test Cases</h3>
+                            <div id="guiTestCasesList"></div>
+                            <button type="button" class="secondary-btn" onclick="addGUITestCase()">+ เพิ่ม Test Case</button>
+                        </div>
+                        <div class="form-group">
+                            <label>ภาพประกอบ (ระบุ URL, ไม่บังคับ)</label>
+                            <div class="image-input-container">
+                                <input type="text" id="guiImageUrl" class="input-field" placeholder="https://example.com/image.jpg" onchange="previewGUIImage()">
+                                <button type="button" class="preview-btn" onclick="previewGUIImage()">ดูตัวอย่าง</button>
+                            </div>
+                            <div id="guiImagePreview" class="image-preview" style="display: none;"></div>
+                        </div>
+                        
+                        <button type="button" class="secondary-btn" onclick="previewGUI()">ดูตัวอย่าง GUI</button>
+                        <div id="guiPreview" class="gui-preview" style="display: none;"></div>
+                        <div id="guiValidationMessage" class="validation-message" style="display: none;"></div>
+                    </div>
+
+    
+            </div>
+            </form>
+            <div class="modal-footer">
+                <button type="button" onclick="closeModal()" class="secondary-btn">ยกเลิก</button>
+                <button type="button" onclick="saveProblem()" class="primary-btn">บันทึก</button>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="flowchart-editor.js"></script>
+    <script src="teacher-dashboard.js"></script>
+</body>
+
+</html>

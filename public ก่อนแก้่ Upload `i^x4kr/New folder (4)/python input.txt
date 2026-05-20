@@ -1,0 +1,39 @@
+from tkinter import *
+def cal():
+    yearborn=int(number1.get())
+    yearnow=int(number2.get())
+    C.config(text=f' ผลลัพธ์คำนวณอายุ =={yearnow-yearborn }')
+    if(var3.get()==8 and yearnow-yearborn <30):
+        D.config(text=f'AA')
+    if(var3.get()==8 and yearnow-yearborn >30):
+        D.config(text=f'BB')
+    if(var3.get()==0):
+        D.config(text=f'CC')
+
+
+root = Tk()
+root.title("เห้ยๆ ฮี่ๆ")
+root.geometry("550x400")
+B=Label(text='ปีเกิด',fg='#FFFFCC',bg='blue')
+B.pack()
+number1=StringVar(value='กรอกตัวเลข1')
+input1=Entry(root,textvariable=number1)
+input1.pack()
+A=Label(text='ปีปัจจุบัน',fg='#FFFFCC',bg='blue')
+A.pack()
+C=Label(text='ผลลัพธ์คำนวณอายุ',fg='#FFFFCC',bg='blue')
+C.pack()
+number2=StringVar(value='กรอกตัวเลข')
+input2=Entry(root,textvariable=number2)
+input2.pack()
+D=Label(text='พิเศษ',fg='#FFFFCC',bg='blue')
+D.pack()
+
+button1=Button(text='กดคำนวณอายุ')
+button1.pack()
+button1.configure(command=cal)
+
+var3 = IntVar()
+c3 = Checkbutton(root,text="Man",variable=var3,onvalue=8,offvalue=0)
+c3.pack()
+root.mainloop()

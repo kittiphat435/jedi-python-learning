@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher Dashboard - Python Learning Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Dashboard Styles */
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .primary-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .primary-btn:hover {
+            background: #45a049;
+        }
+
+        .class-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #ddd;
+        }
+
+        .class-info h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .class-code {
+            font-family: monospace;
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .secondary-btn {
+            background: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .secondary-btn:hover {
+            background: #5a6268;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .python-logo, .firebase-logo {
+            height: 40px;
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo" class="python-logo">
+            <h1>Teacher Dashboard</h1>
+            <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png" alt="Firebase Logo" class="firebase-logo">
+        </div>
+
+        <!-- ข้อมูลผู้ใช้ -->
+        <!-- แก้ไขส่วน user-info -->
+    <div class="user-info">
+        <div>
+            <span id="userEmail"></span>
+            <div id="displayName">
+                <span id="userName"></span>
+                <button id="editNameBtn" class="edit-btn">แก้ไขชื่อ</button>
+            </div>
+            <div id="editNameForm" style="display: none;">
+                <input type="text" id="newName" class="input-field" placeholder="ใส่ชื่อที่ต้องการ">
+                <button id="saveNameBtn" class="primary-btn">บันทึก</button>
+                <button id="cancelEditBtn" class="secondary-btn">ยกเลิก</button>
+            </div>
+        </div>
+        <button id="logoutBtn" class="logout-btn">ออกจากระบบ</button>
+    </div>
+
+        <!-- สร้างห้องเรียน -->
+        <div class="section">
+            <h2>สร้างห้องเรียนใหม่</h2>
+            <input type="text" id="className" placeholder="ชื่อห้องเรียน" class="input-field">
+            <button id="createClassBtn" class="primary-btn">สร้างห้องเรียน</button>
+        </div>
+
+        <!-- รายการห้องเรียน -->
+        <div class="section">
+            <h2>ห้องเรียนของฉัน</h2>
+            <div id="classList" class="class-list">
+                <!-- รายการห้องเรียนจะถูกเพิ่มที่นี่ด้วย JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
+            authDomain: "python-learning-platform-596e1.firebaseapp.com",
+            projectId: "python-learning-platform-596e1",
+            storageBucket: "python-learning-platform-596e1.firebasestorage.app",
+            messagingSenderId: "5262153531",
+            appId: "1:5262153531:web:55f6246093e1780003491e"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // เช็คว่า user ล็อกอินอยู่หรือไม่
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('User is logged in:', user.email);
+                // แสดงอีเมลผู้ใช้
+                document.getElementById('userEmail').textContent = `ผู้ใช้: ${user.email}`;
+                // เช็คว่าเป็นครูหรือไม่
+                checkTeacherRole(user.uid);
+            } else {
+                // ถ้าไม่ได้ล็อกอิน ให้กลับไปหน้า login
+                window.location.href = 'index.html';
+            }
+        });
+
+        // เช็คว่าเป็นครูหรือไม่
+        async function checkTeacherRole(userId) {
+            try {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists && userDoc.data().role === 'teacher') {
+                    // ถ้าเป็นครู โหลดรายการห้องเรียน
+                    loadClasses(userId);
+                } else {
+                    alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                console.error("Error checking role:", error);
+                alert('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์');
+            }
+        }
+
+        // สร้างรหัสห้องเรียนแบบสุ่ม
+        function generateClassCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // สร้างห้องเรียน
+        document.getElementById('createClassBtn').addEventListener('click', async () => {
+            const className = document.getElementById('className').value;
+            if (!className) {
+                alert('กรุณาใส่ชื่อห้องเรียน');
+                return;
+            }
+
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    alert('กรุณาเข้าสู่ระบบก่อน');
+                    return;
+                }
+
+                const classCode = generateClassCode();
+                await db.collection('classes').add({
+                    name: className,
+                    code: classCode,
+                    teacherId: user.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert(`สร้างห้องเรียนสำเร็จ!\nรหัสห้องเรียน: ${classCode}`);
+                document.getElementById('className').value = '';
+                loadClasses(user.uid);
+            } catch (error) {
+                console.error("Error creating class:", error);
+                alert('เกิดข้อผิดพลาดในการสร้างห้องเรียน');
+            }
+        });
+
+        // โหลดรายการห้องเรียน
+        async function loadClasses(userId) {
+            const classList = document.getElementById('classList');
+            classList.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
+
+            try {
+                const snapshot = await db.collection('classes')
+                    .where('teacherId', '==', userId)
+                    .orderBy('createdAt', 'desc')
+                    .get();
+
+                if (snapshot.empty) {
+                    classList.innerHTML = '<p>ยังไม่มีห้องเรียน</p>';
+                    return;
+                }
+
+                classList.innerHTML = ''; // เคลียร์ข้อความ loading
+                snapshot.forEach(doc => {
+                    const classData = doc.data();
+                    const classDiv = document.createElement('div');
+                    classDiv.className = 'class-card';
+                    classDiv.innerHTML = `
+                        <div class="class-info">
+                            <h3>${classData.name}</h3>
+                            <p class="class-code">รหัสห้องเรียน: ${classData.code}</p>
+                        </div>
+                        <button onclick="viewClass('${doc.id}')" class="secondary-btn">
+                            ดูรายละเอียด
+                        </button>
+                    `;
+                    classList.appendChild(classDiv);
+                });
+            } catch (error) {
+                console.error("Error loading classes:", error);
+                classList.innerHTML = '<p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+            }
+        }
+
+        // ออกจากระบบ
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error("Error signing out:", error);
+                alert('เกิดข้อผิดพลาดในการออกจากระบบ');
+            }
+        });
+
+        // ฟังก์ชันดูรายละเอียดห้องเรียน
+        window.viewClass = function(classId) {
+            // TODO: สร้างหน้ารายละเอียดห้องเรียน
+            alert('กำลังพัฒนา...');
+        }
+    </script>
+</body>
+</html>

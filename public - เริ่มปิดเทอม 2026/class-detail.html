@@ -1,0 +1,102 @@
+<!-- Updated class-detail.html -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>รายละเอียดห้องเรียน - Python Learning Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="class-detail.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Updated Header -->
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
+
+            <!-- Back button positioned absolutely -->
+            <button onclick="window.history.back()" class="back-btn">กลับ</button>
+        </div>
+
+        <!-- Class Info Section -->
+        <section class="section">
+            <h2 id="className">ชื่อห้องเรียน</h2>
+            <p id="classCode">รหัสห้องเรียน:</p>
+        </section>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div id="studentCount" class="stat-number">0</div>
+                <div>นักเรียน</div>
+            </div>
+            <div class="stat-card">
+                <div id="problemCount" class="stat-number">0</div>
+                <div>โจทย์</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('problems')">โจทย์</div>
+            <div class="tab" onclick="showTab('students')">รายชื่อนักเรียน</div>
+        </div>
+
+        <!-- Content sections remain the same -->
+        <div id="problemsTab" class="tab-content active">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="ค้นหาโจทย์..."
+                    onkeyup="searchProblems(this.value)">
+            </div>
+            <div class="problem-actions">
+                <button onclick="showProblemBankModal()" class="primary-btn">
+                    เพิ่มจากคลังโจทย์
+                </button>
+            </div>
+            <div id="problemList"></div>
+        </div>
+
+        <div id="studentsTab" class="tab-content">
+            <div id="studentList"></div>
+        </div>
+    </div>
+    <!-- Modal สำหรับคลังโจทย์ -->
+    <div id="problemBankModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>คลังโจทย์</h2>
+                <button class="close-btn" onclick="closeProblemBankModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="search-box">
+                    <input type="text" id="searchProblemBank" class="search-input" placeholder="ค้นหาโจทย์...">
+                </div>
+                <div id="problemBankList">
+                    <!-- รายการโจทย์จะถูกเพิ่มที่นี่ด้วย JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Your existing scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="flowchart-editor.js"></script>  
+    <script src="class-detail.js"></script>
+</body>
+
+</html>

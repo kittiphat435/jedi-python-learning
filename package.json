@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "firebase": "^11.0.1"
+    "express": "^4.21.1",
+    "firebase": "^11.0.1",
+    "punycode": "^2.3.1"
   }
 }

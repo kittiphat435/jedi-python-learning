@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body>
+    <div class="tk-window">
+        <div id="widget_1" class="tk-label" data-var="B" data-index="0">5555555555</div>
+        <div id="widget_2" class="tk-label" data-var="A" data-index="1">4444444444</div>
+        <div id="widget_3" class="tk-label" data-var="C" data-index="2">3333333333</div>
+        <input type="text" class="tk-entry" id="widget_4" value="2529" data-var="number1" data-index="3">
+        <input type="text" class="tk-entry" id="widget_5" value="2569" data-var="number2" data-index="4">
+        <button id="widget_6" class="tk-button" data-index="5" data-var="button1">คำนวณ</button>
+    </div>
+    <script>
+        function cal() {
+            console.log("เรียกใช้ฟังก์ชัน cal");
+            try {
+                A1=parseInt(document.querySelector('[data-var="number1"]').value)
+                A2=parseInt(document.querySelector('[data-var="number2"]').value)
+                document.querySelector('[data-var="C"]').textContent = ` A1+A2 ${ A1+A2 }`
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในฟังก์ชัน cal:", error);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {        
+            const button = document.querySelector('button[data-var="button1"]');
+            if (button) {
+                console.log("พบปุ่ม button1");
+                button.addEventListener('click', function() {
+                    console.log("คลิกปุ่ม button1");
+                    if ("cal" === "lambda_func") {
+                        const win = document.querySelector('.tk-window'); 
+                        if (win) {
+                            win.style.display = 'none';
+                            console.log("Window closed by lambda");       
+                        }
+                    } else if (typeof cal === "function") {
+                        cal();
+                    }
+                });
+            } else {
+                console.error("ไม่พบปุ่ม button1");
+            }
+        });
+    </script>
+</body>
+</html>

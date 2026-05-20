@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบทดสอบความเข้าใจ</title>
+    <link rel="stylesheet" href="student-quiz-detail.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
+            authDomain: "python-learning-platform-596e1.firebaseapp.com",
+            projectId: "python-learning-platform-596e1",
+            storageBucket: "python-learning-platform-596e1.firebasestorage.app",
+            messagingSenderId: "5262153531",
+            appId: "1:5262153531:web:55f6246093e1780003491e"
+        };
+    </script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- New Header with Dark Theme -->
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive</p>
+                </div>
+            </div>
+
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo"
+                    class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png"
+                    alt="Firebase Logo" class="firebase-logo">
+            </div>
+        </div>
+
+        <!-- Sub Header for Quiz Title and Controls -->
+        <div class="sub-header">
+            <div class="header-left">
+                <button onclick="window.goBack()" class="back-button">
+                    <i class="fas fa-arrow-left"></i> กลับ
+                </button>
+                <h1 id="quizTitle" class="quiz-title"></h1>
+            </div>
+            <div class="header-right">
+                <span id="statusBadge" class="status-badge"></span>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <section class="content-section">
+                <h2>เนื้อหา</h2>
+                <div id="quizContent" class="quiz-content"></div>
+            </section>
+
+            <section class="questions-section">
+                <h2>คำถาม</h2>
+                <div id="questionsList" class="questions-list"></div>
+            </section>
+
+            <div class="submit-section">
+                <button onclick="submitQuiz()" class="submit-btn">ส่งคำตอบ</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>ผลการทดสอบ</h2>
+                <span class="close-btn" onclick="closeModal()">×</span>
+            </div>
+            <div class="modal-body">
+                <div id="quizResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">กำลังตรวจคำตอบ...</div>
+    </div>
+
+    <!-- Scripts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="student-quiz-detail.js"></script>
+</body>
+
+</html>

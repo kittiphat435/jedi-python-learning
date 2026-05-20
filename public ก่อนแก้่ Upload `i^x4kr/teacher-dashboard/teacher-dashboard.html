@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher Dashboard - Python Learning Platform</title>
+    <link rel="stylesheet" href="teacher-dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo" class="python-logo">
+            <h1>Teacher Dashboard</h1>
+            <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png" alt="Firebase Logo" class="firebase-logo">
+        </div>
+
+        <!-- ข้อมูลผู้ใช้ -->
+        <div class="user-info">
+            <div>
+                <span id="userEmail"></span>
+                <div id="displayName">
+                    <span id="userName"></span>
+                    <button id="editNameBtn" class="edit-btn">แก้ไขชื่อ</button>
+                </div>
+                <div id="editNameForm" style="display: none;">
+                    <input type="text" id="newName" class="input-field" placeholder="ใส่ชื่อที่ต้องการ">
+                    <button id="saveNameBtn" class="primary-btn">บันทึก</button>
+                    <button id="cancelEditBtn" class="secondary-btn">ยกเลิก</button>
+                </div>
+            </div>
+            <button id="logoutBtn" class="logout-btn">ออกจากระบบ</button>
+        </div>
+
+        <!-- สร้างห้องเรียน -->
+        <div class="section">
+            <h2>สร้างห้องเรียนใหม่</h2>
+            <input type="text" id="className" placeholder="ชื่อห้องเรียน" class="input-field">
+            <button id="createClassBtn" class="primary-btn">สร้างห้องเรียน</button>
+        </div>
+
+        <!-- รายการห้องเรียน -->
+        <div class="section">
+            <h2>ห้องเรียนของฉัน</h2>
+            <div id="classList" class="class-list">
+                <!-- รายการห้องเรียนจะถูกเพิ่มที่นี่ด้วย JavaScript -->
+            </div>
+        </div>
+
+        <!-- คลังโจทย์ -->
+        <div class="section">
+            <h2>คลังโจทย์</h2>
+            <button id="createProblemBtn" class="primary-btn">สร้างโจทย์ใหม่</button>
+            <div id="problemList" class="problem-list">
+                <!-- รายการโจทย์จะถูกเพิ่มที่นี่ -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สร้างโจทย์ -->
+    <div id="problemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>สร้างโจทย์ใหม่</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="problemForm">
+                    <div class="form-group">
+                        <label>ชื่อโจทย์ *</label>
+                        <input type="text" id="problemTitle" required class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label>คำอธิบาย *</label>
+                        <textarea id="problemDescription" required class="input-field"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Template Code</label>
+                        <textarea id="templateCode" class="code-editor">def solution():
+    # เขียนโค้ดตรงนี้
+    pass</textarea>
+                    </div>
+                    <div class="test-cases">
+                        <h3>Test Cases</h3>
+                        <div id="testCasesList"></div>
+                        <button type="button" onclick="addTestCase()" class="secondary-btn">+ เพิ่ม Test Case</button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">ยกเลิก</button>
+                <button class="primary-btn" onclick="saveProblem()">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="teacher-dashboard.js"></script>
+</body>
+</html>
