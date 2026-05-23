@@ -567,7 +567,16 @@ async function loadProblemConfig(problemId) {
     renderTestCases(window.guiTestCases);
 }
 
-  function renderTestCases(testCases) {
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderTestCases(testCases) {
   const defs = window.widgetDefinitions || [];
   const list = document.getElementById('guiTestCasesList');
   if (!list) return;
@@ -602,7 +611,7 @@ async function loadProblemConfig(problemId) {
         const type  = def.type  || 'Label';
         return `${label} [${type}] = ${o.value}`;
       })
-      .join(', ');
+      .join('\n');
 
     const score = tc.score || 1;
     const note  = tc.explanation || '-';
@@ -611,11 +620,12 @@ async function loadProblemConfig(problemId) {
     div.className = 'test-case';
     div.innerHTML = `
       <strong>Test #${idx + 1}</strong><br>
-      Inputs: ${inpText || '–'}<br>
-      Actions: ${actText || '–'}<br>
-      Expected: ${outText || '–'}<br>
-      Score: ${score}<br>
-      Note: ${note}
+      <p><strong>Inputs:</strong> ${escapeHtml(inpText || '–')}</p>
+      <p><strong>Actions:</strong> ${escapeHtml(actText || '–')}</p>
+      <p><strong>Expected:</strong></p>
+      <pre>${escapeHtml(outText || '–')}</pre>
+      <p><strong>Score:</strong> ${escapeHtml(score)}</p>
+      <p><strong>Note:</strong> ${escapeHtml(note)}</p>
     `;
     list.appendChild(div);
   });
@@ -663,6 +673,7 @@ function updateCodeHighlight() {
     }
 }
 async function testGUICode(code, problemTestCases, iframe) {
+    const includeTestCases = arguments.length >= 4 && arguments[3] && arguments[3].includeTestCases === true;
     
     console.log('=== เริ่มการทดสอบโค้ด GUI ===');
     
@@ -867,67 +878,68 @@ async function testGUICode(code, problemTestCases, iframe) {
         
         totalScore += orderScore;
 
-        // ตรวจ Test Cases
-        const testMaxScore = problemTestCases.reduce((sum, tc) => sum + (tc.score || 1), 0);
-        maxScore += testMaxScore;
-        
-        const failedTestCases = []; // เก็บ test case ที่ไม่ผ่าน
+        const baseScore = totalScore;
+        const baseMaxScore = maxScore;
 
-        // ✅ [FIXED] Loop ตรวจ Testcase: รับคะแนนตรงๆ ไม่คำนวณซ้ำ
-        // ======================================================
-        for (let i = 0; i < problemTestCases.length; i++) {
-            const testCase = problemTestCases[i];
-            
-            // 1. Live Check: ส่งไปตรวจใน iframe
-            const liveResult = await testSpecificTestCaseInternal(htmlOutput, testCase, i + 1);
-            
-            // 2. ✅ รับคะแนนที่คำนวณมาแล้วจากข้างใน (ไม่ต้องเขียน logic passed ? score : 0 ซ้ำ)
-            const passed = liveResult.passed;
-            const score = liveResult.score; 
-            
-            // 3. บวกเข้ากองกลาง
-            totalScore += score;
+        const testCaseMaxScore = Array.isArray(problemTestCases)
+            ? problemTestCases.reduce((sum, tc) => sum + (tc.score || 1), 0)
+            : 0;
 
-            console.log(`Test Case ${i + 1}: ${passed ? 'PASSED' : 'FAILED'} (ได้ ${score}/${testCase.score||1} คะแนน)`);
+        let testCaseScore = 0;
 
-            // 4. เตรียมข้อมูลสำหรับแสดงผลบนหน้าเว็บ (UI)
-            const simulatedOutputs = testCase.outputs.map((o, idx) => ({
-                widget: o.widget,
-                type: 'Unknown',
-                text: o.text || '',
-                value: passed ? o.value : (liveResult.details[idx] || 'Mismatch'), 
-                error: passed ? null : 'Check Failed'
-            }));
+        if (includeTestCases) {
+            maxScore += testCaseMaxScore;
 
-            // 5. บันทึกผลลง testResults (เพื่อเอาไปโชว์ในกล่องผลลัพธ์)
-            testResults.push({
-                index: i + 1,
-                passed: passed,
-                message: passed ? `Test Case ${i + 1}: ✅ ผ่าน` : `Test Case ${i + 1}: ❌ ไม่ผ่าน`,
-                inputs: testCase.inputs,
-                actions: testCase.actions,
-                expected: testCase.outputs,
-                actual: simulatedOutputs,
-                explanation: testCase.explanation || '',
-                score: score,
-                maxScore: liveResult.maxScore || (testCase.score || 1)
-            });
-            
-            // 6. เก็บ Error ไว้ดูเฉพาะข้อที่ตก
-            if (!passed) {
-                failedTestCases.push({
-                   index: i + 1,
-                   details: liveResult.details 
+            const failedTestCases = [];
+
+            for (let i = 0; i < problemTestCases.length; i++) {
+                const testCase = problemTestCases[i];
+                
+                const liveResult = await testSpecificTestCaseInternal(htmlOutput, testCase, i + 1);
+                
+                const passed = liveResult.passed;
+                const score = liveResult.score; 
+                
+                totalScore += score;
+                testCaseScore += score;
+
+                console.log(`Test Case ${i + 1}: ${passed ? 'PASSED' : 'FAILED'} (ได้ ${score}/${testCase.score||1} คะแนน)`);
+
+                const simulatedOutputs = testCase.outputs.map((o, idx) => ({
+                    widget: o.widget,
+                    type: 'Unknown',
+                    text: o.text || '',
+                    value: passed ? o.value : (liveResult.details[idx] || 'Mismatch'), 
+                    error: passed ? null : 'Check Failed'
+                }));
+
+                testResults.push({
+                    index: i + 1,
+                    passed: passed,
+                    message: passed ? `Test Case ${i + 1}: ✅ ผ่าน` : `Test Case ${i + 1}: ❌ ไม่ผ่าน`,
+                    inputs: testCase.inputs,
+                    actions: testCase.actions,
+                    expected: testCase.outputs,
+                    actual: simulatedOutputs,
+                    explanation: testCase.explanation || '',
+                    score: score,
+                    maxScore: liveResult.maxScore || (testCase.score || 1)
                 });
+                
+                if (!passed) {
+                    failedTestCases.push({
+                       index: i + 1,
+                       details: liveResult.details 
+                    });
+                }
             }
-        }
-        
-        // Log test case ที่ไม่ผ่าน
-        console.log(`ผลการทดสอบ: ผ่าน ${testResults.filter(r => r.passed).length}/${testResults.length} test cases`);
-        if (failedTestCases.length > 0) {
-            console.log('Test case ที่ไม่ผ่าน:', failedTestCases);
-        } else {
-            console.log('ทุก test case ผ่านการทดสอบ');
+
+            console.log(`ผลการทดสอบ: ผ่าน ${testResults.filter(r => r.passed).length}/${testResults.length} test cases`);
+            if (failedTestCases.length > 0) {
+                console.log('Test case ที่ไม่ผ่าน:', failedTestCases);
+            } else {
+                console.log('ทุก test case ผ่านการทดสอบ');
+            }
         }
 
         // แสดงผลการตรวจ
@@ -1014,7 +1026,10 @@ async function testGUICode(code, problemTestCases, iframe) {
         `;
 
         showSuccess(`ตรวจคำตอบเสร็จสิ้น: ${totalScore}/${maxScore} คะแนน`);
-        return { totalScore, maxScore, passed: totalScore === maxScore };
+        const passedBase = baseMaxScore > 0 ? baseScore === baseMaxScore : false;
+        const passedAll = maxScore > 0 ? totalScore === maxScore : false;
+        const passed = includeTestCases ? passedAll : passedBase;
+        return { totalScore, maxScore, passed, baseScore, baseMaxScore, testCaseScore, testCaseMaxScore };
 
     } catch (error) {
         console.error('Error testing GUI code:', error);
@@ -2036,6 +2051,9 @@ function convertTkinterToHtml(code) {
         font-family: Arial, sans-serif !important;
         position: relative !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
     }
     .tk-title-bar {
         background-color: #e0e0e0 !important;
@@ -2048,11 +2066,49 @@ function convertTkinterToHtml(code) {
         position: relative !important;
         width: 100% !important; /* Ensure full width */
         box-sizing: border-box !important; /* Include padding in width calculation */
+        align-self: stretch !important;
     }
     .tk-title {
         display: inline-block !important;
         margin: 0 !important;
         font-size: 14px !important;
+    }
+    .tk-label {
+        width: 100% !important;
+        text-align: center !important;
+        margin: 8px 0 !important;
+        color: #111827 !important;
+        font-size: 14px !important;
+    }
+    .tk-entry {
+        width: min(320px, 100%) !important;
+        margin: 8px auto !important;
+        display: block !important;
+        padding: 10px 12px !important;
+        border-radius: 10px !important;
+        border: 1px solid #cbd5e1 !important;
+        outline: none !important;
+        box-sizing: border-box !important;
+        font-size: 14px !important;
+    }
+    .tk-entry:focus {
+        border-color: #7c3aed !important;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18) !important;
+    }
+    .tk-button {
+        margin: 10px auto !important;
+        padding: 10px 16px !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(124, 58, 237, 0.28) !important;
+        background: linear-gradient(135deg, #7c3aed, #5b21b6) !important;
+        color: #ffffff !important;
+        cursor: pointer !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        box-shadow: 0 10px 22px rgba(124, 58, 237, 0.22) !important;
+    }
+    .tk-button:hover {
+        filter: brightness(1.05) !important;
     }
     /* Removed window controls CSS */
 </style>
@@ -2243,10 +2299,12 @@ function convertTkinterToHtml(code) {
 
 let problemData = {}; // ตัวแปร global เพื่อเก็บข้อมูลโจทย์ทั้งหมด (รวม widgets)
 let problemTestCases = []; // ตัวแปร global เพื่อเก็บ Test Cases
+let guiBaseResult = { score: 0, maxScore: 0, passed: false };
+let guiTestCaseBonus = { score: 0, maxScore: 0 };
 
 // เพิ่มฟังก์ชันคำนวณคะแนนเต็มจาก testcase ทั้งหมด
 // ✅ [FIX] แก้ให้คำนวณคะแนนเต็มจากทุกส่วน (Widget + Order + Testcase)
-function calculateMaxScore() {
+function calculateMaxScore(includeTestCases = true) {
     let maxScore = 0;
     
     // 1. คะแนนจาก Widget (จาก problemData.widgets)
@@ -2261,7 +2319,7 @@ function calculateMaxScore() {
     }
 
     // 2. คะแนนจาก Test Cases (จาก problemData.testCases)
-    if (problemData.testCases && Array.isArray(problemData.testCases)) {
+    if (includeTestCases && problemData.testCases && Array.isArray(problemData.testCases)) {
         maxScore += problemData.testCases.reduce((sum, tc) => sum + (tc.score || 1), 0);
     }
     
@@ -2271,7 +2329,7 @@ function calculateMaxScore() {
 // ฟังก์ชันอัปเดตการแสดงคะแนน
 function updateScoreDisplay(currentScore = 0, maxScore = null) {
     if (maxScore === null) {
-        maxScore = calculateMaxScore();
+        maxScore = calculateMaxScore(true);
     }
     
     const currentScoreElement = document.getElementById('currentScore');
@@ -2326,7 +2384,12 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         }
 
         // แสดงคะแนนเต็มทันทีหลังโหลดโจทย์
-        const maxScore = calculateMaxScore();
+        const maxScore = calculateMaxScore(true);
+        const testCaseMaxScore = Array.isArray(problemData.testCases)
+            ? problemData.testCases.reduce((sum, tc) => sum + (tc.score || 1), 0)
+            : 0;
+        guiBaseResult = { score: 0, maxScore: 0, passed: false };
+        guiTestCaseBonus = { score: 0, maxScore: testCaseMaxScore };
         updateScoreDisplay(0, maxScore);
 
         // Display basic problem info
@@ -2341,8 +2404,10 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             if (problemData.image) {
                 descriptionHTML = `
                     <div class="problem-media" style="margin-bottom: 15px;">
-                        <button type="button" class="primary-btn" onclick="openMediaModal('${problemData.image}')" style="background-color: #17a2b8; border: none; padding: 8px 16px; border-radius: 4px; color: white; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="fas fa-external-link-alt"></i> 📄 คลิกเพื่อดูสื่อประกอบการเรียน
+                        <button type="button" class="media-cta-btn" onclick="openMediaModal('${problemData.image}')">
+                            <span class="media-cta-icon" aria-hidden="true">📘</span>
+                            <span class="media-cta-text">สื่อประกอบการเรียน</span>
+                            <span class="media-cta-hint">แตะเพื่อเปิด</span>
                         </button>
                     </div>
                     ${descriptionHTML}
@@ -3111,25 +3176,36 @@ async function checkAnswer() {
         const codeEditor = document.getElementById('codeEditorTextarea');
         
         // รันฟังก์ชันให้คะแนน (testGUICode จะ return object ผลลัพธ์กลับมา)
-        const testResult = await testGUICode(codeEditor.value, window.guiTestCases, iframe);
+        const testResult = await testGUICode(codeEditor.value, window.guiTestCases, iframe, { includeTestCases: false });
+        guiBaseResult = {
+            score: testResult.baseScore ?? testResult.totalScore,
+            maxScore: testResult.baseMaxScore ?? testResult.maxScore,
+            passed: testResult.passed === true
+        };
+        guiTestCaseBonus = {
+            score: 0,
+            maxScore: typeof testResult.testCaseMaxScore === 'number'
+                ? testResult.testCaseMaxScore
+                : (guiTestCaseBonus?.maxScore || 0)
+        };
         
         // อัปเดตตัวเลขคะแนนบนหน้าจอ
-        updateScoreDisplay(testResult.totalScore, testResult.maxScore);
+        updateScoreDisplay(guiBaseResult.score, guiBaseResult.maxScore + guiTestCaseBonus.maxScore);
 
         // เช็คเงื่อนไขส่งงาน (ต้องคะแนนเต็มถึงจะส่งได้)
-        if (testResult.passed === true) {
+        if (guiBaseResult.passed === true) {
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.style.opacity = "1";
                 submitBtn.style.cursor = "pointer";
             }
-            alert(`✅ โครงสร้างถูกต้อง และได้คะแนนเต็ม!\n\nคะแนน: ${testResult.totalScore}/${testResult.maxScore}`);
+            alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\n(คะแนน Test case จะค่อยเพิ่มเมื่อกด “ทดสอบ TestCase เฉพาะ”)`);
             showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
         } else {
             // โครงสร้างถูก แต่คะแนนไม่เต็ม
             if (submitBtn) submitBtn.disabled = true;
             
-            alert(`⚠️ โครงสร้างถูกต้อง (ปุ่ม Test Case เปิดแล้ว)\n\nแต่คะแนนยังไม่เต็ม (${testResult.totalScore}/${testResult.maxScore})\nอาจมีข้อความผิด หรือ Test Case ไม่ผ่าน`);
+            alert(`⚠️ โครงสร้างถูกต้อง (ปุ่ม Test Case เปิดแล้ว)\n\nแต่คะแนนยังไม่เต็ม (${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore})\nอาจมีข้อความผิด หรือการจัดวาง/ข้อความไม่ตรง`);
         }
         
         if (typeof saveDraftCode === 'function') {
@@ -3192,21 +3268,21 @@ async function submitGUICode(code, problemId, userId, classId) {
     try {
         console.log("🚀 กำลังส่งงาน...");
         
-        // 1. เช็คคะแนนจากหน้าจอ
-        const currentScoreEl = document.getElementById('currentScore');
-        const maxScoreEl = document.getElementById('maxScore');
-        const currentScore = parseInt(currentScoreEl ? currentScoreEl.innerText : '0') || 0;
-        const maxScore = parseInt(maxScoreEl ? maxScoreEl.innerText : '0') || 0;
+        const baseScore = guiBaseResult?.score || 0;
+        const baseMaxScore = guiBaseResult?.maxScore || 0;
+        const bonusScore = guiTestCaseBonus?.score || 0;
+        const bonusMaxScore = guiTestCaseBonus?.maxScore || 0;
 
-        // 2. ถ้าคะแนนไม่เต็ม ห้ามส่ง
-        if (currentScore < maxScore || maxScore === 0) {
-            alert(`⚠️ คะแนนยังไม่ครบ (${currentScore}/${maxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
+        if (baseScore < baseMaxScore || baseMaxScore === 0) {
+            alert(`⚠️ คะแนนยังไม่ครบ (${baseScore}/${baseMaxScore + bonusMaxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
             const submitBtn = document.getElementById('submitBtn');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
             return;
         }
 
-        // 3. ✅ บันทึก (สำคัญ: ใช้ studentId และ status: 'completed')
+        const finalScore = baseScore + bonusScore;
+        const finalMaxScore = baseMaxScore + bonusMaxScore;
+
         await db.collection('submissions').add({
             problemId: problemId,
             studentId: userId, // <--- ใช้ studentId เพื่อให้ตรงกับ class detail
@@ -3216,8 +3292,8 @@ async function submitGUICode(code, problemId, userId, classId) {
             type: 'gui',
             status: 'completed', // <--- ใช้ completed เพื่อให้ปุ่มเป็นสีเขียว
             testResult: 'passed',
-            score: currentScore,
-            maxScore: maxScore
+            score: finalScore,
+            maxScore: finalMaxScore
         });
         
         console.log('✅ บันทึกข้อมูลสำเร็จ');
@@ -4051,7 +4127,7 @@ async function sendToSimulator(autoRun = false) {
         overflow:visible;
         ${hasGrid 
           ? 'display:grid; align-content: start; justify-content: center;'
-          : 'display:flex; flex-direction:column;'}
+          : 'display:flex; flex-direction:column; align-items: center;'}
         gap:8px;
       }
       .content > * {
@@ -4368,12 +4444,18 @@ if (testCaseBtn) {
             previewDiv.innerHTML = '<div class="loading">กำลังทดสอบ Test Cases ทั้งหมด...</div>';
             
             let allResults = [];
-            let currentRunPassed = 0; // คะแนนที่จะนำไปบวกเพิ่ม
+            let passedCount = 0;
+            let passedScore = 0;
+            let totalCount = 0;
+            let totalScore = 0;
             
             // วนลูปทดสอบทุกข้อ
             for (let i = 0; i < window.problemTestCases.length; i++) {
                 const testCase = window.problemTestCases[i];
                 console.log(`=== เริ่มทดสอบข้อที่ #${i + 1} ===`);
+                const caseMaxScore = testCase.score || 1;
+                totalCount += 1;
+                totalScore += caseMaxScore;
                 
                 // Format ข้อมูล
                 const formattedTestCase = {
@@ -4409,23 +4491,24 @@ if (testCaseBtn) {
                 
                 // เช็คว่าผ่านหรือไม่ (เพื่อเก็บแต้ม)
                 if (result && (result.passed === true || result.score > 0)) {
-                    currentRunPassed++; // นับคะแนนเพิ่ม
+                    passedCount += 1;
+                    passedScore += caseMaxScore;
                 }
                 allResults.push(result);
             }
             
             // แสดงผลตารางสรุป
-            displayAllTestResults(allResults, currentRunPassed, window.problemTestCases.length);
+            displayAllTestResults(allResults, passedCount, totalCount, passedScore, totalScore);
             
-            console.log(`🏁 ผลการตรวจสอบ: ผ่าน ${currentRunPassed} / ${window.problemTestCases.length}`);
+            console.log(`🏁 ผลการตรวจสอบ: ผ่าน ${passedCount} / ${totalCount} (คะแนน ${passedScore}/${totalScore})`);
 
             // ------------------------------------------------------------------
             // ✅ แก้ไข: เรียกฟังก์ชันบวกคะแนน (Uncommented)
             // ------------------------------------------------------------------
-            if (currentRunPassed > 0) {
+            if (passedScore > 0) {
                 // เรียกฟังก์ชัน saveTestResults เพื่อบวกคะแนนใน UI
-                saveTestResults(currentRunPassed, window.problemTestCases.length);
-                console.log(`✅ อัปเดตคะแนนหน้าเว็บ: +${currentRunPassed}`);
+                saveTestResults(passedScore, totalScore);
+                console.log(`✅ อัปเดตคะแนนหน้าเว็บ: โบนัส Test case = ${passedScore}/${totalScore}`);
             } else {
                 console.log("❌ ไม่ผ่าน Test Case ไม่มีการบวกคะแนน");
             }
@@ -4494,31 +4577,40 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                 if (testCase.outputs) {
                     testCase.outputs.forEach((output, index) => {
                         let targetElement = null;
-                        
-                        // 1. ลองหาจาก ID ที่ระบบสร้างให้ (เช่น label_C, result_1)
-                        const possibleIds = [
-                            `label_${String.fromCharCode(67 + index)}`, // label_C, label_D...
-                            `output_${index + 1}`,
-                            `result_${index + 1}`,
-                            `answer_${index + 1}`,
-                            `label${index + 1}`
-                        ];
-                        
-                        for (const id of possibleIds) {
-                            targetElement = iframeDoc.getElementById(id);
-                            if (targetElement) break;
+
+                        // 1) ถ้าระบุชื่อ widget มา ให้จับจาก data-var ก่อน (แม่นสุด)
+                        if (output.widget) {
+                            targetElement = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
                         }
 
-                        // 2. ถ้าไม่เจอ ID ให้หาจาก Data Attribute (แม่นยำรองลงมา)
-                        if (!targetElement && output.widget) {
-                             // data-var มักตรงกับชื่อตัวแปรใน Python
-                             targetElement = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
-                        }
-
-                        // 3. ถ้าไม่เจออีก ให้หาจาก Text Content เดิม (ค่าตั้งต้น เช่น 'asd')
+                        // 2) ถ้าไม่เจอ ค่อยลองจาก ID pattern ต่าง ๆ (กันเคส HTML บางแบบที่ตั้ง id ไว้)
                         if (!targetElement) {
+                            const possibleIds = [
+                                `label_${String.fromCharCode(65 + index)}`, // label_A, label_B, label_C...
+                                `output_${index + 1}`,
+                                `result_${index + 1}`,
+                                `answer_${index + 1}`,
+                                `label${index + 1}`
+                            ];
+
+                            for (const id of possibleIds) {
+                                targetElement = iframeDoc.getElementById(id);
+                                if (targetElement) break;
+                            }
+                        }
+
+                        // 3) ถ้าไม่เจออีก ให้หา element ที่มีข้อความ "ตรงกับค่าที่คาดหวัง" ก่อน
+                        if (!targetElement && output.value) {
                             const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
-                            targetElement = allElements.find(el => 
+                            targetElement = allElements.find(el =>
+                                el.textContent && el.textContent.trim() === output.value
+                            );
+                        }
+
+                        // 4) สุดท้าย ค่อย fallback เป็นข้อความเดิม (ถ้ามี)
+                        if (!targetElement && output.text) {
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
+                            targetElement = allElements.find(el =>
                                 el.textContent && el.textContent.trim() === output.text
                             );
                         }
@@ -4649,28 +4741,48 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                         let element = null;
                         let actualValue = '';
 
-                        // 1. หาจาก ID ที่จดไว้ (แม่นยำ 100% แม้ข้อความเปลี่ยน)
+                        // 1) หาจาก ID ที่จดไว้ก่อน
                         if (outputMap[i]) {
                             element = iframeDoc.getElementById(outputMap[i]);
                         }
 
-                        // 2. Fallback: ถ้าตอนแรกหาไม่เจอ ลองหาจากค่าใหม่ (เผื่อฟลุ๊ค)
-                        if (!element) {
+                        // 2) ถ้าไม่มี/หาไม่เจอ ลองหาจาก data-var
+                        if (!element && output.widget) {
+                            element = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
+                        }
+
+                        // 3) fallback หา element ที่มีข้อความเท่ากับ expected
+                        if (!element && output.value) {
                             const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
                             element = allElements.find(el => el.textContent && el.textContent.trim() === output.value);
                         }
 
                         if (element) {
-                            actualValue = element.textContent.trim();
-                            
-                            if (actualValue === output.value) {
-                                details.push(`✓ "${output.text}" เปลี่ยนเป็น "${actualValue}" (ถูกต้อง)`);
+                            actualValue = (element.textContent || '').trim();
+
+                            if (actualValue === (output.value || '')) {
+                                details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
                             } else {
-                                details.push(`✗ "${output.text}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`);
-                                passed = false;
+                                // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง แล้วเลือกตัวที่ match
+                                let recovered = false;
+                                if (output.value) {
+                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
+                                    const matchEl = allElements.find(el => el.textContent && el.textContent.trim() === output.value);
+                                    if (matchEl) {
+                                        element = matchEl;
+                                        actualValue = (matchEl.textContent || '').trim();
+                                        recovered = true;
+                                        details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
+                                    }
+                                }
+
+                                if (!recovered) {
+                                    details.push(`✗ "${output.text || output.widget || 'Output'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`);
+                                    passed = false;
+                                }
                             }
                         } else {
-                            details.push(`✗ ไม่พบ Widget สำหรับผลลัพธ์: "${output.text}" (หา Element ไม่เจอ)`);
+                            details.push(`✗ ไม่พบ Widget สำหรับผลลัพธ์: "${output.text || output.widget || ''}" (หา Element ไม่เจอ)`);
                             passed = false;
                         }
                     }
@@ -4708,7 +4820,7 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 }
 
 // ฟังก์ชันแสดงผลรวมทั้งหมด
-function displayAllTestResults(results, totalPassed, totalTests) {
+function displayAllTestResults(results, totalPassed, totalTests, passedScore = totalPassed, totalScore = totalTests) {
     const previewDiv = document.getElementById('guiPreview');
     
     let html = `
@@ -4717,7 +4829,7 @@ function displayAllTestResults(results, totalPassed, totalTests) {
             <div style="background: ${totalPassed === totalTests ? '#d4edda' : '#f8d7da'}; 
                         color: ${totalPassed === totalTests ? '#155724' : '#721c24'}; 
                         padding: 10px; border-radius: 5px; margin-bottom: 15px; font-weight: bold;">
-                ผลรวม: ${totalPassed}/${totalTests} ผ่าน (คะแนน: ${totalPassed}/${totalTests})
+                ผลรวม: ${totalPassed}/${totalTests} ผ่าน (คะแนน: ${passedScore}/${totalScore})
             </div>
     `;
     
@@ -4828,6 +4940,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // ฟังก์ชันบันทึกและอัปเดตคะแนน (ฉบับแก้ไขตรงตาม HTML ของคุณ)
 // ฟังก์ชันบันทึกและอัปเดตคะแนน (เพิ่มการปลดล็อกปุ่มส่งงาน)
 function saveTestResults(additionalScore, runMaxScore) {
+    const newBonusScore = parseInt(additionalScore) || 0;
+    const newBonusMaxScore = parseInt(runMaxScore) || 0;
+
+    guiTestCaseBonus.maxScore = newBonusMaxScore > 0 ? newBonusMaxScore : (guiTestCaseBonus.maxScore || 0);
+    guiTestCaseBonus.score = Math.max(guiTestCaseBonus.score || 0, newBonusScore);
+
+    const displayScore = (guiBaseResult?.score || 0) + (guiTestCaseBonus.score || 0);
+    const displayMaxScore = (guiBaseResult?.maxScore || 0) + (guiTestCaseBonus.maxScore || 0);
+
     // 1. ดึง Element ตาม ID จริงในไฟล์ HTML
     const currentScoreEl = document.getElementById('currentScore');
     const maxScoreEl = document.getElementById('maxScore');
@@ -4839,31 +4960,13 @@ function saveTestResults(additionalScore, runMaxScore) {
         return;
     }
 
-    // 2. อ่านค่าคะแนนปัจจุบันจากหน้าจอ
-    let currentVal = parseInt(currentScoreEl.innerText) || 0;
-    let maxVal = parseInt(maxScoreEl.innerText) || 0;
+    console.log(`อัปเดตโบนัส Test case: ${guiTestCaseBonus.score}/${guiTestCaseBonus.maxScore}`);
 
-    // กรณีถ้า maxVal เป็น 0 (เพิ่งโหลด) ให้ใช้ค่าจากการรันรอบนี้เป็นฐาน
-    if (maxVal === 0) maxVal = window.problemTestCases ? window.problemTestCases.length : runMaxScore;
-
-    console.log(`ก่อนบวก: ${currentVal}/${maxVal}, จะบวกเพิ่ม: ${additionalScore}`);
-
-    // 3. คำนวณคะแนนใหม่ (แบบบวกเพิ่ม)
-    // เงื่อนไข: ถ้าคะแนนรอบนี้ (additionalScore) เป็นคะแนนใหม่ที่ไม่เคยได้มาก่อน
-    // (Logic ง่ายๆ คือ: บวกเพิ่มไปเลย แต่ห้ามเกิน Max)
-    let newScore = currentVal + additionalScore;
-
-    // 4. ป้องกันคะแนนเกิน (Cap)
-    if (newScore > maxVal) {
-        newScore = maxVal;
-    }
-
-    // 5. อัปเดตหน้าจอ
-    currentScoreEl.innerText = newScore;
-    maxScoreEl.innerText = maxVal;
+    currentScoreEl.innerText = displayScore;
+    maxScoreEl.innerText = displayMaxScore;
 
     if (percentEl) {
-        const percentage = Math.round((newScore / maxVal) * 100);
+        const percentage = displayMaxScore > 0 ? Math.round((displayScore / displayMaxScore) * 100) : 0;
         percentEl.innerText = `${percentage}%`;
         
         // เปลี่ยนสี ProgressBar หรือ Text ตามความสวยงาม
@@ -4876,25 +4979,10 @@ function saveTestResults(additionalScore, runMaxScore) {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // ✅ 6. จุดสำคัญ: เช็คว่าคะแนนเต็มหรือยัง? ถ้าเต็ม -> ปลดล็อกปุ่มส่งงาน
-    // -----------------------------------------------------------------------
-    if (newScore >= maxVal) {
-        if (submitBtn) {
-            submitBtn.disabled = false;           // 🔓 ปลดล็อก
-            submitBtn.style.opacity = "1";        // ทำให้สีเข้มขึ้น
-            submitBtn.style.cursor = "pointer";   // เปลี่ยนเมาส์เป็นรูปมือ
-            // submitBtn.textContent = "ส่งงาน";  // (ถ้าอยากเปลี่ยนข้อความ)
-            
-            console.log("🎉 คะแนนเต็มแล้ว! ปลดล็อกปุ่มส่งงานเรียบร้อย");
-            
-            // แจ้งเตือนผู้ใช้ครั้งเดียว (เช็คว่าก่อนหน้านี้ยังไม่เต็ม)
-            if (currentVal < maxVal) {
-                alert("ยินดีด้วย! คะแนนครบแล้ว คุณสามารถกด 'ส่งงาน' ได้เลยครับ");
-            }
-        }
-    } else {
-        console.log(`คะแนนยังไม่เต็ม (${newScore}/${maxVal}) ปุ่มส่งงานยังล็อกอยู่`);
+    if (submitBtn && guiBaseResult?.passed === true) {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = "1";
+        submitBtn.style.cursor = "pointer";
     }
 }
 // ฟังก์ชันบันทึกโค้ดแบบ Draft (บันทึกเมื่อกดแสดง GUI)
@@ -4928,33 +5016,42 @@ async function saveDraftCode(code) {
 function renderAttachmentsHTML(attachments) {
     if (!attachments || !Array.isArray(attachments) || attachments.length === 0) return '';
 
-    let html = '<div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ddd;">';
-    html += '<div style="font-size: 0.9em; font-weight: bold; color: #666; margin-bottom: 8px;">📎 สื่อประกอบการเรียนรู้:</div>';
-    html += '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+    let html = '<div class="attachments-cta">';
+    html += '<div class="attachments-title">📎 สื่อประกอบการเรียนรู้</div>';
+    html += '<div class="attachments-grid">';
 
     attachments.forEach(att => {
-        let icon = '🔗';
-        let color = '#007bff'; // สีฟ้า (Web)
-        let bgColor = '#f0f7ff';
+        const type = (att?.type || 'link').toString().toLowerCase();
+        const rawTitle = (att?.title || '').toString().trim();
+        const titleUpper = rawTitle.toUpperCase();
+        const isGenericTitle = !rawTitle || titleUpper === 'LABEL' || titleUpper === 'LINK' || rawTitle === 'เปิดลิงก์';
 
-        if (att.type === 'youtube') { 
-            icon = '▶️'; color = '#dc3545'; bgColor = '#fff5f5'; // สีแดง
-        } else if (att.type === 'pdf') { 
-            icon = '📄'; color = '#fd7e14'; bgColor = '#fff9f2'; // สีส้ม
-        } else if (att.type === 'image') { 
-            icon = '🖼️'; color = '#28a745'; bgColor = '#f0fff4'; // สีเขียว
+        let icon = '🔗';
+        let mainText = 'เปิดสื่อ';
+        let variant = 'link';
+        if (type === 'youtube') {
+            icon = '▶️';
+            mainText = 'ดูวิดีโอ';
+            variant = 'youtube';
+        } else if (type === 'pdf') {
+            icon = '📄';
+            mainText = 'เปิดเอกสาร';
+            variant = 'pdf';
+        } else if (type === 'image') {
+            icon = '🖼️';
+            mainText = 'ดูรูปภาพ';
+            variant = 'image';
         }
 
+        const subText = isGenericTitle ? 'แตะเพื่อเปิด' : rawTitle;
+
         html += `
-            <a href="javascript:void(0);" onclick="openMediaModal('${att.url}')" 
-               style="text-decoration: none; color: ${color}; background: ${bgColor}; 
-                      border: 1px solid ${color}40; padding: 5px 12px; border-radius: 20px; 
-                      font-size: 0.85em; display: inline-flex; align-items: center; gap: 5px; 
-                      transition: all 0.2s;"
-               onmouseover="this.style.background='${color}'; this.style.color='white';"
-               onmouseout="this.style.background='${bgColor}'; this.style.color='${color}';">
-               <span>${icon}</span>
-               <span>${att.title || 'เปิดลิงก์'}</span>
+            <a href="javascript:void(0);" onclick="openMediaModal('${att.url}')" class="attachment-card attachment-card--${variant}">
+                <span class="attachment-icon" aria-hidden="true">${icon}</span>
+                <span class="attachment-text">
+                    <span class="attachment-main">${mainText}</span>
+                    <span class="attachment-sub">${subText}</span>
+                </span>
             </a>
         `;
     });

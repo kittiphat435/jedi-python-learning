@@ -1,4 +1,10 @@
 /* Base */
+:root {
+    --accent: #ff0033;
+    --accent-strong: #be0328;
+    --accent-inset: #490110;
+}
+
 body {
     font-family: Arial, sans-serif;
     background: #121212;
@@ -7,37 +13,112 @@ body {
     padding: 0;
 }
 
+.has-code-warp {
+    overflow: hidden;
+}
+
+.has-code-warp.accent-cyan {
+    --accent: #67e8f9;
+    --accent-strong: #22d3ee;
+    --accent-inset: #0b2b35;
+}
+
+.has-code-warp.accent-purple {
+    --accent: #c4b5fd;
+    --accent-strong: #a78bfa;
+    --accent-inset: #1f1147;
+}
+
+.has-code-warp.accent-emerald {
+    --accent: #6ee7b7;
+    --accent-strong: #34d399;
+    --accent-inset: #053a2d;
+}
+
+.has-code-warp.accent-amber {
+    --accent: #fde68a;
+    --accent-strong: #fbbf24;
+    --accent-inset: #4a2408;
+}
+
+#accentCycleBtn {
+    position: fixed;
+    right: 16px;
+    top: 16px;
+    z-index: 9999;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    padding: 12px 16px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+        0 0 24px rgba(103, 232, 249, 0.22);
+}
+
+#accentCycleBtn:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
+}
+
+#codeWarpCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.has-code-warp .container {
+    position: relative;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.6);
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     background: #1a1a1a;
-    box-shadow: 0 0 50px #be0328,
-        inset 0 0 5px #490110;
+    box-shadow: 0 0 50px var(--accent-strong),
+        inset 0 0 5px var(--accent-inset);
 
+}
+
+.has-code-warp .container {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 0 50px var(--accent-strong),
+        inset 0 0 5px var(--accent-inset),
+        0 20px 60px rgba(0, 0, 0, 0.55);
 }
 
 .brand-text h1 {
     font-size: 42px;
     font-weight: bold;
     color: #ffffff;
-    text-shadow: 0 0 10px #ff0033,
-        0 0 10px #ff0033,
-        0 0 10px #ff0033;
+    text-shadow: 0 0 10px var(--accent),
+        0 0 10px var(--accent),
+        0 0 10px var(--accent);
     animation: glow 1.5s ease-in-out infinite alternate;
 }
 
 @keyframes glow {
     from {
-        text-shadow: 0 0 10px #ff0033,
-            0 0 10px #ff0033,
-            0 0 10px #ff0033;
+        text-shadow: 0 0 10px var(--accent),
+            0 0 10px var(--accent),
+            0 0 10px var(--accent);
     }
 
     to {
-        text-shadow: 0 0 10px #ff0033,
-            0 0 10px #ff0033,
-            0 0 10px #ff0033;
+        text-shadow: 0 0 10px var(--accent),
+            0 0 10px var(--accent),
+            0 0 10px var(--accent);
     }
 }
 
@@ -47,6 +128,10 @@ body {
     padding: 30px;
     margin-bottom: 30px;
 
+}
+
+.has-code-warp .header {
+    background: rgba(0, 0, 0, 0.6);
 }
 
 .logo-section {
@@ -94,6 +179,10 @@ body {
     border-radius: 8px;
     margin-bottom: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.has-code-warp .auth-form {
+    background: rgba(0, 0, 0, 0.6);
 }
 
 .google-btn {
@@ -152,8 +241,8 @@ textarea:focus {
     cursor: pointer;
     font-weight: bold;
     transition: background 0.3s;
-    border: 1px solid #ff0033;
-    text-shadow: 0 0 5px #ff0033;
+    border: 1px solid var(--accent);
+    text-shadow: 0 0 5px var(--accent);
 }
 
 .primary-btn:hover {
@@ -251,7 +340,7 @@ textarea:focus {
     max-width: 800px;
     border-radius: 8px;
 
-    box-shadow: 0 0 20px #ff0033;
+    box-shadow: 0 0 20px var(--accent);
 }
 
 /* User Info */

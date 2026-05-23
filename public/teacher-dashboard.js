@@ -508,21 +508,24 @@ function addSaveWidgetButton() {
         return;
     }
 
-    // สร้างปุ่ม
+    if (document.getElementById('saveWidgetRequirementsBtn') || document.getElementById('saveWidgetBar')) {
+        return;
+    }
+
+    const bar = document.createElement('div');
+    bar.id = 'saveWidgetBar';
+    bar.className = 'save-widget-bar';
+
     const saveButton = document.createElement('button');
+    saveButton.id = 'saveWidgetRequirementsBtn';
     saveButton.type = 'button';
+    saveButton.className = 'save-widget-btn';
     saveButton.textContent = 'Save Widget Requirements';
-    saveButton.style.margin = '10px 0';
-    saveButton.style.padding = '5px 10px';
-    saveButton.style.backgroundColor = '#4CAF50';
-    saveButton.style.color = 'white';
-    saveButton.style.border = 'none';
-    saveButton.style.borderRadius = '5px';
-    saveButton.style.cursor = 'pointer';
     saveButton.onclick = saveWidgetRequirements;
 
-    // แทรกปุ่ม
-    guiTestCasesList.parentNode.insertBefore(saveButton, guiTestCasesList);
+    bar.appendChild(saveButton);
+
+    guiTestCasesList.parentNode.insertBefore(bar, guiTestCasesList);
     console.log('addSaveWidgetButton: เพิ่มปุ่ม Save Widget Requirements เรียบร้อย');
 }
 
@@ -2462,8 +2465,7 @@ async function loadProblems() {
             ...doc.data()
         }));
 
-        // สร้างรายการ
-        renderProblemList(window.allTeacherProblems);
+        setTeacherProblemsView(window.allTeacherProblems);
         
         // ตั้งค่า Event Listener สำหรับ filter (ทำครั้งเดียว)
         setupProblemListFilter();
@@ -2473,6 +2475,76 @@ async function loadProblems() {
     } catch (error) {
         console.error('Error loading problems:', error);
         problemList.innerHTML = '<p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+    }
+}
+
+const TEACHER_PROBLEMS_PER_PAGE = 20;
+let teacherProblemsView = [];
+let teacherProblemPage = 1;
+
+function setTeacherProblemsView(problems) {
+    teacherProblemsView = Array.isArray(problems) ? problems : [];
+    teacherProblemPage = 1;
+    renderTeacherProblemsPage();
+}
+
+function renderTeacherProblemsPage() {
+    const total = teacherProblemsView.length;
+    const totalPages = Math.max(1, Math.ceil(total / TEACHER_PROBLEMS_PER_PAGE));
+    if (teacherProblemPage > totalPages) teacherProblemPage = totalPages;
+    if (teacherProblemPage < 1) teacherProblemPage = 1;
+
+    const start = (teacherProblemPage - 1) * TEACHER_PROBLEMS_PER_PAGE;
+    const pageItems = teacherProblemsView.slice(start, start + TEACHER_PROBLEMS_PER_PAGE);
+
+    renderProblemList(pageItems);
+
+    const problemList = document.getElementById('problemList');
+    if (problemList) problemList.scrollTop = 0;
+
+    renderTeacherProblemPagination();
+}
+
+function renderTeacherProblemPagination() {
+    const paginationEl = document.getElementById('problemPagination');
+    if (!paginationEl) return;
+
+    const total = teacherProblemsView.length;
+    const totalPages = Math.max(1, Math.ceil(total / TEACHER_PROBLEMS_PER_PAGE));
+    if (teacherProblemPage > totalPages) teacherProblemPage = totalPages;
+    if (teacherProblemPage < 1) teacherProblemPage = 1;
+
+    if (total === 0) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    const prevDisabled = teacherProblemPage <= 1;
+    const nextDisabled = teacherProblemPage >= totalPages;
+
+    paginationEl.innerHTML = `
+        <button type="button" ${prevDisabled ? 'disabled' : ''} id="teacherProblemPrevPageBtn">ก่อนหน้า</button>
+        <span class="page-info">หน้า ${teacherProblemPage}/${totalPages} (ทั้งหมด ${total} โจทย์)</span>
+        <button type="button" ${nextDisabled ? 'disabled' : ''} id="teacherProblemNextPageBtn">ถัดไป</button>
+    `;
+
+    const prevBtn = document.getElementById('teacherProblemPrevPageBtn');
+    const nextBtn = document.getElementById('teacherProblemNextPageBtn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (teacherProblemPage > 1) {
+                teacherProblemPage -= 1;
+                renderTeacherProblemsPage();
+            }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (teacherProblemPage < totalPages) {
+                teacherProblemPage += 1;
+                renderTeacherProblemsPage();
+            }
+        });
     }
 }
 
@@ -2576,7 +2648,7 @@ function setupProblemListFilter() {
             ? window.allTeacherProblems 
             : window.allTeacherProblems.filter(p => p.type === selectedType);
             
-        renderProblemList(filteredProblems);
+        setTeacherProblemsView(filteredProblems);
     });
     
     // ป้องกันการ bind event ซ้ำซ้อน

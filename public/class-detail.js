@@ -104,7 +104,7 @@ async function loadClassDetails(classId) {
                              onerror="this.src='${defaultAvatar}'">
                         <div class="teacher-details">
                             <h3 class="teacher-name">${teacherData.displayName || 'ไม่ระบุชื่อ'}</h3>
-                            <p class="teacher-email">${teacherData.email}</p>
+                            <p class="teacher-email">${getDisplayEmail(teacherData) || '-'}</p>
                             <span class="teacher-label">ครูผู้สอน</span>
                         </div>
                     </div>
@@ -231,6 +231,15 @@ function closeCreateProblemModal() {
 
 // ตัวแปรเก็บข้อมูลโจทย์ทั้งหมด
 let allProblems = [];
+const PROBLEMS_PER_PAGE = 20;
+let currentProblemsView = [];
+let currentProblemPage = 1;
+let isProblemSearchActive = false;
+
+function getDisplayEmail(user) {
+    const email = user?.email || user?.userEmail || user?.studentEmail || user?.mail || '';
+    return typeof email === 'string' ? email : '';
+}
 
 // โหลดรายการโจทย์
 async function loadProblems(classId) {
@@ -244,6 +253,8 @@ async function loadProblems(classId) {
         if (snapshot.empty) {
             problemList.innerHTML = '<p>ยังไม่มีโจทย์ในห้องเรียน</p>';
             allProblems = [];
+            currentProblemsView = [];
+            renderProblemPagination();
             return;
         }
 
@@ -289,6 +300,7 @@ async function loadProblems(classId) {
         });
 
         allProblems = problems;
+        isProblemSearchActive = false;
         displayProblems(problems);
         
     } catch (error) {
@@ -298,17 +310,39 @@ async function loadProblems(classId) {
 }
 
 function displayProblems(problems) {
+    currentProblemsView = Array.isArray(problems) ? problems : [];
+    currentProblemPage = 1;
+    renderProblemsPage();
+}
+
+function renderProblemsPage() {
     const problemList = document.getElementById('problemList');
+    if (!problemList) return;
+
+    const total = currentProblemsView.length;
+    const totalPages = Math.max(1, Math.ceil(total / PROBLEMS_PER_PAGE));
+    if (currentProblemPage > totalPages) currentProblemPage = totalPages;
+    if (currentProblemPage < 1) currentProblemPage = 1;
+
+    const startIndex = (currentProblemPage - 1) * PROBLEMS_PER_PAGE;
+    const pageProblems = currentProblemsView.slice(startIndex, startIndex + PROBLEMS_PER_PAGE);
+
     problemList.innerHTML = '';
 
-    problems.forEach((problem, index) => {
+    if (pageProblems.length === 0) {
+        problemList.innerHTML = '<p>ไม่พบโจทย์</p>';
+        renderProblemPagination();
+        return;
+    }
+
+    const allowReorder = !isProblemSearchActive && currentProblemsView === allProblems;
+
+    pageProblems.forEach((problem, pageIndex) => {
         const div = document.createElement('div');
         div.className = 'problem-card';
-        div.setAttribute('draggable', 'true'); // เปิดใช้งาน Drag
-        div.dataset.relationId = problem.relationId; // เก็บ ID สำหรับอัพเดต
-        div.dataset.index = index;
+        div.dataset.relationId = problem.relationId;
+        div.dataset.index = String(startIndex + pageIndex);
 
-        // กำหนดประเภทโจทย์และไอคอน (เหมือนเดิม)
         let problemTypeIcon = '';
         let problemTypeText = '';
         switch (problem.type) {
@@ -320,10 +354,14 @@ function displayProblems(problems) {
             default: problemTypeIcon = '📄'; problemTypeText = 'ไม่ระบุประเภท';
         }
 
+        const dragHandleHtml = allowReorder
+            ? `<div class="drag-handle" style="cursor: move; padding-right: 15px; display: flex; align-items: center; color: #888;">
+                   <i class="fas fa-grip-vertical"></i> ☰
+               </div>`
+            : '';
+
         div.innerHTML = `
-            <div class="drag-handle" style="cursor: move; padding-right: 15px; display: flex; align-items: center; color: #888;">
-                <i class="fas fa-grip-vertical"></i> ☰
-            </div>
+            ${dragHandleHtml}
             <div class="problem-info" style="flex-grow: 1;">
                 <div class="problem-header">
                     <span class="problem-type">${problemTypeIcon} ${problemTypeText}</span>
@@ -336,12 +374,62 @@ function displayProblems(problems) {
                 <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
             </div>
         `;
-        
-        // เพิ่ม Events สำหรับ Drag & Drop
-        addDragEvents(div);
-        
+
+        if (allowReorder) {
+            div.setAttribute('draggable', 'true');
+            addDragEvents(div);
+        } else {
+            div.setAttribute('draggable', 'false');
+        }
+
         problemList.appendChild(div);
     });
+
+    problemList.scrollTop = 0;
+    renderProblemPagination();
+}
+
+function renderProblemPagination() {
+    const paginationEl = document.getElementById('problemPagination');
+    if (!paginationEl) return;
+
+    const total = currentProblemsView.length;
+    const totalPages = Math.max(1, Math.ceil(total / PROBLEMS_PER_PAGE));
+    if (currentProblemPage > totalPages) currentProblemPage = totalPages;
+    if (currentProblemPage < 1) currentProblemPage = 1;
+
+    if (total === 0) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    const prevDisabled = currentProblemPage <= 1;
+    const nextDisabled = currentProblemPage >= totalPages;
+
+    paginationEl.innerHTML = `
+        <button type="button" ${prevDisabled ? 'disabled' : ''} id="problemPrevPageBtn">ก่อนหน้า</button>
+        <span class="page-info">หน้า ${currentProblemPage}/${totalPages} (ทั้งหมด ${total} โจทย์)</span>
+        <button type="button" ${nextDisabled ? 'disabled' : ''} id="problemNextPageBtn">ถัดไป</button>
+    `;
+
+    const prevBtn = document.getElementById('problemPrevPageBtn');
+    const nextBtn = document.getElementById('problemNextPageBtn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentProblemPage > 1) {
+                currentProblemPage -= 1;
+                renderProblemsPage();
+            }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (currentProblemPage < totalPages) {
+                currentProblemPage += 1;
+                renderProblemsPage();
+            }
+        });
+    }
 }
 
 // [class-detail.js]
@@ -391,6 +479,8 @@ function getDragAfterElement(container, y) {
 
 // ฟังก์ชันบันทึกลำดับลง Firestore
 async function saveProblemOrder() {
+    if (isProblemSearchActive || currentProblemsView !== allProblems) return;
+
     const problemList = document.getElementById('problemList');
     const cards = problemList.querySelectorAll('.problem-card');
     
@@ -398,14 +488,25 @@ async function saveProblemOrder() {
     const batch = db.batch();
     let hasChanges = false;
 
-    cards.forEach((card, index) => {
-        const relationId = card.dataset.relationId;
-        if (relationId) {
-            const ref = db.collection('class_problems').doc(relationId);
-            // อัพเดต orderIndex ตามลำดับใน DOM (เริ่มจาก 1)
-            batch.update(ref, { orderIndex: index + 1 });
-            hasChanges = true;
-        }
+    const startIndex = (currentProblemPage - 1) * PROBLEMS_PER_PAGE;
+    const pageRelationIds = Array.from(cards)
+        .map(card => card.dataset.relationId)
+        .filter(Boolean);
+
+    const oldSlice = allProblems.slice(startIndex, startIndex + pageRelationIds.length);
+    const sliceMap = new Map(oldSlice.map(p => [p.relationId, p]));
+    const newSlice = pageRelationIds.map(id => sliceMap.get(id)).filter(Boolean);
+
+    if (newSlice.length === oldSlice.length && newSlice.length > 0) {
+        allProblems.splice(startIndex, newSlice.length, ...newSlice);
+    }
+
+    allProblems.forEach((problem, index) => {
+        const relationId = problem.relationId;
+        if (!relationId) return;
+        const ref = db.collection('class_problems').doc(relationId);
+        batch.update(ref, { orderIndex: index + 1 });
+        hasChanges = true;
     });
 
     if (hasChanges) {
@@ -703,7 +804,7 @@ async function viewProblem(problemId) {
                              onerror="this.src='${defaultAvatar}'">
                         <div class="student-details">
                             <div class="student-name">${studentData.displayName || 'ไม่ระบุชื่อ'}</div>
-                            <div class="student-email">${studentData.email}</div>
+                            <div class="student-email">${getDisplayEmail(studentData) || '-'}</div>
                         </div>
                     </div>
                     ${submission ? `
@@ -1073,9 +1174,11 @@ function toggleSubmission(button) {
 // ค้นหาโจทย์
 function searchProblems(searchText) {
     if (!searchText) {
+        isProblemSearchActive = false;
         displayProblems(allProblems);
         return;
     }
+    isProblemSearchActive = true;
     const searchLower = searchText.toLowerCase();
     const filteredProblems = allProblems.filter(problem =>
         problem.title.toLowerCase().includes(searchLower) ||
@@ -1148,7 +1251,7 @@ async function loadStudents(classId) {
                          onerror="this.src='${defaultAvatar}'">
                     <div class="student-details">
                         <h3>${student.displayName || 'ไม่ระบุชื่อ'}</h3>
-                        <p class="student-email">${student.email}</p>
+                        <p class="student-email">${getDisplayEmail(student) || '-'}</p>
                         <p class="join-date">เข้าร่วมเมื่อ: ${joinDate}</p>
                     </div>
                 </div>
@@ -1316,7 +1419,7 @@ async function viewProgress(studentId) {
                      onerror="this.src='${defaultAvatar}'">
                 <div class="student-details">
                     <h3>${studentData.displayName || 'ไม่ระบุชื่อ'}</h3>
-                    <p>${studentData.email}</p>
+                    <p>${getDisplayEmail(studentData) || '-'}</p>
                 </div>
             </div>
 
@@ -1484,7 +1587,7 @@ async function loadStudents(classId) {
                          onerror="this.src='${defaultAvatar}'">
                     <div class="student-details">
                         <h3>${student.displayName || 'ไม่ระบุชื่อ'}</h3>
-                        <p class="student-email">${student.email}</p>
+                        <p class="student-email">${getDisplayEmail(student) || '-'}</p>
                         <p class="join-date">เข้าร่วมเมื่อ: ${joinDate}</p>
                     </div>
                 </div>
@@ -1605,7 +1708,7 @@ async function exportScoresCSV() {
 
         // Data rows
         students.forEach(student => {
-            let row = `"${student.name.replace(/"/g, '""')}","${student.email}",`;
+            let row = `"${student.name.replace(/"/g, '""')}","${getDisplayEmail(student)}",`;
             
             let totalScore = 0;
             let problemScoresCsv = '';

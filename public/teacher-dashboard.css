@@ -106,6 +106,44 @@
     gap: 10px;
 }
 
+#problemList {
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.pagination button {
+    background: #e2e8f0;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #cbd5e0;
+}
+
+.pagination button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.pagination .page-info {
+    color: #4a5568;
+    font-weight: 600;
+}
+
 /* ==================
    Form Elements 
    ================== */
@@ -174,6 +212,30 @@ textarea.input-field {
 
 .secondary-btn:hover {
     background: #cbd5e0;
+}
+
+.save-widget-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.save-widget-btn {
+    background: rgba(226, 232, 240, 0.65);
+    color: #111827;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 12px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.save-widget-btn:hover {
+    background: rgba(226, 232, 240, 0.85);
 }
 
 .delete-btn {

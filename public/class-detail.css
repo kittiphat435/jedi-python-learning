@@ -480,6 +480,186 @@
     }
 }
 
+body.has-code-warp {
+    color: rgba(255, 255, 255, 0.92);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.has-code-warp .header {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.52));
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+}
+
+.has-code-warp .section,
+.has-code-warp .stat-card,
+.has-code-warp .problem-card,
+.has-code-warp .student-card,
+.has-code-warp .teacher-info,
+.has-code-warp .progress-stat,
+.has-code-warp .progress-item,
+.has-code-warp .student-profile,
+.has-code-warp .empty-state,
+.has-code-warp .error-state,
+.has-code-warp .test-cases,
+.has-code-warp .test-case,
+.has-code-warp .answer-item,
+.has-code-warp .passage {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.has-code-warp .tagline,
+.has-code-warp .problem-info p,
+.has-code-warp .student-email,
+.has-code-warp .join-date,
+.has-code-warp .class-code,
+.has-code-warp .teacher-email,
+.has-code-warp .teacher-label,
+.has-code-warp .stat-card div:not(.stat-number),
+.has-code-warp .stat-label,
+.has-code-warp .submission-date,
+.has-code-warp .hint {
+    color: rgba(255, 255, 255, 0.70);
+}
+
+.has-code-warp .teacher-label {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(167, 139, 250, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.has-code-warp #className,
+.has-code-warp .class-info h2,
+.has-code-warp .teacher-name,
+.has-code-warp .problem-info h3,
+.has-code-warp .problem-info h4,
+.has-code-warp .problem-description h3,
+.has-code-warp .question-item h4,
+.has-code-warp .answer-item .question,
+.has-code-warp .stat-number,
+.has-code-warp .stat-value,
+.has-code-warp .score,
+.has-code-warp .tab.active {
+    color: var(--accent);
+}
+
+.has-code-warp .stat-number,
+.has-code-warp .stat-value {
+    text-shadow: 0 0 16px rgba(167, 139, 250, 0.25);
+}
+
+.has-code-warp .tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .tab {
+    color: rgba(255, 255, 255, 0.70);
+}
+
+.has-code-warp .tab:hover {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp .tab.active {
+    border-bottom-color: var(--accent);
+}
+
+.has-code-warp .problem-type {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.80);
+}
+
+.has-code-warp .class-code {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .search-input,
+.has-code-warp .form-group input,
+.has-code-warp .form-group textarea {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp .search-input:focus,
+.has-code-warp .form-group input:focus,
+.has-code-warp .form-group textarea:focus {
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.18);
+    outline: none;
+}
+
+.has-code-warp .modal {
+    background-color: rgba(0, 0, 0, 0.66);
+}
+
+.has-code-warp .modal-content {
+    background: rgba(0, 0, 0, 0.88);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+}
+
+.has-code-warp .modal-header,
+.has-code-warp .modal-footer {
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .close-btn {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.has-code-warp .close-btn:hover {
+    color: rgba(255, 255, 255, 0.96);
+}
+
+.has-code-warp .primary-btn:hover {
+    background-color: var(--accent-strong);
+}
+
+.has-code-warp .secondary-btn {
+    background: rgba(0, 0, 0, 0.25);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.has-code-warp .back-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.has-code-warp .back-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.08));
+    text-decoration: none;
+}
+
 .search-box {
     margin-bottom: 20px;
 }
@@ -1178,4 +1358,38 @@
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     margin-bottom: 20px;
+}
+
+.problem-list-scroll {
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.pagination button {
+    background: rgba(0, 0, 0, 0.25);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.pagination button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.pagination .page-info {
+    color: rgba(255, 255, 255, 0.75);
+    font-weight: 600;
 }
