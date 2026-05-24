@@ -615,13 +615,16 @@ async function loadStats(adminId, userId) {
                 maxScore = problemData.requirements.reduce((sum, req) => sum + (req.score || 1), 0);
             }
 
-            totalMaxScore += maxScore;
-
             // ตรวจสอบ submission 
             const submission = latestSubmissions.get(problemId);
             console.log('Checking problem:', { problemId, type: problemData.type, submission });
 
             if (submission) {
+                // ใช้ maxScore จาก submission สำหรับโจทย์ GUI เพื่อป้องกันคะแนนเต็มไม่ตรงกัน
+                if (submission.maxScore && problemData.type === 'gui') {
+                    maxScore = submission.maxScore;
+                }
+                
                 if (problemData.type === 'flowchart' || problemData.type === 'gui') {
                     // ถ้าเป็น completed ให้ใช้ maxScore เป็นคะแนน
                     if (submission.status === 'completed') {
@@ -644,6 +647,8 @@ async function loadStats(adminId, userId) {
                     totalScore += submission.score || 0;
                 }
             }
+            
+            totalMaxScore += maxScore;
         }
 
         const progress = totalProblems > 0 ? Math.round((completedProblems / totalProblems) * 100) : 0;

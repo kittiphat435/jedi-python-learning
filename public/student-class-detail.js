@@ -574,12 +574,15 @@ async function loadStats(classId, userId) {
                 }
             }
 
-            totalMaxScore += maxScore;
-
             // ตรวจสอบ submission 
             const submission = latestSubmissions.get(problemId);
 
             if (submission) {
+                // ใช้ maxScore จาก submission สำหรับโจทย์ GUI เพื่อป้องกันคะแนนเต็มไม่ตรงกัน (เช่น ส่งเก่าได้ 20 แต่ปัจจุบัน 21)
+                if (submission.maxScore && problemData.type === 'gui') {
+                    maxScore = submission.maxScore;
+                }
+
                 if (submission.status === 'completed') {
                     completedProblems++;
                     // ใช้คะแนนจริงที่ได้ (ถ้ามี) ถ้าไม่มีใช้เต็ม (เผื่อข้อมูลเก่า)
@@ -589,6 +592,8 @@ async function loadStats(classId, userId) {
                     // totalScore += submission.score; 
                 }
             }
+
+            totalMaxScore += maxScore;
         }
 
         const progress = totalProblems > 0 ? Math.round((completedProblems / totalProblems) * 100) : 0;
