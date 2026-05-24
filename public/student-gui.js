@@ -3200,6 +3200,7 @@ async function checkAnswer() {
                 submitBtn.style.cursor = "pointer";
             }
             alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\n(คะแนน Test case จะค่อยเพิ่มเมื่อกด “ทดสอบ TestCase เฉพาะ”)`);
+            showYarnReward();
             showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
         } else {
             // โครงสร้างถูก แต่คะแนนไม่เต็ม
@@ -4984,6 +4985,42 @@ function saveTestResults(additionalScore, runMaxScore) {
         submitBtn.style.opacity = "1";
         submitBtn.style.cursor = "pointer";
     }
+}
+
+function showYarnReward() {
+    const now = Date.now();
+    const cooldownMs = 3000;
+    if (window.__yarnRewardLastShownAt && (now - window.__yarnRewardLastShownAt) < cooldownMs) {
+        return;
+    }
+    window.__yarnRewardLastShownAt = now;
+
+    const existing = document.getElementById('yarnRewardOverlay');
+    if (existing) existing.remove();
+
+    const rewardImageUrl = 'https://firebasestorage.googleapis.com/v0/b/python-learning-platform-596e1.firebasestorage.app/o/Screenshot%202026-05-24%20230034.jpg?alt=media&token=9f05adac-4a03-4829-b819-d36ad10f305e';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'yarnRewardOverlay';
+    overlay.className = 'reward-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-label', 'ผ่านแล้ว');
+
+    overlay.innerHTML = `
+        <div class="reward-card">
+            <img class="reward-image" src="${rewardImageUrl}" alt="ด้าย">
+        </div>
+    `;
+
+    const remove = () => {
+        if (!overlay.isConnected) return;
+        overlay.classList.add('reward-overlay-hide');
+        setTimeout(() => overlay.remove(), 240);
+    };
+
+    overlay.addEventListener('click', remove);
+    document.body.appendChild(overlay);
+    setTimeout(remove, 2200);
 }
 // ฟังก์ชันบันทึกโค้ดแบบ Draft (บันทึกเมื่อกดแสดง GUI)
 async function saveDraftCode(code) {
