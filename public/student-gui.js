@@ -2600,13 +2600,13 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         }
 
         // Load student's last submission or template code
-        const submissionsSnapshot = await db.collection('submissions')
-            .where('problemId', '==', problemId)
-            .where('userId', '==', userId)
-            .where('classId', '==', classId)
-            .orderBy('timestamp', 'desc')
-            .limit(1)
-            .get();
+          const submissionsSnapshot = await db.collection('submissions')
+              .where('problemId', '==', problemId)
+              .where('studentId', '==', userId)
+              .where('classId', '==', classId)
+              .orderBy('timestamp', 'desc')
+              .limit(1)
+              .get();
 
         if (!submissionsSnapshot.empty) {
             const submission = submissionsSnapshot.docs[0].data();
@@ -2914,17 +2914,18 @@ function setupEventListeners(problemId, classId, userId, viewMode) {
     if (testCaseBtn) testCaseBtn.disabled = true;
 
     // --- Event Listeners เดิม ---
-    if (checkBtn) {
-        checkBtn.addEventListener('click', async () => {
-            const code = codeEditor.value;
-            const isValid = await checkGUICode(code);
-            if (convertBtn) convertBtn.disabled = !isValid;
-            if (submitBtn) submitBtn.disabled = !isValid;
-            
-            if (testBtn) testBtn.disabled = true;
-            if (testCaseBtn) testCaseBtn.disabled = true;
-        });
-    }
+      if (checkBtn) {
+          checkBtn.addEventListener('click', async () => {
+              const code = codeEditor.value;
+              const isValid = await checkGUICode(code);
+              if (convertBtn) convertBtn.disabled = !isValid;
+              // ลบการเปิดปุ่ม Submit ตรงนี้ออก เพื่อให้นักเรียนต้อง "ตรวจคำตอบ" ก่อนถึงจะส่งได้
+              // if (submitBtn) submitBtn.disabled = !isValid; 
+
+              if (testBtn) testBtn.disabled = true;
+              if (testCaseBtn) testCaseBtn.disabled = true;
+          });
+      }
 
     if (testBtn) {
         testBtn.addEventListener('click', checkAnswer);
@@ -3192,16 +3193,24 @@ async function checkAnswer() {
         // อัปเดตตัวเลขคะแนนบนหน้าจอ
         updateScoreDisplay(guiBaseResult.score, guiBaseResult.maxScore + guiTestCaseBonus.maxScore);
 
-        // เช็คเงื่อนไขส่งงาน (ต้องคะแนนเต็มถึงจะส่งได้)
+        // เช็คเงื่อนไขส่งงาน
         if (guiBaseResult.passed === true) {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.style.opacity = "1";
-                submitBtn.style.cursor = "pointer";
+            // ถ้ายิ่งมี Test Case ให้บังคับกดปุ่ม Test Case ก่อนส่งงาน
+            if (guiTestCaseBonus.maxScore > 0) {
+                if (submitBtn) submitBtn.disabled = true;
+                alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนนปัจจุบัน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\n(กรุณากดปุ่ม "ทดสอบ TestCase เฉพาะ" เพื่อเก็บคะแนนให้ครบก่อนส่งงาน)`);
+                showSuccess('โครงสร้างผ่านแล้ว! กรุณาทดสอบ TestCase ก่อนส่งงาน');
+            } else {
+                // ไม่มี Test Case ก็ส่งงานได้เลย
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = "1";
+                    submitBtn.style.cursor = "pointer";
+                }
+                alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore}\nสามารถส่งงานได้เลย!`);
+                showYarnReward();
+                showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
             }
-            alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\n(คะแนน Test case จะค่อยเพิ่มเมื่อกด “ทดสอบ TestCase เฉพาะ”)`);
-            showYarnReward();
-            showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
         } else {
             // โครงสร้างถูก แต่คะแนนไม่เต็ม
             if (submitBtn) submitBtn.disabled = true;
@@ -3270,19 +3279,28 @@ async function submitGUICode(code, problemId, userId, classId) {
         console.log("🚀 กำลังส่งงาน...");
         
         const baseScore = guiBaseResult?.score || 0;
-        const baseMaxScore = guiBaseResult?.maxScore || 0;
-        const bonusScore = guiTestCaseBonus?.score || 0;
-        const bonusMaxScore = guiTestCaseBonus?.maxScore || 0;
+          const baseMaxScore = guiBaseResult?.maxScore || 0;
+          const bonusScore = guiTestCaseBonus?.score || 0;
+          const bonusMaxScore = guiTestCaseBonus?.maxScore || 0;
 
-        if (baseScore < baseMaxScore || baseMaxScore === 0) {
-            alert(`⚠️ คะแนนยังไม่ครบ (${baseScore}/${baseMaxScore + bonusMaxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
-            const submitBtn = document.getElementById('submitBtn');
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
-            return;
-        }
+          if (baseScore < baseMaxScore || baseMaxScore === 0) {
+              alert(`⚠️ คะแนนยังไม่ครบ (${baseScore}/${baseMaxScore + bonusMaxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
+              const submitBtn = document.getElementById('submitBtn');
+              if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
+              return;
+          }
 
-        const finalScore = baseScore + bonusScore;
-        const finalMaxScore = baseMaxScore + bonusMaxScore;
+          if (bonusMaxScore > 0 && bonusScore < bonusMaxScore) {
+              const confirmSubmit = confirm(`⚠️ คุณยังได้คะแนน Test Case ไม่ครบ (คะแนนปัจจุบัน ${baseScore + bonusScore}/${baseMaxScore + bonusMaxScore})\n\nอย่าลืมกดปุ่ม "ทดสอบ TestCase เฉพาะ" ก่อนส่ง!\n\nยืนยันที่จะส่งงานด้วยคะแนนเท่านี้หรือไม่?`);
+              if (!confirmSubmit) {
+                  const submitBtn = document.getElementById('submitBtn');
+                  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
+                  return;
+              }
+          }
+
+          const finalScore = baseScore + bonusScore;
+          const finalMaxScore = baseMaxScore + bonusMaxScore;
 
         await db.collection('submissions').add({
             problemId: problemId,
@@ -4504,14 +4522,17 @@ if (testCaseBtn) {
             console.log(`🏁 ผลการตรวจสอบ: ผ่าน ${passedCount} / ${totalCount} (คะแนน ${passedScore}/${totalScore})`);
 
             // ------------------------------------------------------------------
-            // ✅ แก้ไข: เรียกฟังก์ชันบวกคะแนน (Uncommented)
+            // ✅ แก้ไข: เรียกฟังก์ชันอัปเดตคะแนนเสมอเพื่อให้ปุ่มส่งงานมีโอกาสเปิด
             // ------------------------------------------------------------------
-            if (passedScore > 0) {
-                // เรียกฟังก์ชัน saveTestResults เพื่อบวกคะแนนใน UI
-                saveTestResults(passedScore, totalScore);
-                console.log(`✅ อัปเดตคะแนนหน้าเว็บ: โบนัส Test case = ${passedScore}/${totalScore}`);
+            saveTestResults(passedScore, totalScore);
+            console.log(`✅ อัปเดตคะแนนหน้าเว็บ: โบนัส Test case = ${passedScore}/${totalScore}`);
+            
+            if (passedScore === totalScore) {
+                showSuccess('ผ่าน Test Case ทั้งหมดแล้ว! กดส่งงานได้เลย');
+            } else if (passedScore > 0) {
+                showSuccess(`ผ่าน Test Case บางส่วน (${passedScore}/${totalScore}) กดส่งงานหรือแก้ไขเพิ่มเติมได้`);
             } else {
-                console.log("❌ ไม่ผ่าน Test Case ไม่มีการบวกคะแนน");
+                showError('❌ ไม่ผ่าน Test Case เลย กรุณาแก้ไขแล้วทดสอบใหม่ (หรือกดส่งงานด้วยคะแนนปัจจุบัน)');
             }
 
         } catch (error) {
@@ -4981,10 +5002,11 @@ function saveTestResults(additionalScore, runMaxScore) {
     }
 
     if (submitBtn && guiBaseResult?.passed === true) {
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = "1";
-        submitBtn.style.cursor = "pointer";
-    }
+          // ถ้าทำการทดสอบ Test Case แล้ว (guiTestCaseBonus.maxScore > 0) ก็ให้สามารถส่งงานได้
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = "1";
+          submitBtn.style.cursor = "pointer";
+      }
 }
 
 function showYarnReward() {
