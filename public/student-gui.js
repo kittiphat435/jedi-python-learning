@@ -604,14 +604,15 @@ function renderTestCases(testCases) {
       .join(', ');
 
     // Expected Outputs
-    const outText = (tc.outputs || [])
+    const outTextHtml = (tc.outputs || [])
       .map(o => {
         const def = defs.find(d => d.name === o.widget) || {};
         const label = def.text  || '-';
         const type  = def.type  || 'Label';
-        return `${label} [${type}] = ${o.value}`;
+        // ทำไฮไลต์ที่ตัวข้อความ value เป็นสีส้มอ่อน
+        return `${escapeHtml(label)} [${escapeHtml(type)}] = <span style="background-color: #FFE66D; color: #333; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${escapeHtml(o.value)}</span>`;
       })
-      .join('\n');
+      .join('<br>');
 
     const score = tc.score || 1;
     const note  = tc.explanation || '-';
@@ -623,7 +624,7 @@ function renderTestCases(testCases) {
       <p><strong>Inputs:</strong> ${escapeHtml(inpText || '–')}</p>
       <p><strong>Actions:</strong> ${escapeHtml(actText || '–')}</p>
       <p><strong>Expected:</strong></p>
-      <pre>${escapeHtml(outText || '–')}</pre>
+      <div style="background-color: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; margin: 8px 0; font-family: monospace;">${outTextHtml || '–'}</div>
       <p><strong>Score:</strong> ${escapeHtml(score)}</p>
       <p><strong>Note:</strong> ${escapeHtml(note)}</p>
     `;
