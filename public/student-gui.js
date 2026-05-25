@@ -2633,8 +2633,17 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             codeEditor.setAttribute('readonly', 'readonly');
             document.getElementById('checkBtn').style.display = 'none';
             document.getElementById('testBtn').style.display = 'none'; // ซ่อนปุ่มตรวจคำตอบในโหมด view
-            document.getElementById('convertBtn').style.display = 'none';
             document.getElementById('submitBtn').style.display = 'none';
+            
+            // เปิดปุ่ม Run GUI ให้ใช้งานได้ในโหมด View
+            const convertBtn = document.getElementById('convertBtn');
+            if (convertBtn) {
+                convertBtn.style.display = 'inline-block';
+                convertBtn.disabled = false;
+                convertBtn.textContent = 'RUN GUI (แสดงผล)';
+                convertBtn.style.backgroundColor = '#4CAF50'; // สีเขียวให้ดูน่ากด
+                convertBtn.style.color = 'white';
+            }
         }
 
     } catch (error) {
@@ -3270,12 +3279,21 @@ async function checkSubmissionStatus(problemId, userId) {
                 codeEditor.style.color = '#555';
             }
 
-            // 2. ซ่อนปุ่มทั้งหมด (เหลือแค่ Back)
-            const buttonsToHide = ['checkBtn', 'convertBtn', 'testBtn', 'submitBtn', 'testCaseBtn', 'resetBtn'];
+            // 2. ซ่อนปุ่มต่างๆ และเปิดปุ่ม RUN GUI
+            const buttonsToHide = ['checkBtn', 'testBtn', 'submitBtn', 'testCaseBtn', 'resetBtn'];
             buttonsToHide.forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) btn.style.display = 'none';
             });
+            
+            const convertBtn = document.getElementById('convertBtn');
+            if (convertBtn) {
+                convertBtn.style.display = 'inline-block';
+                convertBtn.disabled = false;
+                convertBtn.textContent = 'RUN GUI (แสดงผล)';
+                convertBtn.style.backgroundColor = '#4CAF50';
+                convertBtn.style.color = 'white';
+            }
             
             return true; // ส่งแล้ว
         }
