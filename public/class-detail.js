@@ -780,15 +780,9 @@ async function viewProblem(problemId) {
                             <div class="gui-submission">
                                 <div class="score-display">คะแนน: ${submission.score || 0}/${submission.maxScore || 0}</div>
                                 <div class="gui-preview">
-                                    <h4>HTML ที่ส่ง:</h4>
-                                    <pre><code>${submission.html || 'ไม่มีโค้ด HTML'}</code></pre>
-                                        
-                                    <h4>CSS ที่ส่ง:</h4>
-                                    <pre><code>${submission.css || 'ไม่มีโค้ด CSS'}</code></pre>
-                                        
-                                    <h4>JavaScript ที่ส่ง:</h4>
-                                    <pre><code>${submission.javascript || 'ไม่มีโค้ด JavaScript'}</code></pre>
-                                    </div>
+                                    <h4>โค้ด Python (GUI) ที่ส่ง:</h4>
+                                    <pre><code>${submission.code || 'ไม่มีโค้ด'}</code></pre>
+                                </div>
                             </div>
                         `;
                         break;

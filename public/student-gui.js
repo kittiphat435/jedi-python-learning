@@ -2600,16 +2600,21 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         }
 
         // Load student's last submission or template code
-          const submissionsSnapshot = await db.collection('submissions')
-              .where('problemId', '==', problemId)
-              .where('studentId', '==', userId)
-              .where('classId', '==', classId)
-              .orderBy('timestamp', 'desc')
-              .limit(1)
-              .get();
+        const submissionsSnapshot = await db.collection('submissions')
+            .where('problemId', '==', problemId)
+            .where('studentId', '==', userId)
+            .where('classId', '==', classId)
+            .get();
 
         if (!submissionsSnapshot.empty) {
-            const submission = submissionsSnapshot.docs[0].data();
+            const submissions = submissionsSnapshot.docs.map(doc => doc.data());
+            // เรียงลำดับฝั่ง Client เพื่อเลี่ยงการใช้ Composite Index ของ Firebase
+            submissions.sort((a, b) => {
+                const timeA = (a.timestamp || a.submittedAt)?.toDate()?.getTime() || 0;
+                const timeB = (b.timestamp || b.submittedAt)?.toDate()?.getTime() || 0;
+                return timeB - timeA;
+            });
+            const submission = submissions[0];
             const currentScore = submission.score || 0;
             updateScoreDisplay(currentScore, maxScore);
             
@@ -3239,16 +3244,22 @@ async function checkSubmissionStatus(problemId, userId) {
             .where('problemId', '==', problemId)
             .where('studentId', '==', userId) // ✅ แก้เป็น studentId
             .where('type', '==', 'gui')
-            .where('status', '==', 'completed')
-            .orderBy('timestamp', 'desc')
-            .limit(1);
+            .where('status', '==', 'completed');
             
         const snapshot = await submissionsRef.get();
         
         if (!snapshot.empty) {
+            const submissions = snapshot.docs.map(doc => doc.data());
+            // เรียงลำดับฝั่ง Client เพื่อเลี่ยง Composite Index
+            submissions.sort((a, b) => {
+                const timeA = (a.timestamp || a.submittedAt)?.toDate()?.getTime() || 0;
+                const timeB = (b.timestamp || b.submittedAt)?.toDate()?.getTime() || 0;
+                return timeB - timeA;
+            });
+            const lastSubmission = submissions[0];
+
             console.log("🔒 พบการส่งงานแล้ว -> ล็อกหน้าจอ (View Mode)");
             
-            const lastSubmission = snapshot.docs[0].data();
             showSuccess(`ส่งงานแล้วเมื่อ: ${lastSubmission.timestamp?.toDate().toLocaleString('th-TH')}`);
 
             // 1. ล็อก Editor
@@ -3308,6 +3319,7 @@ async function submitGUICode(code, problemId, userId, classId) {
             classId: classId,
             code: code,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp(), // ✅ เพิ่ม submittedAt เข้าไปด้วยเพื่อรองรับหน้าสรุปผล
             type: 'gui',
             status: 'completed', // <--- ใช้ completed เพื่อให้ปุ่มเป็นสีเขียว
             testResult: 'passed',
