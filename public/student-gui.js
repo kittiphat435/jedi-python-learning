@@ -3962,9 +3962,10 @@ async function sendToSimulator(autoRun = false) {
           html.push(`<div id="label_${widget.name}" class="${classes.join(' ')}" data-var="${widget.name}" data-index="${widgetIndex++}" style="${style}">${initialText}</div>`);
           break;
         case 'entry':
-          const placeholder = widget.placeholder ? ` placeholder="${widget.placeholder}"` : '';
-          html.push(`<input type="text" id="entry_${widget.name}" class="tk-entry" data-var="${widget.name}" data-index="${widgetIndex++}" style="${layoutStyle}"${placeholder}/>`);
-          break;
+            // ใส่ทั้ง placeholder และ value เพื่อให้เหมือน StringVar(value='...') ของจริง
+            const placeholder = widget.placeholder ? ` placeholder="${widget.placeholder}" value="${widget.placeholder}"` : '';
+            html.push(`<input type="text" id="entry_${widget.name}" class="tk-entry" data-var="${widget.name}" data-index="${widgetIndex++}" style="${layoutStyle}"${placeholder}/>`);
+            break;
         case 'checkbox':
           html.push(`<label style="${layoutStyle}"><input type="checkbox" id="cb_${widget.name}" class="tk-checkbox" data-var="${widget.name}" data-index="${widgetIndex++}"/>${widget.data.label}</label>`);
           break;
@@ -4805,12 +4806,21 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 
                         // 3) fallback หา element ที่มีข้อความเท่ากับ expected
                         if (!element && output.value) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
-                            element = allElements.find(el => el.textContent && el.textContent.trim() === output.value);
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span, input[type="text"]'));
+                            element = allElements.find(el => {
+                                if (el.tagName.toLowerCase() === 'input') {
+                                    return el.value && el.value.trim() === output.value;
+                                }
+                                return el.textContent && el.textContent.trim() === output.value;
+                            });
                         }
 
                         if (element) {
-                            actualValue = (element.textContent || '').trim();
+                            if (element.tagName.toLowerCase() === 'input') {
+                                actualValue = (element.value || '').trim();
+                            } else {
+                                actualValue = (element.textContent || '').trim();
+                            }
 
                             if (actualValue === (output.value || '')) {
                                 details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
@@ -4818,11 +4828,16 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                 // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง แล้วเลือกตัวที่ match
                                 let recovered = false;
                                 if (output.value) {
-                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
-                                    const matchEl = allElements.find(el => el.textContent && el.textContent.trim() === output.value);
+                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span, input[type="text"]'));
+                                    const matchEl = allElements.find(el => {
+                                        if (el.tagName.toLowerCase() === 'input') {
+                                            return el.value && el.value.trim() === output.value;
+                                        }
+                                        return el.textContent && el.textContent.trim() === output.value;
+                                    });
                                     if (matchEl) {
                                         element = matchEl;
-                                        actualValue = (matchEl.textContent || '').trim();
+                                        actualValue = matchEl.tagName.toLowerCase() === 'input' ? (matchEl.value || '').trim() : (matchEl.textContent || '').trim();
                                         recovered = true;
                                         details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
                                     }
