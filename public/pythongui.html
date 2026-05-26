@@ -1345,13 +1345,23 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             .get();
 
         if (!submissionsSnapshot.empty) {
-            const submission = submissionsSnapshot.docs[0].data();
-            const currentScore = submission.score || 0;
-            updateScoreDisplay(currentScore, maxScore);
-            
-            codeEditor.value = submission.code || '';
-            if (viewMode) {
-                checkGUICode(submission.code);
+            let submissions = submissionsSnapshot.docs.map(doc => doc.data());
+            // กรองเอาเฉพาะอันที่ส่งแล้ว (สถานะ completed)
+            submissions = submissions.filter(sub => sub.status === 'completed');
+
+            if (submissions.length > 0) {
+                const submission = submissions[0];
+                const currentScore = submission.score || 0;
+                updateScoreDisplay(currentScore, maxScore);
+                
+                codeEditor.value = submission.code || '';
+                if (viewMode) {
+                    checkGUICode(submission.code);
+                }
+            } else {
+                // ถ้ามีแต่ Draft ให้แสดง Template เปล่า
+                updateScoreDisplay(0, maxScore);
+                codeEditor.value = problemData.templateCode || `import tkinter as tk\n\nwindow = tk.Tk()\nwindow.title("My GUI Application")\nwindow.geometry("400x300")\n\n# Add your GUI components here\n\nwindow.mainloop()`;
             }
         } else {
             updateScoreDisplay(0, maxScore);
@@ -1690,7 +1700,8 @@ function setupEventListeners(problemId, classId, userId, viewMode) {
                 if (testBtn) testBtn.disabled = false;
                 
                 // 5. ✅✅ บันทึกโค้ดทันที (ทุกกรณีที่ไม่ Error)
-                await saveDraftCode(code);
+                // ปิดการ save draft เพื่อไม่ให้บันทึกโค้ดก่อนส่งงาน
+                // await saveDraftCode(code);
             } else {
                 console.log("Code has errors, not saving.");
             }
@@ -1934,7 +1945,8 @@ async function checkAnswer() {
         }
         
         if (typeof saveDraftCode === 'function') {
-             saveDraftCode(codeEditor.value);
+             // ปิดการ save draft เพื่อไม่ให้บันทึกโค้ดก่อนส่งงาน
+             // saveDraftCode(codeEditor.value);
         }
 
         // ✅✅ จุดสำคัญที่ขาดไป: ส่งผลลัพธ์ออกไปให้ปุ่ม Submit ใช้งาน

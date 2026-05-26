@@ -654,19 +654,26 @@ async function checkAnswer() {
             return;
         }
 
-        // ตรวจสอบทั้ง 4 ขั้นตอน
+        // สร้าง Map สำหรับจัดลำดับ Symbols จากบนลงล่าง
+        const sortedStudentSymbols = [...studentFlowchart.symbols].sort((a, b) => a.y - b.y);
+        const symbolOrderMap = new Map();
+        sortedStudentSymbols.forEach((sym, index) => {
+            symbolOrderMap.set(sym.id, index + 1);
+        });
+
+        // ตรวจสอบทั้ง 4 ขั้นตอน พร้อมแนบ symbolOrderMap ไปด้วย
         const details = {
-            symbolCount: checkSymbolCount(studentFlowchart, problemData.flowchartData),
-            arrowsAndText: checkArrowsAndText(studentFlowchart, problemData.flowchartData),
-            symbolText: checkSymbolText(studentFlowchart, problemData.flowchartData),
-            flowDirection: checkFlowDirection(studentFlowchart, problemData.flowchartData)
+            symbolCount: checkSymbolCount(studentFlowchart, problemData.flowchartData, symbolOrderMap),
+            arrowsAndText: checkArrowsAndText(studentFlowchart, problemData.flowchartData, symbolOrderMap),
+            symbolText: checkSymbolText(studentFlowchart, problemData.flowchartData, symbolOrderMap),
+            flowDirection: checkFlowDirection(studentFlowchart, problemData.flowchartData, symbolOrderMap)
         };
 
         // คำนวณว่าผ่านหรือไม่
         const passed = details.symbolCount.passed && 
-                       details.arrowsAndText && 
-                       details.symbolText && 
-                       details.flowDirection;
+                       details.arrowsAndText.passed && 
+                       details.symbolText.passed && 
+                       details.flowDirection.passed;
 
         const result = {
             passed: passed,
@@ -690,12 +697,12 @@ async function checkAnswer() {
     }
 }
 
-function checkSymbolCount(studentFlowchart, solutionFlowchart) {
+function checkSymbolCount(studentFlowchart, solutionFlowchart, symbolOrderMap) {
     // เช็คจำนวนรวม
     if (studentFlowchart.symbols.length !== solutionFlowchart.symbols.length) {
         return {
             passed: false,
-            message: 'จำนวน Symbol ไม่ถูกต้อง'
+            message: `จำนวนสัญลักษณ์ไม่ถูกต้อง (ของคุณมี ${studentFlowchart.symbols.length} อัน / เฉลยมี ${solutionFlowchart.symbols.length} อัน)`
         };
     }
 
@@ -716,14 +723,14 @@ function checkSymbolCount(studentFlowchart, solutionFlowchart) {
         if (studentTypeCounts[type] !== solutionTypeCounts[type]) {
             return {
                 passed: false,
-                message: `จำนวน ${getSymbolTypeName(type)} ไม่ถูกต้อง`
+                message: `จำนวนสัญลักษณ์ประเภท ${getSymbolTypeName(type)} ไม่ถูกต้อง`
             };
         }
     }
 
     return {
         passed: true,
-        message: ''
+        message: 'จำนวนสัญลักษณ์ถูกต้อง'
     };
 }
 
@@ -742,10 +749,13 @@ function getSymbolTypeName(type) {
     return typeNames[type] || type;
 }
 
-function checkArrowsAndText(studentFlowchart, solutionFlowchart) {
+function checkArrowsAndText(studentFlowchart, solutionFlowchart, symbolOrderMap) {
     // เช็คจำนวน connections
     if (studentFlowchart.connections.length !== solutionFlowchart.connections.length) {
-        return false;
+        return {
+            passed: false,
+            message: `จำนวนเส้นเชื่อมลูกศรไม่ถูกต้อง (ของคุณมี ${studentFlowchart.connections.length} เส้น / เฉลยมี ${solutionFlowchart.connections.length} เส้น)`
+        };
     }
 
     const getCleanText = (text) => {
@@ -759,7 +769,8 @@ function checkArrowsAndText(studentFlowchart, solutionFlowchart) {
 
     // เช็คข้อความบน connections
     for (let i = 0; i < studentFlowchart.connections.length; i++) {
-        const studentText = getCleanText(studentFlowchart.connections[i].text);
+        const studentConn = studentFlowchart.connections[i];
+        const studentText = getCleanText(studentConn.text);
         let foundMatch = false;
         
         // ค้นหา connection ที่ตรงกันในเฉลย
@@ -771,12 +782,18 @@ function checkArrowsAndText(studentFlowchart, solutionFlowchart) {
             }
         }
         
-        if (!foundMatch) return false;
+        if (!foundMatch) {
+            const sourceOrder = symbolOrderMap.get(studentConn.sourceSymbol) || '?';
+            return {
+                passed: false,
+                message: `ข้อความบนเส้นเชื่อมลูกศรที่ออกจากสัญลักษณ์ลำดับที่ ${sourceOrder} ไม่ถูกต้อง`
+            };
+        }
     }
-    return true;
+    return { passed: true, message: 'ข้อความบนเส้นเชื่อมถูกต้อง' };
 }
 
-function checkSymbolText(studentFlowchart, solutionFlowchart) {
+function checkSymbolText(studentFlowchart, solutionFlowchart, symbolOrderMap) {
     const getCleanText = (text) => {
         if (!text) return '';
         const clean = text.replace(/\s+/g, '').toLowerCase();
@@ -788,24 +805,31 @@ function checkSymbolText(studentFlowchart, solutionFlowchart) {
 
     // เช็คข้อความใน symbols
     for (let i = 0; i < studentFlowchart.symbols.length; i++) {
-        const studentText = getCleanText(studentFlowchart.symbols[i].text);
+        const studentSym = studentFlowchart.symbols[i];
+        const studentText = getCleanText(studentSym.text);
         let foundMatch = false;
         
         for (let j = 0; j < solutionFlowchart.symbols.length; j++) {
-            const solutionText = getCleanText(solutionFlowchart.symbols[j].text);
-            if (studentText === solutionText && 
-                studentFlowchart.symbols[i].type === solutionFlowchart.symbols[j].type) {
+            const solutionSym = solutionFlowchart.symbols[j];
+            const solutionText = getCleanText(solutionSym.text);
+            if (studentText === solutionText && studentSym.type === solutionSym.type) {
                 foundMatch = true;
                 break;
             }
         }
         
-        if (!foundMatch) return false;
+        if (!foundMatch) {
+            const order = symbolOrderMap.get(studentSym.id) || '?';
+            return {
+                passed: false,
+                message: `ข้อความในสัญลักษณ์ลำดับที่ ${order} (${getSymbolTypeName(studentSym.type)}) ไม่ถูกต้อง`
+            };
+        }
     }
-    return true;
+    return { passed: true, message: 'ข้อความในสัญลักษณ์ถูกต้อง' };
 }
 
-function checkFlowDirection(studentFlowchart, solutionFlowchart) {
+function checkFlowDirection(studentFlowchart, solutionFlowchart, symbolOrderMap) {
     // เช็คทิศทางการเชื่อมต่อ
     for (let i = 0; i < studentFlowchart.connections.length; i++) {
         const studentConn = studentFlowchart.connections[i];
@@ -824,9 +848,16 @@ function checkFlowDirection(studentFlowchart, solutionFlowchart) {
             }
         }
         
-        if (!foundMatch) return false;
+        if (!foundMatch) {
+            const sourceOrder = symbolOrderMap.get(studentConn.sourceSymbol) || '?';
+            const targetOrder = symbolOrderMap.get(studentConn.targetSymbol) || '?';
+            return {
+                passed: false,
+                message: `ทิศทางการเชื่อมต่อลูกศรระหว่างสัญลักษณ์ลำดับที่ ${sourceOrder} ไปยังลำดับที่ ${targetOrder} ไม่ถูกต้อง`
+            };
+        }
     }
-    return true;
+    return { passed: true, message: 'ทิศทางการเชื่อมต่อลูกศรถูกต้อง' };
 }
 
 // Helper function
@@ -862,20 +893,20 @@ function showDetailedResult(result) {
                 <h4>ผลการตรวจสอบ:</h4>
                 <div style="margin-left: 10px;">
                     <div style="margin: 8px 0;">
-                        1. ตรวจสอบ Symbol: ${symbolCountResult.passed ? '✅' : '❌'}
-                        ${!symbolCountResult.passed ? `<br><span style="color: #dc3545; margin-left: 20px;">(${symbolCountResult.message})</span>` : ''}
+                        1. จำนวนและประเภทสัญลักษณ์: ${result.details.symbolCount.passed ? '✅' : '❌'}
+                        ${!result.details.symbolCount.passed ? `<br><span style="color: #dc3545; margin-left: 20px;">(${result.details.symbolCount.message})</span>` : ''}
                     </div>
                     <div style="margin: 8px 0;">
-                        2. ลูกศรและข้อความ: ${result.details.arrowsAndText ? '✅' : '❌'}
-                        ${!result.details.arrowsAndText ? '(จำนวนลูกศรหรือข้อความบนลูกศรไม่ถูกต้อง)' : ''}
+                        2. ข้อความในสัญลักษณ์: ${result.details.symbolText.passed ? '✅' : '❌'}
+                        ${!result.details.symbolText.passed ? `<br><span style="color: #dc3545; margin-left: 20px;">(${result.details.symbolText.message})</span>` : ''}
                     </div>
                     <div style="margin: 8px 0;">
-                        3. ข้อความใน Symbol: ${result.details.symbolText ? '✅' : '❌'}
-                        ${!result.details.symbolText ? '(ข้อความใน Symbol ไม่ถูกต้อง)' : ''}
+                        3. ทิศทางการเชื่อมต่อ: ${result.details.flowDirection.passed ? '✅' : '❌'}
+                        ${!result.details.flowDirection.passed ? `<br><span style="color: #dc3545; margin-left: 20px;">(${result.details.flowDirection.message})</span>` : ''}
                     </div>
                     <div style="margin: 8px 0;">
-                        4. ทิศทาง Flow: ${result.details.flowDirection ? '✅' : '❌'}
-                        ${!result.details.flowDirection ? '(ทิศทางการไหลไม่ถูกต้อง)' : ''}
+                        4. ข้อความบนเส้นเชื่อม: ${result.details.arrowsAndText.passed ? '✅' : '❌'}
+                        ${!result.details.arrowsAndText.passed ? `<br><span style="color: #dc3545; margin-left: 20px;">(${result.details.arrowsAndText.message})</span>` : ''}
                     </div>
                 </div>
             </div>

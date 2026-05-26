@@ -2608,20 +2608,28 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             .get();
 
         if (!submissionsSnapshot.empty) {
-            const submissions = submissionsSnapshot.docs.map(doc => doc.data());
-            // เรียงลำดับฝั่ง Client เพื่อเลี่ยงการใช้ Composite Index ของ Firebase
-            submissions.sort((a, b) => {
-                const timeA = (a.timestamp || a.submittedAt)?.toDate()?.getTime() || 0;
-                const timeB = (b.timestamp || b.submittedAt)?.toDate()?.getTime() || 0;
-                return timeB - timeA;
-            });
-            const submission = submissions[0];
-            const currentScore = submission.score || 0;
-            updateScoreDisplay(currentScore, maxScore);
-            
-            codeEditor.value = submission.code || problemData.templateCode || '';
-            if (viewMode) {
-                checkGUICode(submission.code);
+            let submissions = submissionsSnapshot.docs.map(doc => doc.data());
+            // ✅ กรองเอาเฉพาะที่กดส่งงานแล้ว (completed) เพื่อไม่ให้โหลด Draft โค้ดเก่าที่เคยกดรันแต่ไม่ได้ส่ง
+            submissions = submissions.filter(sub => sub.status === 'completed');
+
+            if (submissions.length > 0) {
+                // เรียงลำดับฝั่ง Client เพื่อเลี่ยงการใช้ Composite Index ของ Firebase
+                submissions.sort((a, b) => {
+                    const timeA = (a.timestamp || a.submittedAt)?.toDate()?.getTime() || 0;
+                    const timeB = (b.timestamp || b.submittedAt)?.toDate()?.getTime() || 0;
+                    return timeB - timeA;
+                });
+                const submission = submissions[0];
+                const currentScore = submission.score || 0;
+                updateScoreDisplay(currentScore, maxScore);
+                
+                codeEditor.value = submission.code || problemData.templateCode || '';
+                if (viewMode) {
+                    checkGUICode(submission.code);
+                }
+            } else {
+                updateScoreDisplay(0, maxScore);
+                codeEditor.value = problemData.templateCode || `import tkinter as tk\n\nwindow = tk.Tk()\nwindow.title("My GUI Application")\nwindow.geometry("400x300")\n\n# Add your GUI components here\n\nwindow.mainloop()`;
             }
         } else {
             updateScoreDisplay(0, maxScore);
@@ -2970,7 +2978,8 @@ function setupEventListeners(problemId, classId, userId, viewMode) {
                 if (testBtn) testBtn.disabled = false;
                 
                 // 5. ✅✅ บันทึกโค้ดทันที (ทุกกรณีที่ไม่ Error)
-                await saveDraftCode(code);
+                // ปิดการ save draft ชั่วคราวเพื่อไม่ให้โค้ดเซฟตอนกดรัน
+                // await saveDraftCode(code);
             } else {
                 console.log("Code has errors, not saving.");
             }
@@ -3234,7 +3243,8 @@ async function checkAnswer() {
         }
         
         if (typeof saveDraftCode === 'function') {
-             saveDraftCode(codeEditor.value);
+             // ปิดการ save draft ชั่วคราวเพื่อไม่ให้โค้ดเซฟตอนกดรัน
+             // saveDraftCode(codeEditor.value);
         }
 
         // ✅✅ จุดสำคัญที่ขาดไป: ส่งผลลัพธ์ออกไปให้ปุ่ม Submit ใช้งาน
