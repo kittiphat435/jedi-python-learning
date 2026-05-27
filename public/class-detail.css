@@ -1352,6 +1352,11 @@ body.has-code-warp {
     margin: 0 0 10px 0;
 }
 
+.has-code-warp #problemBankModal .problem-info p,
+.has-code-warp #problemBankModal .problem-bank-item p {
+    color: #4a5568;
+}
+
 .search-input {
     width: 100%;
     padding: 8px 12px;

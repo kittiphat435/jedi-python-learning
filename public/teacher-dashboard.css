@@ -83,6 +83,18 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.section-header-row h2 {
+    margin: 0;
+}
+
 .class-card,
 .problem-card {
     background: #f8f9fa;
@@ -1757,6 +1769,140 @@ textarea.input-field {
     padding-left: 0 !important;
     text-indent: 0 !important;
   }
+
+body.has-code-warp {
+    color: rgba(255, 255, 255, 0.92);
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+.has-code-warp .user-info,
+.has-code-warp .section,
+.has-code-warp .class-card,
+.has-code-warp .problem-card {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.has-code-warp .problem-info h3,
+.has-code-warp .problem-info h4,
+.has-code-warp .class-info h3,
+.has-code-warp .class-info h4,
+.has-code-warp .section h2 {
+    color: var(--accent);
+}
+
+.has-code-warp .problem-info p,
+.has-code-warp .profile-email {
+    color: rgba(255, 255, 255, 0.70);
+}
+
+.has-code-warp #displayName {
+    color: rgba(255, 255, 255, 0.96);
+    font-weight: 700;
+}
+
+.has-code-warp .profile-info p {
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.has-code-warp .input-field,
+.has-code-warp textarea.input-field,
+.has-code-warp select.input-field {
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .input-field:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.has-code-warp .secondary-btn,
+.has-code-warp .cancel-btn {
+    background: rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .secondary-btn:hover,
+.has-code-warp .cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.has-code-warp .pagination button {
+    background: rgba(0, 0, 0, 0.25);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .pagination button:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.has-code-warp .pagination .page-info {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.has-code-warp .modal-content,
+.has-code-warp .modal-header,
+.has-code-warp .modal-footer {
+    background: rgba(18, 18, 18, 0.92);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.has-code-warp .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.has-code-warp .modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.has-code-warp .close-btn {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.has-code-warp .close-btn:hover {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp .form-group label {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.attachment-panel {
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .attachment-panel {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.has-code-warp .question-item {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.class-code {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+}
   
   /* บังคับให้ text ชิดซ้ายใน span */
   .CodeMirror-line span > span {

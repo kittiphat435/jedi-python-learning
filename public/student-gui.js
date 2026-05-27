@@ -4625,6 +4625,7 @@ if (testCaseBtn) {
             console.log(`✅ อัปเดตคะแนนหน้าเว็บ: โบนัส Test case = ${passedScore}/${totalScore}`);
             
             if (passedScore === totalScore) {
+                showYarnReward();
                 showSuccess('ผ่าน Test Case ทั้งหมดแล้ว! กดส่งงานได้เลย');
             } else if (passedScore > 0) {
                 showSuccess(`ผ่าน Test Case บางส่วน (${passedScore}/${totalScore}) กดส่งงานหรือแก้ไขเพิ่มเติมได้`);

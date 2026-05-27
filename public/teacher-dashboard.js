@@ -52,6 +52,29 @@ function getProfileImage(user) {
 
     return defaultAvatar;
 }
+
+function initClassListCollapse() {
+    const toggleBtn = document.getElementById('toggleClassListBtn');
+    const classList = document.getElementById('classList');
+    if (!toggleBtn || !classList) return;
+
+    const storageKey = 'teacherDashboard_classListCollapsed';
+    let collapsed = localStorage.getItem(storageKey) === '1';
+
+    const applyCollapsedState = () => {
+        classList.style.display = collapsed ? 'none' : '';
+        toggleBtn.textContent = collapsed ? 'แสดงห้องเรียน' : 'ซ่อนห้องเรียน';
+        toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    };
+
+    applyCollapsedState();
+
+    toggleBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        localStorage.setItem(storageKey, collapsed ? '1' : '0');
+        applyCollapsedState();
+    });
+}
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     addSaveWidgetButton();
@@ -65,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logoutBtn');
     const createClassBtn = document.getElementById('createClassBtn');
     const createProblemBtn = document.getElementById('createProblemBtn');
+    initClassListCollapse();
     const guiRequirements = document.getElementById('guiRequirements');
     if (guiRequirements) {
         const observer = new MutationObserver(() => {

@@ -3,6 +3,7 @@
 
 <head>
     <title>Teacher Dashboard - Python Learning Platform</title>
+    <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="teacher-dashboard.css">
     <!-- เพิ่ม SVG.js สำหรับจัดการ SVG -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.1.1/svg.min.js"></script>
@@ -14,7 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/python/python.min.js"></script>
 </head>
 
-<body>
+<body class="has-code-warp accent-purple">
     <div class="container">
         <div class="header dark-theme">
             <div class="logo-section">
@@ -59,7 +60,10 @@
 
         <!-- รายการห้องเรียน -->
         <div class="section">
-            <h2>ห้องเรียนของฉัน</h2>
+            <div class="section-header-row">
+                <h2>ห้องเรียนของฉัน</h2>
+                <button id="toggleClassListBtn" type="button" class="secondary-btn">ซ่อนห้องเรียน</button>
+            </div>
             <div id="classList" class="class-list">
                 <!-- รายการห้องเรียนจะถูกเพิ่มที่นี่ด้วย JavaScript -->
             </div>
@@ -127,7 +131,7 @@
                     </div>
 
                     <input type="hidden" id="problemImage">
-                    <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                    <div class="form-group attachment-panel">
                         <label style="font-weight: bold; color: #1a73e8;">📎 สื่อประกอบการเรียนรู้ (แนบลิงก์ / อัปโหลดรูปภาพ)</label>
                         <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
                             รองรับ YouTube, PDF, รูปภาพ หรือเว็บไซต์ภายนอก (แสดงเป็นลิงก์ให้นักเรียนกด)
@@ -140,7 +144,7 @@
                                 + เพิ่ม URL สื่อการสอน
                             </button>
                             <input type="file" id="uploadImageFile" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-                            <button type="button" class="preview-btn" onclick="document.getElementById('uploadImageFile').click()" style="background-color: #3498db; font-size: 14px; margin: 0;">
+                            <button type="button" class="preview-btn" onclick="document.getElementById('uploadImageFile').click()" style="margin: 0;">
                                 อัปโหลดรูปภาพ
                             </button>
                         </div>
