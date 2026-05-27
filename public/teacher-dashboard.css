@@ -216,26 +216,34 @@ textarea.input-field {
 
 .save-widget-bar {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center; /* เปลี่ยนเป็นกลางเพื่อให้เด่น */
     align-items: center;
-    margin: 10px 0;
+    margin: 20px 0;
 }
 
 .save-widget-btn {
-    background: rgba(226, 232, 240, 0.65);
-    color: #111827;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    padding: 12px 22px;
-    border-radius: 10px;
+    background: #ff9800; /* สีส้ม */
+    color: white;
+    border: none;
+    padding: 16px 32px; /* ขนาดใหญ่ขึ้น */
+    border-radius: 12px;
     cursor: pointer;
-    font-size: 16px;
-    font-weight: 600;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    font-size: 18px; /* ขนาดตัวอักษรใหญ่ขึ้น */
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .save-widget-btn:hover {
-    background: rgba(226, 232, 240, 0.85);
+    background: #f57c00;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
+.save-widget-btn:active {
+    transform: translateY(0);
 }
 
 .delete-btn {

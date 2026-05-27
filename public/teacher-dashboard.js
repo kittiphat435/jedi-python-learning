@@ -525,8 +525,14 @@ function addSaveWidgetButton() {
 
     bar.appendChild(saveButton);
 
-    guiTestCasesList.parentNode.insertBefore(bar, guiTestCasesList);
-    console.log('addSaveWidgetButton: เพิ่มปุ่ม Save Widget Requirements เรียบร้อย');
+    // ย้ายมาแทรกก่อนส่วน Test Cases (ให้ขึ้นมาก่อนคำว่า Test Case)
+    const testCaseSection = guiTestCasesList.closest('.form-group');
+    if (testCaseSection) {
+        testCaseSection.parentNode.insertBefore(bar, testCaseSection);
+    } else {
+        guiTestCasesList.parentNode.insertBefore(bar, guiTestCasesList);
+    }
+    console.log('addSaveWidgetButton: เพิ่มปุ่ม Save Widget Requirements เรียบร้อย (ย้ายไปก่อน Test Cases)');
 }
 
 function initFlowchartEditor() {

@@ -818,6 +818,9 @@ async function testGUICode(code, problemTestCases, iframe) {
         const allWidgetsFound = requiredWidgets.every(widget => 
             widgetOrder.includes(widget.name)
         );
+
+        // ตรวจสอบว่ามี widget เกินหรือไม่
+        const hasExtraWidgets = parsedWidgets.length > requiredWidgets.length;
         
         if (foundInOrder.length >= 2) { // ต้องมี widget อย่างน้อย 2 ตัวจึงจะตรวจสอบลำดับได้
             for (let i = 0; i < foundInOrder.length - 1; i++) {
@@ -829,11 +832,19 @@ async function testGUICode(code, problemTestCases, iframe) {
                 }
             }
             
-            if (correctOrder && allWidgetsFound) {
-                // ให้คะแนนเต็มเฉพาะเมื่อพบ widget ครบทุกตัวและลำดับถูกต้อง
+            if (correctOrder && allWidgetsFound && !hasExtraWidgets) {
+                // ให้คะแนนเต็มเฉพาะเมื่อพบ widget ครบทุกตัว ลำดับถูกต้อง และไม่มีตัวเกิน
                 orderScore = maxOrderScore;
                 orderResults.push({
                     message: "✅ ลำดับ Widget ถูกต้องตามข้อกำหนด",
+                    score: orderScore,
+                    maxScore: maxOrderScore
+                });
+            } else if (correctOrder && allWidgetsFound && hasExtraWidgets) {
+                // พบครบ ลำดับได้ แต่มีตัวเกิน
+                orderScore = Math.floor(maxOrderScore / 2); // ให้คะแนนครึ่งเดียว
+                orderResults.push({
+                    message: `⚠️ ลำดับถูกต้องและครบถ้วน แต่มี Widget เกินมาจากที่กำหนด (พบ ${parsedWidgets.length} ตัว, กำหนด ${requiredWidgets.length} ตัว)`,
                     score: orderScore,
                     maxScore: maxOrderScore
                 });
@@ -841,7 +852,7 @@ async function testGUICode(code, problemTestCases, iframe) {
                 // ลำดับถูกต้องแต่ไม่ครบทุก widget
                 const foundCount = foundInOrder.length;
                 const totalCount = requiredWidgets.length;
-                orderScore = Math.floor((foundCount / totalCount) * maxOrderScore);
+                orderScore = Math.floor((foundCount / totalCount) * (maxOrderScore / 2));
                 orderResults.push({
                     message: `⚠️ ลำดับ Widget ถูกต้อง แต่พบเพียง ${foundCount}/${totalCount} widget`,
                     expected: requiredOrder.join(', '),
@@ -852,7 +863,7 @@ async function testGUICode(code, problemTestCases, iframe) {
             } else {
                 // ลำดับไม่ถูกต้อง
                 orderResults.push({
-                    message: "❌ ลำดับ Widget ไม่ตรงตามข้อกำหนด",
+                    message: "❌ ลำดับ Widget ไม่ตรงตามข้อกำหนด หรือมีการเรียงลำดับผิด",
                     expected: requiredOrder.join(', '),
                     found: foundInOrder.join(', '),
                     score: 0,
@@ -860,13 +871,22 @@ async function testGUICode(code, problemTestCases, iframe) {
                 });
             }
         } else if (requiredWidgets.length === 1 && foundInOrder.length === 1) {
-            // กรณีที่มี Widget เพียงตัวเดียว และหาเจอ ก็ถือว่าลำดับถูกต้อง
-            orderScore = maxOrderScore;
-            orderResults.push({
-                message: "✅ ลำดับ Widget ถูกต้อง (มีเพียง 1 ตัว)",
-                score: orderScore,
-                maxScore: maxOrderScore
-            });
+            // กรณีที่มี Widget เพียงตัวเดียว และหาเจอ
+            if (!hasExtraWidgets) {
+                orderScore = maxOrderScore;
+                orderResults.push({
+                    message: "✅ ลำดับ Widget ถูกต้อง (มีเพียง 1 ตัว)",
+                    score: orderScore,
+                    maxScore: maxOrderScore
+                });
+            } else {
+                orderScore = Math.floor(maxOrderScore / 2);
+                orderResults.push({
+                    message: `⚠️ พบ Widget ที่ต้องการ แต่มี Widget อื่นเกินมา (พบ ${parsedWidgets.length} ตัว, กำหนด ${requiredWidgets.length} ตัว)`,
+                    score: orderScore,
+                    maxScore: maxOrderScore
+                });
+            }
         } else {
             orderResults.push({
                 message: `⚠️ ไม่สามารถตรวจสอบลำดับได้ (พบ Widget เพียง ${foundInOrder.length}/${requiredWidgets.length} ตัว)`,
@@ -2580,8 +2600,13 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         // Display GUI image if available
         const guiImagePreview = document.getElementById('guiImagePreview');
         if (problemData.guiImage) {
-            guiImagePreview.innerHTML = `<img src="${problemData.guiImage}" alt="ภาพประกอบ GUI" onerror="this.parentElement.style.display='none'">`;
+            guiImagePreview.innerHTML = `
+                <button type="button" class="image-toggle-btn" onclick="toggleImageSize()">ขยายภาพ</button>
+                <img src="${problemData.guiImage}" alt="ภาพประกอบ GUI" onclick="toggleImageSize()" onerror="this.parentElement.style.display='none'">
+            `;
             guiImagePreview.style.display = 'block';
+            // เริ่มต้นแบบย่อเพื่อให้ไม่บังโจทย์
+            guiImagePreview.classList.add('collapsed');
         } else {
             guiImagePreview.style.display = 'none';
             guiImagePreview.innerHTML = '';
@@ -2683,6 +2708,18 @@ function displayWidgets(widgets) {
     });
 
     requirementsList.appendChild(ul);
+}
+
+// ฟังก์ชันย่อ/ขยายภาพประกอบ
+function toggleImageSize() {
+    const preview = document.getElementById('guiImagePreview');
+    if (preview) {
+        const isCollapsed = preview.classList.toggle('collapsed');
+        const btn = preview.querySelector('.image-toggle-btn');
+        if (btn) {
+            btn.textContent = isCollapsed ? 'ขยายภาพ' : 'ย่อภาพ';
+        }
+    }
 }
 
 // Helper function to show errors
@@ -3115,10 +3152,20 @@ async function checkAnswer() {
         if (current < required) {
             missingTypes[type] = required - current;
             inventoryReport.push(`❌ ${type}: ขาด ${required - current} ตัว`);
+            isStructurePerfect = false;
         } else if (current > required) {
-            // inventoryReport.push(`⚠️ ${type}: เกินมา ${current - required} ตัว`);
+            inventoryReport.push(`❌ ${type}: เกินมา ${current - required} ตัว`);
+            isStructurePerfect = false;
         } else {
             inventoryReport.push(`✅ ${type}: ครบ`);
+        }
+    });
+
+    // ตรวจสอบ Widget ชนิดอื่นที่ไม่ได้อยู่ในโจทย์แต่มีอยู่ในโค้ด
+    Object.keys(typeCounts).forEach(type => {
+        if (!uniqueExpectedTypes.includes(type)) {
+            inventoryReport.push(`❌ ${type}: เป็น Widget ที่ไม่ต้องการ (${typeCounts[type]} ตัว)`);
+            isStructurePerfect = false;
         }
     });
 
@@ -3128,25 +3175,33 @@ async function checkAnswer() {
     let expIndex = 0; 
     let actIndex = 0; 
 
-    while (expIndex < expectedWidgets.length) {
+    while (expIndex < expectedWidgets.length || actIndex < actualTypes.length) {
         const def = expectedWidgets[expIndex];    
         const actualType = actualTypes[actIndex];   
 
         // 2.1 ของนักเรียนหมดแล้ว แต่โจทย์ยังเหลือ
-        if (!actualType) {
+        if (expIndex < expectedWidgets.length && !actualType) {
             isStructurePerfect = false;
             report.push(`ลำดับที่ ${expIndex + 1}: ❌ หายไป (คุณลืมสร้าง ${def.type})`);
             expIndex++; 
             continue;
         }
 
-        // 2.2 ✅ ชนิดตรงกัน (ผ่าน!)
+        // 2.2 โจทย์หมดแล้ว แต่นักเรียนยังมีเกินมา
+        if (expIndex >= expectedWidgets.length && actualType) {
+            isStructurePerfect = false;
+            report.push(`ลำดับที่ ${actIndex + 1}: ❌ เกินมา (พบ ${actualType} ที่ไม่ต้องการ)`);
+            actIndex++;
+            continue;
+        }
+
+        // 2.3 ✅ ชนิดตรงกัน (ผ่าน!)
         if (actualType === def.type) {
             report.push(`ลำดับที่ ${expIndex + 1}: ✅ ถูกต้อง (${actualType})`);
             expIndex++;
             actIndex++;
         } 
-        // 2.3 ❌ ชนิดไม่ตรงกัน
+        // 2.4 ❌ ชนิดไม่ตรงกัน
         else {
             isStructurePerfect = false;
             
@@ -5186,7 +5241,8 @@ window.openMediaModal = function(url) {
         modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center;';
         
         const contentBox = document.createElement('div');
-        contentBox.style.cssText = 'position: relative; width: 90%; height: 90%; background: #fff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column;';
+        contentBox.id = 'globalMediaContentBox';
+        contentBox.style.cssText = 'position: relative; width: 90%; height: 90%; background: #fff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; transition: all 0.3s ease;';
         
         const header = document.createElement('div');
         header.style.cssText = 'display: flex; justify-content: flex-end; margin-bottom: 10px;';
@@ -5227,11 +5283,26 @@ window.openMediaModal = function(url) {
     }
     
     const container = document.getElementById('globalMediaContainer');
+    const contentBox = document.getElementById('globalMediaContentBox');
     container.innerHTML = '<p>กำลังโหลดสื่อ...</p>';
     modal.style.display = 'flex';
     
     const lowerUrl = url.toLowerCase();
     let embedHtml = '';
+    const isImage = lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|jfif)/i) != null || (lowerUrl.includes('alt=media') && !lowerUrl.includes('.pdf'));
+
+    // ปรับขนาดหน้าต่างตามประเภทสื่อ
+    if (isImage) {
+        contentBox.style.width = 'auto';
+        contentBox.style.height = 'auto';
+        contentBox.style.maxWidth = '90%';
+        contentBox.style.maxHeight = '90%';
+    } else {
+        contentBox.style.width = '90%';
+        contentBox.style.height = '90%';
+        contentBox.style.maxWidth = '90%';
+        contentBox.style.maxHeight = '90%';
+    }
     
     if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
         let videoId = '';
@@ -5245,8 +5316,8 @@ window.openMediaModal = function(url) {
         } else {
             embedHtml = `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
         }
-    } else if (lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|jfif)/i) != null || (lowerUrl.includes('alt=media') && !lowerUrl.includes('.pdf'))) {
-        embedHtml = `<img src="${url}" style="max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; display: block;">`;
+    } else if (isImage) {
+        embedHtml = `<img src="${url}" style="max-width: 100%; max-height: 80vh; object-fit: contain; margin: auto; display: block; border-radius: 4px;">`;
     } else {
         embedHtml = `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
     }

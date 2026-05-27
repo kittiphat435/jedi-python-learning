@@ -408,33 +408,52 @@ body {
 }
 
 .problem-image {
-   width: 100%;
-   /* กำหนดความกว้างให้เต็มพื้นที่ parent */
-   margin: 15px auto;
-   /* จัดให้อยู่กึ่งกลางและมีระยะห่างบนล่าง */
-   border-radius: 8px;
-   overflow: hidden;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-   background: #f8f9fa;
-   padding: 10px;
-   box-sizing: border-box;
-   /* รวม padding ในความกว้าง */
+    margin: 15px 0;
+    text-align: center;
+    position: relative;
+    display: block;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .problem-image img {
-   width: 100%;
-   /* กำหนดความกว้างให้เต็มพื้นที่ parent */
-   height: auto;
-   /* รักษาอัตราส่วนภาพ */
-   display: block;
-   /* ป้องกันช่องว่างใต้รูป */
-   margin: 0 auto;
-   /* จัดให้อยู่กึ่งกลาง */
-   border-radius: 4px;
-   object-fit: contain;
-   /* รักษาอัตราส่วนภาพโดยไม่บีบภาพ */
-   max-height: 500px;
-   /* จำกัดความสูงสูงสุด */
+    max-width: 100%;
+    max-height: 300px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--theme-shadow);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.problem-image.collapsed img {
+    max-height: 80px;
+    max-width: 150px;
+    opacity: 0.7;
+}
+
+.problem-image.collapsed img:hover {
+    opacity: 1;
+}
+
+.image-toggle-btn {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    background: var(--pastel-blue-dark);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.image-toggle-btn:hover {
+    background: var(--pastel-blue);
 }
 
 /* Test Cases */

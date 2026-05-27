@@ -520,22 +520,31 @@ function addSaveWidgetButton() {
         return;
     }
 
-    // สร้างปุ่ม
+    if (document.getElementById('saveWidgetRequirementsBtn') || document.getElementById('saveWidgetBar')) {
+        return;
+    }
+
+    const bar = document.createElement('div');
+    bar.id = 'saveWidgetBar';
+    bar.className = 'save-widget-bar';
+
     const saveButton = document.createElement('button');
+    saveButton.id = 'saveWidgetRequirementsBtn';
     saveButton.type = 'button';
+    saveButton.className = 'save-widget-btn';
     saveButton.textContent = 'Save Widget Requirements';
-    saveButton.style.margin = '10px 0';
-    saveButton.style.padding = '5px 10px';
-    saveButton.style.backgroundColor = '#4CAF50';
-    saveButton.style.color = 'white';
-    saveButton.style.border = 'none';
-    saveButton.style.borderRadius = '5px';
-    saveButton.style.cursor = 'pointer';
     saveButton.onclick = saveWidgetRequirements;
 
-    // แทรกปุ่ม
-    guiTestCasesList.parentNode.insertBefore(saveButton, guiTestCasesList);
-    console.log('addSaveWidgetButton: เพิ่มปุ่ม Save Widget Requirements เรียบร้อย');
+    bar.appendChild(saveButton);
+
+    // ย้ายมาแทรกก่อนส่วน Test Cases (ให้ขึ้นมาก่อนคำว่า Test Case)
+    const testCaseSection = guiTestCasesList.closest('.form-group');
+    if (testCaseSection) {
+        testCaseSection.parentNode.insertBefore(bar, testCaseSection);
+    } else {
+        guiTestCasesList.parentNode.insertBefore(bar, guiTestCasesList);
+    }
+    console.log('addSaveWidgetButton: เพิ่มปุ่ม Save Widget Requirements เรียบร้อย (ย้ายไปก่อน Test Cases)');
 }
 
 function initFlowchartEditor() {

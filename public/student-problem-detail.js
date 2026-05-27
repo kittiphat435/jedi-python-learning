@@ -76,13 +76,12 @@ function updateProblemDisplay() {
         descriptionElement.style.marginBottom = '8px';
         let descriptionHTML = currentProblem.description || 'ไม่มีคำอธิบาย';
 
-        // เพิ่มรูปภาพถ้ามี
+        // แสดงรูปภาพประกอบถ้ามี (แบบย่อ/ขยายได้)
         if (currentProblem.image) {
             descriptionHTML = `
-                <div class="problem-media" style="margin-bottom: 15px;">
-                    <button type="button" class="primary-btn" onclick="openMediaModal('${currentProblem.image}')" style="background-color: #17a2b8; border: none; padding: 8px 16px; border-radius: 4px; color: white; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-external-link-alt"></i> 📄 คลิกเพื่อดูสื่อประกอบการเรียน
-                    </button>
+                <div id="problemImagePreview" class="problem-image collapsed">
+                    <button type="button" class="image-toggle-btn" onclick="toggleImageSize()">ขยายภาพ</button>
+                    <img src="${currentProblem.image}" alt="ภาพประกอบโจทย์" onclick="toggleImageSize()" onerror="handleImageError(this)">
                 </div>
                 ${descriptionHTML}
             `;
@@ -110,11 +109,23 @@ function updateProblemDisplay() {
     }
 }
 
+// ฟังก์ชันย่อ/ขยายภาพประกอบ
+function toggleImageSize() {
+    const preview = document.getElementById('problemImagePreview');
+    if (preview) {
+        const isCollapsed = preview.classList.toggle('collapsed');
+        const btn = preview.querySelector('.image-toggle-btn');
+        if (btn) {
+            btn.textContent = isCollapsed ? 'ขยายภาพ' : 'ย่อภาพ';
+        }
+    }
+}
+
 // เพิ่มฟังก์ชันช่วยจัดการ error ของรูปภาพ
 function handleImageError(img) {
     const container = img.parentElement;
-    container.className += ' error';
-    container.innerHTML = 'ไม่สามารถโหลดรูปภาพได้';
+    container.style.display = 'none';
+    console.error('Failed to load problem image');
 }
 
 async function loadLastSubmission(problemId, userId) {
@@ -1112,7 +1123,8 @@ window.openMediaModal = function(url) {
         modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center;';
         
         const contentBox = document.createElement('div');
-        contentBox.style.cssText = 'position: relative; width: 90%; height: 90%; background: #fff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column;';
+        contentBox.id = 'globalMediaContentBox';
+        contentBox.style.cssText = 'position: relative; width: 90%; height: 90%; background: #fff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; transition: all 0.3s ease;';
         
         const header = document.createElement('div');
         header.style.cssText = 'display: flex; justify-content: flex-end; margin-bottom: 10px;';
@@ -1153,11 +1165,26 @@ window.openMediaModal = function(url) {
     }
     
     const container = document.getElementById('globalMediaContainer');
+    const contentBox = document.getElementById('globalMediaContentBox');
     container.innerHTML = '<p>กำลังโหลดสื่อ...</p>';
     modal.style.display = 'flex';
     
     const lowerUrl = url.toLowerCase();
     let embedHtml = '';
+    const isImage = lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|jfif)/i) != null || (lowerUrl.includes('alt=media') && !lowerUrl.includes('.pdf'));
+
+    // ปรับขนาดหน้าต่างตามประเภทสื่อ
+    if (isImage) {
+        contentBox.style.width = 'auto';
+        contentBox.style.height = 'auto';
+        contentBox.style.maxWidth = '90%';
+        contentBox.style.maxHeight = '90%';
+    } else {
+        contentBox.style.width = '90%';
+        contentBox.style.height = '90%';
+        contentBox.style.maxWidth = '90%';
+        contentBox.style.maxHeight = '90%';
+    }
     
     if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
         let videoId = '';
@@ -1171,8 +1198,8 @@ window.openMediaModal = function(url) {
         } else {
             embedHtml = `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
         }
-    } else if (lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|jfif)/i) != null || (lowerUrl.includes('alt=media') && !lowerUrl.includes('.pdf'))) {
-        embedHtml = `<img src="${url}" style="max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; display: block;">`;
+    } else if (isImage) {
+        embedHtml = `<img src="${url}" style="max-width: 100%; max-height: 80vh; object-fit: contain; margin: auto; display: block; border-radius: 4px;">`;
     } else {
         embedHtml = `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
     }
