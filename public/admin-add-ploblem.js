@@ -1089,6 +1089,20 @@ root.mainloop()`);
     if (guiRequirements) {
         guiRequirements.innerHTML = '';
     }
+    
+    // เคลียร์ค่าตัวแปร global ที่เกี่ยวข้องกับโจทย์ก่อนหน้า
+    if (typeof window.savedWidgets !== 'undefined') {
+        window.savedWidgets = [];
+    }
+    if (typeof savedWidgets !== 'undefined') {
+        savedWidgets = [];
+    }
+    
+    // ล้าง GUI Test Cases (Action)
+    const guiTestCases = document.getElementById('guiTestCases');
+    if (guiTestCases) {
+        guiTestCases.innerHTML = '';
+    }
 
   
 

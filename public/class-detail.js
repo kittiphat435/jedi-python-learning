@@ -190,9 +190,17 @@ function showCreateProblemModal(problemData = null) {
 
     if (!modal || !form) return;
 
-    // รีเซ็ตฟอร์ม
+    // รีเซ็ตฟอร์มให้สะอาด
     form.reset();
     form.removeAttribute('data-problem-id');
+    
+    // เคลียร์ค่าตัวแปร global ที่เกี่ยวข้องกับโจทย์ก่อนหน้า
+    if (typeof window.savedWidgets !== 'undefined') {
+        window.savedWidgets = [];
+    }
+    if (typeof savedWidgets !== 'undefined') {
+        savedWidgets = [];
+    }
 
     // ถ้ามี problemData แสดงว่าเป็นการแก้ไข
     if (problemData) {

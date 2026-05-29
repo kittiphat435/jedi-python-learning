@@ -251,10 +251,20 @@ function generateClassCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Handle Problem Modal
+// Close Modal
 function closeModal() {
     document.getElementById('problemModal').style.display = 'none';
     document.getElementById('problemForm').reset();
+    
+    // เคลียร์ค่าตัวแปร global ที่เกี่ยวข้องกับโจทย์ก่อนหน้า
+    if (typeof window.savedWidgets !== 'undefined') {
+        window.savedWidgets = [];
+    }
+    if (typeof savedWidgets !== 'undefined') {
+        savedWidgets = [];
+    }
+    const guiTestCases = document.getElementById('guiTestCases');
+    if (guiTestCases) guiTestCases.innerHTML = '';
 }
 
 // Add Test Case
