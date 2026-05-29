@@ -272,8 +272,23 @@ textarea.input-field {
 .modal-content h6, 
 .modal-content p,
 .modal-content span,
-.modal-content label {
+.modal-content label,
+.modal-content button,
+.modal-content select,
+.modal-content input,
+.modal-content div {
     color: #333;
+}
+
+.modal-content button {
+    color: white; /* สำหรับปุ่มส่วนใหญ่ มักจะใช้สีขาวตัดกับพื้นหลังสี */
+}
+
+.modal-content .secondary-btn,
+.modal-content .cancel-btn,
+.modal-content .edit-btn,
+.modal-content .tab-btn {
+    color: #333; /* ปุ่มที่พื้นหลังสีอ่อนให้ใช้ตัวหนังสือสีเข้ม */
 }
 
 .modal-header {
