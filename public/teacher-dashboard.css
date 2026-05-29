@@ -336,6 +336,7 @@ textarea.input-field {
 
 .modal-content {
     background: white;
+    color: #333; /* เพิ่มบรรทัดนี้เพื่อไม่ให้สีตัวอักษรกลืนกับพื้นหลังขาว */
     padding: 20px;
     border-radius: 8px;
     width: 100%;
@@ -343,6 +344,18 @@ textarea.input-field {
     margin: 20px auto;
     max-height: 90vh;
     overflow-y: auto;
+}
+
+.modal-content h1, 
+.modal-content h2, 
+.modal-content h3, 
+.modal-content h4, 
+.modal-content h5, 
+.modal-content h6, 
+.modal-content p,
+.modal-content span,
+.modal-content label {
+    color: #333;
 }
 
 .modal-header {
