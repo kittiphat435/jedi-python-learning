@@ -21,19 +21,19 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ป้องกันปัญหา Firestore Offline Cache พังตอนไฟดับ/เน็ตตัด
-enableIndexedDbPersistence(db).catch((err) => {
-    console.warn('Firestore persistence error:', err.code);
-    if (err.code === 'failed-precondition') {
-        // เคลียร์แคชอัตโนมัติถ้าพัง
-        clearIndexedDbPersistence(db).catch(console.error);
-    }
-});
-
 const provider = new GoogleAuthProvider();
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 if (isLocalhost) {
     connectFirestoreEmulator(db, 'localhost', 8080);
+} else {
+    // ป้องกันปัญหา Firestore Offline Cache พังตอนไฟดับ/เน็ตตัด
+    enableIndexedDbPersistence(db).catch((err) => {
+        console.warn('Firestore persistence error:', err.code);
+        if (err.code === 'failed-precondition') {
+            // เคลียร์แคชอัตโนมัติถ้าพัง
+            clearIndexedDbPersistence(db).catch(console.error);
+        }
+    });
 }
 
 // ฟังก์ชันสำหรับ Google Sign-in

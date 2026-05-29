@@ -108,20 +108,22 @@
         const db = firebase.firestore();
 
         // ป้องกันปัญหา Firestore Offline Cache พังตอนไฟดับ/เน็ตตัด
-        db.settings({
-            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-        });
-        db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-            console.warn('Firestore persistence error (อาจเกิดจากเปิดหลายแท็บ หรือเบราว์เซอร์ไม่รองรับ):', err.code);
-            if (err.code === 'failed-precondition') {
-                // เคลียร์แคชอัตโนมัติถ้าพัง
-                db.clearPersistence().catch(console.error);
-            }
-        });
-
+        // หมายเหตุ: ต้องตั้งค่าก่อนเรียกใช้ฟังก์ชันอื่นๆ ของ db (ยกเว้น useEmulator)
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         if (isLocalhost) {
             db.useEmulator('localhost', 8080);
+        } else {
+            // ห้ามตั้งค่า settings/persistence หลังเรียก useEmulator ใน SDK v8/v9-compat
+            db.settings({
+                cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+            });
+            db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+                console.warn('Firestore persistence error (อาจเกิดจากเปิดหลายแท็บ หรือเบราว์เซอร์ไม่รองรับ):', err.code);
+                if (err.code === 'failed-precondition') {
+                    // เคลียร์แคชอัตโนมัติถ้าพัง
+                    db.clearPersistence().catch(console.error);
+                }
+            });
         }
 
         // ประกาศฟังก์ชันให้ใช้งานได้ทั่วไป

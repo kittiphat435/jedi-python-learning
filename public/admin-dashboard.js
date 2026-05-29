@@ -19,12 +19,17 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // ป้องกันปัญหา Firestore Offline Cache พัง
-db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
-db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-    if (err.code === 'failed-precondition') {
-        db.clearPersistence().catch(console.error);
-    }
-});
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+if (isLocalhost) {
+    // db.useEmulator('localhost', 8080); // ถ้าใช้ emulator ใน admin-dashboard ด้วย
+} else {
+    db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+        if (err.code === 'failed-precondition') {
+            db.clearPersistence().catch(console.error);
+        }
+    });
+}
 
 
 
