@@ -107,6 +107,23 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        // ป้องกันปัญหา Firestore Offline Cache พังตอนไฟดับ/เน็ตตัด
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+        });
+        db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+            console.warn('Firestore persistence error (อาจเกิดจากเปิดหลายแท็บ หรือเบราว์เซอร์ไม่รองรับ):', err.code);
+            if (err.code === 'failed-precondition') {
+                // เคลียร์แคชอัตโนมัติถ้าพัง
+                db.clearPersistence().catch(console.error);
+            }
+        });
+
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalhost) {
+            db.useEmulator('localhost', 8080);
+        }
+
         // ประกาศฟังก์ชันให้ใช้งานได้ทั่วไป
         window.handleRoleChange = handleRoleChange;
         window.handleSubjectChange = handleSubjectChange;
@@ -164,7 +181,12 @@
                 }
             } catch (error) {
                 console.error("Login error:", error);
-                alert('Error signing in: ' + error.message);
+                const message = String(error?.message || error);
+                if (message.includes('client is offline')) {
+                    alert('เชื่อมต่อฐานข้อมูล Firestore ไม่ได้ (offline)\n\nถ้าเปิดในเครื่อง: ให้รัน firebase emulators:start --only firestore\nหรือใช้ Local Emulator Suite (hosting+firestore)\nถ้าเปิดออนไลน์: ตรวจว่าเครือข่าย/ไฟร์วอลล์บล็อก firestore.googleapis.com หรือ Google APIs');
+                } else {
+                    alert('Error signing in: ' + message);
+                }
             } finally {
                 isProcessing = false;
             }

@@ -18,6 +18,14 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// ป้องกันปัญหา Firestore Offline Cache พัง
+db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+    if (err.code === 'failed-precondition') {
+        db.clearPersistence().catch(console.error);
+    }
+});
+
 
 
 // ประกาศที่ window.adminDashboard แทน

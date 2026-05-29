@@ -3,7 +3,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider } 
 from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { getFirestore, doc, setDoc, getDoc } 
+import { getFirestore, doc, setDoc, getDoc, connectFirestoreEmulator, enableIndexedDbPersistence, clearIndexedDbPersistence } 
 from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // Firebase configuration
@@ -20,7 +20,21 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// ป้องกันปัญหา Firestore Offline Cache พังตอนไฟดับ/เน็ตตัด
+enableIndexedDbPersistence(db).catch((err) => {
+    console.warn('Firestore persistence error:', err.code);
+    if (err.code === 'failed-precondition') {
+        // เคลียร์แคชอัตโนมัติถ้าพัง
+        clearIndexedDbPersistence(db).catch(console.error);
+    }
+});
+
 const provider = new GoogleAuthProvider();
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+if (isLocalhost) {
+    connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // ฟังก์ชันสำหรับ Google Sign-in
 export async function signInWithGoogle() {
@@ -43,7 +57,12 @@ export async function signInWithGoogle() {
         }
     } catch (error) {
         console.error("Login error:", error);
-        alert('เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + error.message);
+        const message = String(error?.message || error);
+        if (message.includes('client is offline')) {
+            alert('เชื่อมต่อฐานข้อมูล Firestore ไม่ได้ (offline)\n\nถ้าเปิดในเครื่อง: ให้รัน firebase emulators:start --only firestore\nหรือใช้ Local Emulator Suite (hosting+firestore)\nถ้าเปิดออนไลน์: ตรวจว่าเครือข่าย/ไฟร์วอลล์บล็อก firestore.googleapis.com หรือ Google APIs');
+        } else {
+            alert('เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + message);
+        }
     }
 }
 
