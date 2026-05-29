@@ -23,9 +23,13 @@ const db = getFirestore(app);
 
 const provider = new GoogleAuthProvider();
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// ยกเลิกการใช้ Emulator ชั่วคราวเพื่อเชื่อมต่อฐานข้อมูลจริงเสมอ
+/*
 if (isLocalhost) {
     connectFirestoreEmulator(db, 'localhost', 8080);
 } else {
+*/
     // ป้องกันปัญหา Firestore Offline Cache พังตอนไฟดับ/เน็ตตัด
     enableIndexedDbPersistence(db).catch((err) => {
         console.warn('Firestore persistence error:', err.code);
@@ -34,7 +38,7 @@ if (isLocalhost) {
             clearIndexedDbPersistence(db).catch(console.error);
         }
     });
-}
+// }
 
 // ฟังก์ชันสำหรับ Google Sign-in
 export async function signInWithGoogle() {
