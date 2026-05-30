@@ -4038,7 +4038,7 @@ async function sendToSimulator(autoRun = false) {
         case 'button':
           let fn = buttonToFunc[widget.name] || widget.name + "()";
           if (!fn.includes('(')) fn += '()';
-          html.push(`<button onclick="${fn}" class="tk-button" data-index="${widgetIndex++}" style="${layoutStyle}">${widget.data.text}</button>`);
+          html.push(`<button id="btn_${widget.name}" onclick="${fn}" class="tk-button" data-var="${widget.name}" data-index="${widgetIndex++}" style="${layoutStyle}">${widget.data.text}</button>`);
           break;
       }
     });
@@ -4595,8 +4595,11 @@ if (testCaseBtn) {
                         const widgetName = output.widget || output.name;
                         const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
                         return {
-                            name: widgetName, widget: widgetDef.type || 'Label',
-                            text: widgetDef.text || '', value: output.value
+                            name: widgetName,
+                            widget: widgetName,
+                            type: widgetDef.type || '',
+                            text: widgetDef.text || '',
+                            value: output.value
                         };
                     }),
                     explanation: testCase.explanation || ""
@@ -4721,7 +4724,7 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 
                         // 3) ถ้าไม่เจออีก ให้หา element ที่มีข้อความ "ตรงกับค่าที่คาดหวัง" ก่อน
                         if (!targetElement && output.value) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
                             targetElement = allElements.find(el =>
                                 el.textContent && el.textContent.trim() === output.value
                             );
@@ -4729,7 +4732,7 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 
                         // 4) สุดท้าย ค่อย fallback เป็นข้อความเดิม (ถ้ามี)
                         if (!targetElement && output.text) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span'));
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
                             targetElement = allElements.find(el =>
                                 el.textContent && el.textContent.trim() === output.text
                             );
@@ -4873,7 +4876,7 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 
                         // 3) fallback หา element ที่มีข้อความเท่ากับ expected
                         if (!element && output.value) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span, input[type="text"]'));
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"]'));
                             element = allElements.find(el => {
                                 if (el.tagName.toLowerCase() === 'input') {
                                     return el.value && el.value.trim() === output.value;
@@ -4883,28 +4886,66 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                         }
 
                         if (element) {
-                            if (element.tagName.toLowerCase() === 'input') {
+                            const expectedRaw = (output.value ?? '').toString();
+                            const expected = expectedRaw.trim();
+                            const expectedLower = expected.toLowerCase();
+                            const isInput = element.tagName.toLowerCase() === 'input' && element.getAttribute('type') !== 'button';
+                            const isButton = element.tagName.toLowerCase() === 'button' || element.getAttribute('type') === 'button' || element.classList.contains('tk-button') || output.type === 'Button';
+
+                            if (isInput) {
                                 actualValue = (element.value || '').trim();
+                            } else if (isButton && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
+                                actualValue = element.disabled ? 'disabled' : 'enabled';
+                            } else if (element.tagName.toLowerCase() === 'input' && element.getAttribute('type') === 'button') {
+                                actualValue = ((element.value || element.getAttribute('value') || '') + '').trim();
                             } else {
                                 actualValue = (element.textContent || '').trim();
                             }
 
-                            if (actualValue === (output.value || '')) {
+                            const actualComparable = (actualValue || '').toString().trim();
+                            const matches = (expectedLower === 'disabled' || expectedLower === 'enabled')
+                                ? actualComparable.toLowerCase() === expectedLower
+                                : actualComparable === expected;
+
+                            if (matches) {
                                 details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
                             } else {
                                 // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง แล้วเลือกตัวที่ match
                                 let recovered = false;
-                                if (output.value) {
-                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, div, span, input[type="text"]'));
+                                if (expected) {
+                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"]'));
                                     const matchEl = allElements.find(el => {
-                                        if (el.tagName.toLowerCase() === 'input') {
-                                            return el.value && el.value.trim() === output.value;
+                                        const tag = el.tagName.toLowerCase();
+                                        const type = el.getAttribute('type') || '';
+                                        const isInputEl = tag === 'input' && type !== 'button';
+                                        const isButtonEl = tag === 'button' || type === 'button' || el.classList.contains('tk-button');
+
+                                        if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
+                                            const state = el.disabled ? 'disabled' : 'enabled';
+                                            return state === expectedLower;
                                         }
-                                        return el.textContent && el.textContent.trim() === output.value;
+
+                                        if (isInputEl) {
+                                            return el.value && el.value.trim() === expected;
+                                        }
+                                        return el.textContent && el.textContent.trim() === expected;
                                     });
                                     if (matchEl) {
                                         element = matchEl;
-                                        actualValue = matchEl.tagName.toLowerCase() === 'input' ? (matchEl.value || '').trim() : (matchEl.textContent || '').trim();
+                                        const tag = matchEl.tagName.toLowerCase();
+                                        const type = matchEl.getAttribute('type') || '';
+                                        const isInputEl = tag === 'input' && type !== 'button';
+                                        const isButtonEl = tag === 'button' || type === 'button' || matchEl.classList.contains('tk-button');
+
+                                        if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
+                                            actualValue = matchEl.disabled ? 'disabled' : 'enabled';
+                                        } else if (tag === 'input' && type === 'button') {
+                                            actualValue = ((matchEl.value || matchEl.getAttribute('value') || '') + '').trim();
+                                        } else if (isInputEl) {
+                                            actualValue = (matchEl.value || '').trim();
+                                        } else {
+                                            actualValue = (matchEl.textContent || '').trim();
+                                        }
                                         recovered = true;
                                         details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
                                     }
