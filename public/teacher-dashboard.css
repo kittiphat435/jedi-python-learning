@@ -1866,6 +1866,22 @@ body.has-code-warp {
     background: rgba(255, 255, 255, 0.16);
 }
 
+.has-code-warp .test-cases,
+.has-code-warp .test-case,
+.has-code-warp .inputs-section {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: none;
+}
+
+.has-code-warp .inputs-section h4 {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp .input-entry {
+    background: rgba(0, 0, 0, 0.22);
+}
+
 .has-code-warp .pagination button {
     background: rgba(0, 0, 0, 0.25);
     color: rgba(255, 255, 255, 0.92);
@@ -1908,6 +1924,136 @@ body.has-code-warp {
 
 .has-code-warp .form-group label {
     color: rgba(255, 255, 255, 0.88);
+}
+
+.has-code-warp #guiSection label {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp #guiSection .form-group h3 {
+    color: var(--accent);
+}
+
+.has-code-warp #guiSection h4 {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp .modal-content h1,
+.has-code-warp .modal-content h2,
+.has-code-warp .modal-content h3,
+.has-code-warp .modal-content h4,
+.has-code-warp .modal-content h5,
+.has-code-warp .modal-content h6,
+.has-code-warp .modal-content p,
+.has-code-warp .modal-content span,
+.has-code-warp .modal-content label {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.has-code-warp .scoring-criteria h4 {
+    color: var(--accent);
+}
+
+.has-code-warp .criteria-item {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .criteria-item span {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.has-code-warp .criteria-item .score-input,
+.has-code-warp .total-score input {
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .matching-pairs-section {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .matching-column,
+.has-code-warp .pairs-list,
+.has-code-warp .pair-item {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .pair-label,
+.has-code-warp .column-header h4 {
+    color: var(--accent);
+}
+
+.has-code-warp .pair-item textarea {
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .score-input input {
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .score-input span {
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.has-code-warp .flowchart-editor {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .editor-toolbar {
+    background: rgba(0, 0, 0, 0.22);
+    border-bottom-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .toolbar-group {
+    border-right-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .modal-content .tool-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.has-code-warp .modal-content .tool-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .modal-content .tool-btn.active {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: var(--accent);
+}
+
+.has-code-warp .modal-content .tool-btn.delete {
+    border-color: rgba(220, 53, 69, 0.75);
+}
+
+.has-code-warp .modal-content .tool-btn.delete:hover {
+    background: rgba(220, 53, 69, 0.18);
+}
+
+.has-code-warp .flowchart-canvas {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .modal-content .clear-btn {
+    background: rgba(220, 53, 69, 0.18);
+    color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(220, 53, 69, 0.55);
+}
+
+.has-code-warp .modal-content .clear-btn:hover {
+    background: rgba(220, 53, 69, 0.35);
+    color: rgba(255, 255, 255, 0.96);
 }
 
 .attachment-panel {
@@ -2019,4 +2165,32 @@ body.has-code-warp {
 .solution-editor {
     border: 1px solid #4CAF50 !important;  /* ขอบสีเขียว เพื่อให้เห็นชัดว่าเป็นเฉลย */
     background-color: #f8fff8;            /* พื้นหลังสีเขียวอ่อน */
+}
+
+.has-code-warp #guiRequirements {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .requirement-item {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.has-code-warp .requirement-item input,
+.has-code-warp .requirement-item select,
+.has-code-warp .requirement-item textarea {
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.has-code-warp .requirement-item input::placeholder,
+.has-code-warp .requirement-item textarea::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.has-code-warp .requirement-item select option {
+    background: #111;
+    color: rgba(255, 255, 255, 0.92);
 }
