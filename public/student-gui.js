@@ -4876,9 +4876,17 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 
                         // 3) fallback หา element ที่มีข้อความเท่ากับ expected
                         if (!element && output.value) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"]'));
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]'));
                             element = allElements.find(el => {
-                                if (el.tagName.toLowerCase() === 'input') {
+                                const tag = el.tagName.toLowerCase();
+                                const type = tag === 'input' ? (el.getAttribute('type') || '') : '';
+                                if (tag === 'input' && type === 'checkbox') {
+                                    const expected = (output.value ?? '').toString().trim().toLowerCase();
+                                    if (expected === 'checked' || expected === 'true' || expected === '1' || expected === 'yes') return el.checked === true;
+                                    if (expected === 'unchecked' || expected === 'false' || expected === '0' || expected === 'no') return el.checked === false;
+                                    return false;
+                                }
+                                if (tag === 'input') {
                                     return el.value && el.value.trim() === output.value;
                                 }
                                 return el.textContent && el.textContent.trim() === output.value;
@@ -4889,14 +4897,30 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             const expectedRaw = (output.value ?? '').toString();
                             const expected = expectedRaw.trim();
                             const expectedLower = expected.toLowerCase();
-                            const isInput = element.tagName.toLowerCase() === 'input' && element.getAttribute('type') !== 'button';
-                            const isButton = element.tagName.toLowerCase() === 'button' || element.getAttribute('type') === 'button' || element.classList.contains('tk-button') || output.type === 'Button';
+                            const tagName = element.tagName.toLowerCase();
+                            const inputType = tagName === 'input' ? (element.getAttribute('type') || '') : '';
+                            const isCheckbox = (tagName === 'input' && inputType === 'checkbox') || output.type === 'Checkbutton';
+                            const isInput = tagName === 'input' && inputType !== 'button' && inputType !== 'checkbox';
+                            const isButton = tagName === 'button' || inputType === 'button' || element.classList.contains('tk-button') || output.type === 'Button';
 
-                            if (isInput) {
+                            if (isCheckbox) {
+                                const widgetMeta = window.widgetDefinitions?.find(w => w.name === (output.widget || output.name)) || null;
+                                const onvalue = widgetMeta?.onvalue != null ? widgetMeta.onvalue.toString() : '1';
+                                const offvalue = widgetMeta?.offvalue != null ? widgetMeta.offvalue.toString() : '0';
+                                const checked = !!element.checked;
+
+                                if (/^-?\d+(\.\d+)?$/.test(expected)) {
+                                    actualValue = checked ? onvalue : offvalue;
+                                } else if (expectedLower === 'enabled' || expectedLower === 'disabled') {
+                                    actualValue = element.disabled ? 'disabled' : 'enabled';
+                                } else {
+                                    actualValue = checked ? 'checked' : 'unchecked';
+                                }
+                            } else if (isInput) {
                                 actualValue = (element.value || '').trim();
                             } else if (isButton && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
                                 actualValue = element.disabled ? 'disabled' : 'enabled';
-                            } else if (element.tagName.toLowerCase() === 'input' && element.getAttribute('type') === 'button') {
+                            } else if (tagName === 'input' && inputType === 'button') {
                                 actualValue = ((element.value || element.getAttribute('value') || '') + '').trim();
                             } else {
                                 actualValue = (element.textContent || '').trim();
@@ -4913,12 +4937,19 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                 // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง แล้วเลือกตัวที่ match
                                 let recovered = false;
                                 if (expected) {
-                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"]'));
+                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]'));
                                     const matchEl = allElements.find(el => {
                                         const tag = el.tagName.toLowerCase();
                                         const type = el.getAttribute('type') || '';
-                                        const isInputEl = tag === 'input' && type !== 'button';
+                                        const isCheckboxEl = tag === 'input' && type === 'checkbox';
+                                        const isInputEl = tag === 'input' && type !== 'button' && type !== 'checkbox';
                                         const isButtonEl = tag === 'button' || type === 'button' || el.classList.contains('tk-button');
+
+                                        if (isCheckboxEl) {
+                                            if (expectedLower === 'checked' || expectedLower === 'true' || expectedLower === '1' || expectedLower === 'yes') return el.checked === true;
+                                            if (expectedLower === 'unchecked' || expectedLower === 'false' || expectedLower === '0' || expectedLower === 'no') return el.checked === false;
+                                            return false;
+                                        }
 
                                         if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
                                             const state = el.disabled ? 'disabled' : 'enabled';
@@ -4934,10 +4965,20 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                         element = matchEl;
                                         const tag = matchEl.tagName.toLowerCase();
                                         const type = matchEl.getAttribute('type') || '';
-                                        const isInputEl = tag === 'input' && type !== 'button';
+                                        const isCheckboxEl = tag === 'input' && type === 'checkbox';
+                                        const isInputEl = tag === 'input' && type !== 'button' && type !== 'checkbox';
                                         const isButtonEl = tag === 'button' || type === 'button' || matchEl.classList.contains('tk-button');
 
-                                        if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
+                                        if (isCheckboxEl) {
+                                            if (/^-?\d+(\.\d+)?$/.test(expected)) {
+                                                const widgetMeta = window.widgetDefinitions?.find(w => w.name === (output.widget || output.name)) || null;
+                                                const onvalue = widgetMeta?.onvalue != null ? widgetMeta.onvalue.toString() : '1';
+                                                const offvalue = widgetMeta?.offvalue != null ? widgetMeta.offvalue.toString() : '0';
+                                                actualValue = matchEl.checked ? onvalue : offvalue;
+                                            } else {
+                                                actualValue = matchEl.checked ? 'checked' : 'unchecked';
+                                            }
+                                        } else if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
                                             actualValue = matchEl.disabled ? 'disabled' : 'enabled';
                                         } else if (tag === 'input' && type === 'button') {
                                             actualValue = ((matchEl.value || matchEl.getAttribute('value') || '') + '').trim();

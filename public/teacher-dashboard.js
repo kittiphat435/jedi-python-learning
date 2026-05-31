@@ -1395,7 +1395,7 @@ async function editProblem(problemId) {
                             .map(widget => `<option value="${widget.name}">${widget.type}: ${widget.text || widget.name}</option>`)
                             .join('');
                         const outputOptions = problemData.widgets
-                            .filter(widget => ['Label', 'Entry', 'Combobox', 'Button'].includes(widget.type))
+                            .filter(widget => ['Label', 'Entry', 'Combobox', 'Button', 'Checkbutton'].includes(widget.type))
                             .map(widget => `<option value="${widget.name}">${widget.type}: ${widget.text || widget.name}</option>`)
                             .join('');
                         const actionOptions = problemData.widgets
@@ -3698,7 +3698,7 @@ function validateGUICode(code) {
 
             for (const output of testCase.outputs) {
                 const outputWidget = requirements.find(req => req.name === output.widget);
-                if (!outputWidget || !['Label', 'Entry', 'Combobox', 'Button'].includes(outputWidget.type)) {
+                if (!outputWidget || !['Label', 'Entry', 'Combobox', 'Button', 'Checkbutton'].includes(outputWidget.type)) {
                     throw new Error(`Widget สำหรับ Output (${outputWidget?.text || output.widget}) ไม่พบในข้อกำหนดหรือประเภทไม่ถูกต้อง`);
                 }
             }
@@ -3875,7 +3875,7 @@ function addGUITestCase() {
         .map(widget => `<option value="${widget.name}">${widget.type}: ${widget.text || widget.name}</option>`)
         .join('');
     const outputOptions = widgets
-        .filter(widget => ['Label', 'Entry', 'Combobox', 'Button'].includes(widget.type))
+        .filter(widget => ['Label', 'Entry', 'Combobox', 'Button', 'Checkbutton'].includes(widget.type))
         .map(widget => `<option value="${widget.name}">${widget.type}: ${widget.text || widget.name}</option>`)
         .join('');
     const actionOptions = widgets
@@ -3923,7 +3923,7 @@ function addGUIOutputToTestCase(button) {
     const testCase = button.closest('.test-case');
     const outputList = testCase.querySelector('.output-list');
     const outputOptions = window.savedWidgets
-        .filter(widget => ['Label', 'Entry', 'Combobox', 'Button'].includes(widget.type))
+        .filter(widget => ['Label', 'Entry', 'Combobox', 'Button', 'Checkbutton'].includes(widget.type))
         .map(widget => `<option value="${widget.name}">${widget.type}: ${widget.text || widget.name}</option>`)
         .join('');
     const outputEntry = document.createElement('div');
