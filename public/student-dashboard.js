@@ -19,6 +19,32 @@ const defaultAvatar = `data:image/svg+xml,${encodeURIComponent(`
       <path fill="#999" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
     </svg>
   `)}`;
+
+const __docCache = new Map();
+const __docInflight = new Map();
+async function getDocCached(collectionName, docId, ttlMs = 60000) {
+    const key = `${collectionName}/${docId}`;
+    const now = Date.now();
+    const cached = __docCache.get(key);
+    if (cached && (now - cached.fetchedAt) < ttlMs) {
+        return cached.value;
+    }
+    const inflight = __docInflight.get(key);
+    if (inflight) {
+        return inflight;
+    }
+    const p = db.collection(collectionName).doc(docId).get().then((snap) => {
+        const value = { id: snap.id, exists: snap.exists, data: snap.data() };
+        __docCache.set(key, { value, fetchedAt: Date.now() });
+        __docInflight.delete(key);
+        return value;
+    }).catch((err) => {
+        __docInflight.delete(key);
+        throw err;
+    });
+    __docInflight.set(key, p);
+    return p;
+}
 function getProfileImage(user) {
     if (!user || !user.photoURL) {
         return defaultAvatar;
@@ -404,13 +430,14 @@ async function loadEnrolledClasses(userId) {
         }
 
         const classPromises = enrollments.docs.map(async (enrollment) => {
-            const classDoc = await db.collection('classes')
-                .doc(enrollment.data().classId)
-                .get();
-            return { id: classDoc.id, ...classDoc.data() };
+            const classId = enrollment.data().classId;
+            if (!classId) return null;
+            const classDoc = await getDocCached('classes', classId, 60000);
+            if (!classDoc.exists) return null;
+            return { id: classDoc.id, ...classDoc.data };
         });
 
-        const classes = await Promise.all(classPromises);
+        const classes = (await Promise.all(classPromises)).filter(Boolean);
         classList.innerHTML = '';
 
         classes.forEach(classData => {
@@ -459,18 +486,19 @@ async function loadRecentProblems(userId) {
         }
 
         const problemPromises = submissions.docs.map(async (submission) => {
-            const problemDoc = await db.collection('problems')
-                .doc(submission.data().problemId)
-                .get();
+            const problemId = submission.data().problemId;
+            if (!problemId) return null;
+            const problemDoc = await getDocCached('problems', problemId, 60000);
+            if (!problemDoc.exists) return null;
             return {
                 id: problemDoc.id,
-                ...problemDoc.data(),
+                ...problemDoc.data,
                 status: submission.data().status,
                 submittedAt: submission.data().submittedAt
             };
         });
 
-        const problems = await Promise.all(problemPromises);
+        const problems = (await Promise.all(problemPromises)).filter(Boolean);
         recentProblems.innerHTML = '';
 
         problems.forEach(problem => {

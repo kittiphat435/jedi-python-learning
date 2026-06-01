@@ -4690,6 +4690,49 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                 let details = [];
                 
                 console.log(`=== Started Test Case #${testNumber} ===`);
+                const widgetDefinitions = Array.isArray(window.widgetDefinitions) ? window.widgetDefinitions : [];
+                const widgetMetaByName = new Map(widgetDefinitions.map(w => [w?.name, w]).filter(([k]) => !!k));
+                const OUTPUT_QUERY = '.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]';
+                const NUMBER_RE = /^-?\d+(\.\d+)?$/;
+                const TRUTHY_RE = /^(checked|true|1|yes)$/i;
+                const FALSEY_RE = /^(unchecked|false|0|no)$/i;
+
+                const waitForDomIdle = (doc, maxMs = 500, idleMs = 120) => new Promise((r) => {
+                    let done = false;
+                    let idleTimer = null;
+                    const stop = () => {
+                        if (done) return;
+                        done = true;
+                        try { observer.disconnect(); } catch {}
+                        if (idleTimer) clearTimeout(idleTimer);
+                        r();
+                    };
+                    const maxTimer = setTimeout(stop, Math.max(0, maxMs));
+                    const observer = new MutationObserver(() => {
+                        if (idleTimer) clearTimeout(idleTimer);
+                        idleTimer = setTimeout(() => {
+                            clearTimeout(maxTimer);
+                            stop();
+                        }, Math.max(0, idleMs));
+                    });
+                    try {
+                        observer.observe(doc.documentElement || doc.body, { subtree: true, childList: true, attributes: true, characterData: true });
+                    } catch {}
+                    idleTimer = setTimeout(() => {
+                        clearTimeout(maxTimer);
+                        stop();
+                    }, Math.max(0, idleMs));
+                    const win = doc.defaultView;
+                    if (win && typeof win.requestAnimationFrame === 'function') {
+                        win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
+                            if (idleTimer) clearTimeout(idleTimer);
+                            idleTimer = setTimeout(() => {
+                                clearTimeout(maxTimer);
+                                stop();
+                            }, Math.max(0, idleMs));
+                        }));
+                    }
+                });
 
                 // ==========================================
                 // ✅ STEP 0: PRE-MAPPING (หัวใจสำคัญของการแก้นี้)
@@ -4794,19 +4837,22 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                 // STEP 2: ทำ Actions (กดปุ่ม / ติ๊กถูก)
                 // ==========================================
                 if (testCase.actions && testCase.actions.length > 0) {
+                    const buttons = iframeDoc.querySelectorAll('button, input[type="button"]');
+                    const labels = iframeDoc.querySelectorAll('label');
                     for (let i = 0; i < testCase.actions.length; i++) {
                         const action = testCase.actions[i];
                         console.log(`Processing action: ${action.widget} -> ${action.state}`);
 
                         // กรณีเป็นปุ่ม (Button)
                         if (action.widget.includes('Button') || action.widget === 'vbcb' || action.state === 'pressed') {
-                            const buttons = Array.from(iframeDoc.querySelectorAll('button, input[type="button"]'));
-                            
                             // หาปุ่มที่ข้อความตรง หรือ data-var ตรง
-                            let button = buttons.find(b => 
-                                (b.textContent && b.textContent.includes(action.text)) || 
-                                (b.getAttribute('data-var') === action.text)
-                            );
+                            let button = null;
+                            for (const b of buttons) {
+                                if ((b.textContent && b.textContent.includes(action.text)) || (b.getAttribute('data-var') === action.text)) {
+                                    button = b;
+                                    break;
+                                }
+                            }
                             
                             // Fallback: ถ้าหาไม่เจอ และมีปุ่มเดียว ให้กดปุ่มนั้นเลย
                             if (!button && buttons.length > 0 && testCase.actions.length === 1) {
@@ -4831,8 +4877,13 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             let cb = iframeDoc.querySelector(`input[type="checkbox"][data-var="${action.text}"]`);
                             if (!cb) {
                                 // หาจาก label
-                                const labels = Array.from(iframeDoc.querySelectorAll('label'));
-                                const targetLabel = labels.find(l => l.textContent.includes(action.text));
+                                let targetLabel = null;
+                                for (const l of labels) {
+                                    if (l.textContent && l.textContent.includes(action.text)) {
+                                        targetLabel = l;
+                                        break;
+                                    }
+                                }
                                 if (targetLabel) {
                                     const id = targetLabel.getAttribute('for');
                                     if (id) cb = iframeDoc.getElementById(id);
@@ -4853,16 +4904,20 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                 }
 
                 // รอเวลาเพิ่มเติมเพื่อให้ UI อัปเดตเสร็จสมบูรณ์
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await waitForDomIdle(iframeDoc, 500);
                 
                 // ==========================================
                 // STEP 3: ตรวจสอบ Outputs (ใช้ ID ที่จดไว้ใน Step 0)
                 // ==========================================
                 if (testCase.outputs) {
+                    const outputLookupElements = Array.from(iframeDoc.querySelectorAll(OUTPUT_QUERY));
                     for (let i = 0; i < testCase.outputs.length; i++) {
                         const output = testCase.outputs[i];
                         let element = null;
                         let actualValue = '';
+                        const expectedRaw = (output.value ?? '').toString();
+                        const expected = expectedRaw.trim();
+                        const expectedLower = expected.toLowerCase();
 
                         // 1) หาจาก ID ที่จดไว้ก่อน
                         if (outputMap[i]) {
@@ -4875,28 +4930,24 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                         }
 
                         // 3) fallback หา element ที่มีข้อความเท่ากับ expected
-                        if (!element && output.value) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]'));
-                            element = allElements.find(el => {
+                        if (!element && expected) {
+                            for (const el of outputLookupElements) {
                                 const tag = el.tagName.toLowerCase();
                                 const type = tag === 'input' ? (el.getAttribute('type') || '') : '';
                                 if (tag === 'input' && type === 'checkbox') {
-                                    const expected = (output.value ?? '').toString().trim().toLowerCase();
-                                    if (expected === 'checked' || expected === 'true' || expected === '1' || expected === 'yes') return el.checked === true;
-                                    if (expected === 'unchecked' || expected === 'false' || expected === '0' || expected === 'no') return el.checked === false;
-                                    return false;
+                                    if (TRUTHY_RE.test(expectedLower) && el.checked === true) { element = el; break; }
+                                    if (FALSEY_RE.test(expectedLower) && el.checked === false) { element = el; break; }
+                                    continue;
                                 }
                                 if (tag === 'input') {
-                                    return el.value && el.value.trim() === output.value;
+                                    if (el.value && el.value.trim() === expected) { element = el; break; }
+                                    continue;
                                 }
-                                return el.textContent && el.textContent.trim() === output.value;
-                            });
+                                if (el.textContent && el.textContent.trim() === expected) { element = el; break; }
+                            }
                         }
 
                         if (element) {
-                            const expectedRaw = (output.value ?? '').toString();
-                            const expected = expectedRaw.trim();
-                            const expectedLower = expected.toLowerCase();
                             const tagName = element.tagName.toLowerCase();
                             const inputType = tagName === 'input' ? (element.getAttribute('type') || '') : '';
                             const isCheckbox = (tagName === 'input' && inputType === 'checkbox') || output.type === 'Checkbutton';
@@ -4904,12 +4955,12 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             const isButton = tagName === 'button' || inputType === 'button' || element.classList.contains('tk-button') || output.type === 'Button';
 
                             if (isCheckbox) {
-                                const widgetMeta = window.widgetDefinitions?.find(w => w.name === (output.widget || output.name)) || null;
+                                const widgetMeta = widgetMetaByName.get(output.widget || output.name) || null;
                                 const onvalue = widgetMeta?.onvalue != null ? widgetMeta.onvalue.toString() : '1';
                                 const offvalue = widgetMeta?.offvalue != null ? widgetMeta.offvalue.toString() : '0';
                                 const checked = !!element.checked;
 
-                                if (/^-?\d+(\.\d+)?$/.test(expected)) {
+                                if (NUMBER_RE.test(expected)) {
                                     actualValue = checked ? onvalue : offvalue;
                                 } else if (expectedLower === 'enabled' || expectedLower === 'disabled') {
                                     actualValue = element.disabled ? 'disabled' : 'enabled';
@@ -4937,8 +4988,8 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                 // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง แล้วเลือกตัวที่ match
                                 let recovered = false;
                                 if (expected) {
-                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]'));
-                                    const matchEl = allElements.find(el => {
+                                    let matchEl = null;
+                                    for (const el of outputLookupElements) {
                                         const tag = el.tagName.toLowerCase();
                                         const type = el.getAttribute('type') || '';
                                         const isCheckboxEl = tag === 'input' && type === 'checkbox';
@@ -4946,21 +4997,23 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                         const isButtonEl = tag === 'button' || type === 'button' || el.classList.contains('tk-button');
 
                                         if (isCheckboxEl) {
-                                            if (expectedLower === 'checked' || expectedLower === 'true' || expectedLower === '1' || expectedLower === 'yes') return el.checked === true;
-                                            if (expectedLower === 'unchecked' || expectedLower === 'false' || expectedLower === '0' || expectedLower === 'no') return el.checked === false;
-                                            return false;
+                                            if (TRUTHY_RE.test(expectedLower) && el.checked === true) { matchEl = el; break; }
+                                            if (FALSEY_RE.test(expectedLower) && el.checked === false) { matchEl = el; break; }
+                                            continue;
                                         }
 
                                         if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
                                             const state = el.disabled ? 'disabled' : 'enabled';
-                                            return state === expectedLower;
+                                            if (state === expectedLower) { matchEl = el; break; }
+                                            continue;
                                         }
 
                                         if (isInputEl) {
-                                            return el.value && el.value.trim() === expected;
+                                            if (el.value && el.value.trim() === expected) { matchEl = el; break; }
+                                            continue;
                                         }
-                                        return el.textContent && el.textContent.trim() === expected;
-                                    });
+                                        if (el.textContent && el.textContent.trim() === expected) { matchEl = el; break; }
+                                    }
                                     if (matchEl) {
                                         element = matchEl;
                                         const tag = matchEl.tagName.toLowerCase();
@@ -4970,8 +5023,8 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                         const isButtonEl = tag === 'button' || type === 'button' || matchEl.classList.contains('tk-button');
 
                                         if (isCheckboxEl) {
-                                            if (/^-?\d+(\.\d+)?$/.test(expected)) {
-                                                const widgetMeta = window.widgetDefinitions?.find(w => w.name === (output.widget || output.name)) || null;
+                                            if (NUMBER_RE.test(expected)) {
+                                                const widgetMeta = widgetMetaByName.get(output.widget || output.name) || null;
                                                 const onvalue = widgetMeta?.onvalue != null ? widgetMeta.onvalue.toString() : '1';
                                                 const offvalue = widgetMeta?.offvalue != null ? widgetMeta.offvalue.toString() : '0';
                                                 actualValue = matchEl.checked ? onvalue : offvalue;

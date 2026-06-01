@@ -15,6 +15,32 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+const __docCache = new Map();
+const __docInflight = new Map();
+async function getDocCached(collectionName, docId, ttlMs = 60000) {
+    const key = `${collectionName}/${docId}`;
+    const now = Date.now();
+    const cached = __docCache.get(key);
+    if (cached && (now - cached.fetchedAt) < ttlMs) {
+        return cached.value;
+    }
+    const inflight = __docInflight.get(key);
+    if (inflight) {
+        return inflight;
+    }
+    const p = db.collection(collectionName).doc(docId).get().then((snap) => {
+        const value = { id: snap.id, exists: snap.exists, data: snap.data() };
+        __docCache.set(key, { value, fetchedAt: Date.now() });
+        __docInflight.delete(key);
+        return value;
+    }).catch((err) => {
+        __docInflight.delete(key);
+        throw err;
+    });
+    __docInflight.set(key, p);
+    return p;
+}
+
 // Auth State Observer
 auth.onAuthStateChanged((user) => {
     if (user) {
@@ -226,20 +252,20 @@ const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 
 async function loadClassDetails(classId) {
     try {
-        const classDoc = await db.collection('classes').doc(classId).get();
+        const classDoc = await getDocCached('classes', classId, 60000);
         if (!classDoc.exists) {
             throw new Error('ไม่พบห้องเรียน');
         }
 
-        const classData = classDoc.data();
+        const classData = classDoc.data;
 
         // ดึงข้อมูลครู
-        const teacherDoc = await db.collection('users').doc(classData.teacherId).get();
+        const teacherDoc = await getDocCached('users', classData.teacherId, 60000);
         if (!teacherDoc.exists) {
             throw new Error('ไม่พบข้อมูลครูผู้สอน');
         }
 
-        const teacherData = teacherDoc.data();
+        const teacherData = teacherDoc.data;
         console.log('Teacher data:', teacherData); // เพิ่ม log ดูข้อมูลครู
 
         // อัพเดท UI
@@ -338,7 +364,7 @@ async function loadProblems(classId, userId) {
             let problemDoc;
             
             try {
-                problemDoc = await db.collection('problems').doc(problemDataId).get();
+                problemDoc = await getDocCached('problems', problemDataId, 60000);
             } catch (e) {
                 return null;
             }
@@ -359,7 +385,7 @@ async function loadProblems(classId, userId) {
 
             return {
                 id: problemDoc.id,
-                ...problemDoc.data(),
+                ...problemDoc.data,
                 classId: classId,
                 status: status,
                 score: score,
@@ -544,10 +570,10 @@ async function loadStats(classId, userId) {
         let completedProblems = 0;
 
         for (let problemId of uniqueProblemIds) {
-            const problemDoc = await db.collection('problems').doc(problemId).get();
-            if (!problemDoc.exists) continue; // กันเหนียว
+            const problemDoc = await getDocCached('problems', problemId, 60000);
+            if (!problemDoc.exists) continue;
 
-            const problemData = problemDoc.data();
+            const problemData = problemDoc.data;
             let maxScore = 0;
 
             // กำหนดคะแนนเต็มตามประเภทโจทย์
