@@ -41,6 +41,14 @@ async function getDocCached(collectionName, docId, ttlMs = 60000) {
     return p;
 }
 
+function __chunkArray(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) {
+        out.push(arr.slice(i, i + size));
+    }
+    return out;
+}
+
 // Auth State Observer
 auth.onAuthStateChanged((user) => {
     if (user) {
@@ -569,14 +577,21 @@ async function loadStats(classId, userId) {
         let totalMaxScore = 0;
         let completedProblems = 0;
 
-        for (let problemId of uniqueProblemIds) {
-            const problemDoc = await getDocCached('problems', problemId, 60000);
-            if (!problemDoc.exists) continue;
+        const problemIds = Array.from(uniqueProblemIds);
+        const batches = __chunkArray(problemIds, 25);
+        const problemDocs = [];
+        for (const batch of batches) {
+            const docs = await Promise.all(batch.map((id) => getDocCached('problems', id, 60000)));
+            problemDocs.push(...docs);
+        }
 
+        for (let i = 0; i < problemDocs.length; i++) {
+            const problemDoc = problemDocs[i];
+            if (!problemDoc?.exists) continue;
+            const problemId = problemDoc.id;
             const problemData = problemDoc.data;
             let maxScore = 0;
 
-            // กำหนดคะแนนเต็มตามประเภทโจทย์
             if (problemData.type === 'flowchart') {
                 maxScore = problemData.maxScore || 10;
             } else if (problemData.type === 'python' && problemData.testCases) {
@@ -584,15 +599,11 @@ async function loadStats(classId, userId) {
             } else if (problemData.type === 'comprehension' && problemData.questions) {
                 maxScore = problemData.questions.reduce((sum, q) => sum + (q.score || 1), 0);
             } else if (problemData.type === 'matching' && problemData.pairs) {
-                // ใส่ parseInt เพื่อป้องกันการเอา string มาต่อกัน
                 maxScore = problemData.pairs.reduce((sum, pair) => sum + (parseInt(pair.score) || 1), 0);
             } else if (problemData.type === 'gui') {
-                // ✅ อ่านค่า maxScore จาก Database ได้เลย (ไม่ต้องคำนวณ widget+order เองแล้ว)
-                // (ใส่ fallback คำนวณเผื่อโจทย์เก่าที่ยังไม่อัปเดต)
                 if (problemData.maxScore) {
                     maxScore = problemData.maxScore;
                 } else {
-                    // Fallback: คำนวณสดสำหรับโจทย์เก่า
                     const wScore = (problemData.widgets || []).reduce((s, w) => s + (w.score || 1), 0);
                     const oScore = (problemData.widgets?.length >= 2) ? 5 : 0;
                     const tScore = (problemData.testCases || []).reduce((s, t) => s + (t.score || 1), 0);
@@ -600,22 +611,14 @@ async function loadStats(classId, userId) {
                 }
             }
 
-            // ตรวจสอบ submission 
             const submission = latestSubmissions.get(problemId);
-
             if (submission) {
-                // ใช้ maxScore จาก submission สำหรับโจทย์ GUI เพื่อป้องกันคะแนนเต็มไม่ตรงกัน (เช่น ส่งเก่าได้ 20 แต่ปัจจุบัน 21)
                 if (submission.maxScore && problemData.type === 'gui') {
                     maxScore = submission.maxScore;
                 }
-
                 if (submission.status === 'completed') {
                     completedProblems++;
-                    // ใช้คะแนนจริงที่ได้ (ถ้ามี) ถ้าไม่มีใช้เต็ม (เผื่อข้อมูลเก่า)
                     totalScore += (submission.score > 0 ? submission.score : maxScore);
-                } else if (submission.status === 'inProgress' && submission.score > 0) {
-                    // กรณีทำค้างไว้ (Optional: จะนับคะแนนหรือไม่แล้วแต่ Logic)
-                    // totalScore += submission.score; 
                 }
             }
 
@@ -650,11 +653,11 @@ async function initProgressChart(classId, userId) {
 
         const submissions = await db.collection('submissions')
             .where('studentId', '==', userId)
+            .where('classId', '==', classId)
             .get();
 
         // ✅ แก้ไข: แปลงข้อมูลก่อนกรองและเรียง (จัดการ timestamp)
         let filteredSubmissions = submissions.docs
-            .filter(doc => doc.data().classId === classId)
             .map(doc => {
                 const data = doc.data();
                 // Normalise timestamp
@@ -759,6 +762,8 @@ function viewProblem(problemId, type, isViewMode = false) {
 
 
 let statsInterval;
+let statsInFlight = false;
+let statsRefreshState = null;
 
 function startStatsUpdate(classId, userId) {
     // เคลียร์ interval เดิมถ้ามี
@@ -766,11 +771,28 @@ function startStatsUpdate(classId, userId) {
         clearInterval(statsInterval);
     }
 
-    // อัพเดตทุก 10 วินาที
-    statsInterval = setInterval(() => {
-        loadStats(classId, userId);
-    }, 10000);
+    const tick = async () => {
+        if (document.hidden) return;
+        if (statsInFlight) return;
+        statsInFlight = true;
+        try {
+            await loadStats(classId, userId);
+        } finally {
+            statsInFlight = false;
+        }
+    };
+
+    statsRefreshState = { classId, userId, tick };
+    tick();
+    statsInterval = setInterval(tick, 10000);
 }
+
+document.addEventListener('visibilitychange', () => {
+    if (!statsRefreshState) return;
+    if (!document.hidden) {
+        statsRefreshState.tick();
+    }
+});
 
 window.addEventListener('beforeunload', () => {
     if (statsInterval) {
