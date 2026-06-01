@@ -62,8 +62,11 @@
                     onkeyup="searchProblems(this.value)">
             </div>
             <div class="problem-actions">
-                <button onclick="showProblemBankModal()" class="primary-btn">
-                    เพิ่มจากคลังโจทย์
+                <button onclick="showProblemBankModal('mine')" class="primary-btn">
+                    เพิ่มโจทย์ของฉัน
+                </button>
+                <button onclick="showProblemBankModal('shared')" class="secondary-btn">
+                    เพิ่มโจทย์ที่แชร์
                 </button>
             </div>
             <div id="problemList" class="problem-list-scroll"></div>
@@ -83,7 +86,7 @@
     <div id="problemBankModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>คลังโจทย์</h2>
+                <h2>คลังโจทย์ <span id="problemBankModeLabel" style="font-size: 14px; font-weight: 500; opacity: 0.85;"></span></h2>
                 <button class="close-btn" onclick="closeProblemBankModal()">&times;</button>
             </div>
             <div class="modal-body">

@@ -2268,6 +2268,7 @@ async function saveProblem(event) {
         } else {
             // เพิ่ม createdAt เฉพาะเมื่อสร้างโจทย์ใหม่
             problemData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            problemData.shared = false;
             const docRef = await db.collection('problems').add(problemData);
             console.log('สร้างโจทย์ใหม่สำเร็จ:', docRef.id);
             alert('บันทึกโจทย์สำเร็จ');
@@ -2606,6 +2607,9 @@ function renderProblemList(problems) {
     problems.forEach(problem => {
         const div = document.createElement('div');
         div.className = 'problem-card';
+        const isShared = !!problem.shared;
+        const shareLabel = isShared ? 'ปิดแชร์' : 'แชร์';
+        const shareStatus = isShared ? 'แชร์: เปิด' : 'แชร์: ปิด';
 
         // แปลงประเภทโจทย์เป็นภาษาไทย
         const typeMapping = {
@@ -2665,18 +2669,50 @@ function renderProblemList(problems) {
             <div class="problem-info">
                 <div class="problem-header">
                     <span class="problem-type">${typeIcon} ${typeText}</span>
+                    <span style="margin-left: 10px; font-size: 12px; opacity: 0.85;">${shareStatus}</span>
                 </div>
                 <h3>${problem.title || 'ไม่มีชื่อ'}</h3>
                 <p>${contentPreview}</p>
                 <p>${countText}</p>
             </div>
             <div class="problem-actions">
+                <button onclick="toggleProblemShare('${problem.id}', ${isShared ? 'false' : 'true'})" class="secondary-btn">${shareLabel}</button>
                 <button onclick="editProblem('${problem.id}')" class="secondary-btn">แก้ไข</button>
                 <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
             </div>
         `;
         problemList.appendChild(div);
     });
+}
+
+async function toggleProblemShare(problemId, nextShared) {
+    try {
+        const desired = !!nextShared;
+        const updateData = desired
+            ? { shared: true, sharedAt: firebase.firestore.FieldValue.serverTimestamp() }
+            : { shared: false, sharedAt: firebase.firestore.FieldValue.delete() };
+
+        await db.collection('problems').doc(problemId).update(updateData);
+
+        if (Array.isArray(window.allTeacherProblems)) {
+            const idx = window.allTeacherProblems.findIndex(p => p.id === problemId);
+            if (idx >= 0) {
+                window.allTeacherProblems[idx] = { ...window.allTeacherProblems[idx], shared: desired };
+            }
+        }
+
+        if (Array.isArray(teacherProblemsView)) {
+            const idx2 = teacherProblemsView.findIndex(p => p.id === problemId);
+            if (idx2 >= 0) {
+                teacherProblemsView[idx2] = { ...teacherProblemsView[idx2], shared: desired };
+            }
+        }
+
+        renderTeacherProblemsPage();
+    } catch (error) {
+        console.error('Error toggling share:', error);
+        alert('เกิดข้อผิดพลาดในการเปลี่ยนสถานะแชร์');
+    }
 }
 
 // ตั้งค่า Event Listener สำหรับ Filter
@@ -4413,6 +4449,7 @@ function compressImage(file, maxWidth, maxHeight, quality) {
 window.saveProblem = saveProblem;
 window.deleteProblem = deleteProblem;
 window.editProblem = editProblem;
+window.toggleProblemShare = toggleProblemShare;
 window.viewClass = viewClass;
 window.deleteClass = deleteClass;
 window.removeTestCase = removeTestCase;

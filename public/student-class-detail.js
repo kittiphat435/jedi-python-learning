@@ -266,6 +266,7 @@ async function loadClassDetails(classId) {
         }
 
         const classData = classDoc.data;
+        window.currentClassTeacherId = classData.teacherId;
 
         // ดึงข้อมูลครู
         const teacherDoc = await getDocCached('users', classData.teacherId, 60000);
@@ -408,6 +409,9 @@ async function loadProblems(classId, userId) {
         let problemsData = (await Promise.all(problemPromises))
             .filter(p => p !== null);
 
+        const classTeacherId = window.currentClassTeacherId || '';
+        problemsData = problemsData.filter(p => (p.teacherId === classTeacherId) || (p.shared === true));
+
         // 5. เรียงลำดับ (เหมือนฝั่งครู)
         problemsData.sort((a, b) => {
             if (a.orderIndex !== b.orderIndex) {
@@ -540,7 +544,6 @@ async function loadStats(classId, userId) {
 
         const uniqueProblemIds = new Set();
         classProblemsSnapshot.forEach(doc => uniqueProblemIds.add(doc.data().problemId));
-        const totalProblems = uniqueProblemIds.size;
 
         const submissionsSnapshot = await db.collection('submissions')
             .where('classId', '==', classId)
@@ -585,9 +588,12 @@ async function loadStats(classId, userId) {
             problemDocs.push(...docs);
         }
 
-        for (let i = 0; i < problemDocs.length; i++) {
-            const problemDoc = problemDocs[i];
-            if (!problemDoc?.exists) continue;
+        const classTeacherId = window.currentClassTeacherId || '';
+        const visibleProblemDocs = problemDocs.filter(d => d?.exists && ((d.data?.teacherId === classTeacherId) || (d.data?.shared === true)));
+        const totalProblems = visibleProblemDocs.length;
+
+        for (let i = 0; i < visibleProblemDocs.length; i++) {
+            const problemDoc = visibleProblemDocs[i];
             const problemId = problemDoc.id;
             const problemData = problemDoc.data;
             let maxScore = 0;

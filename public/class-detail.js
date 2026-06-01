@@ -81,6 +81,7 @@ async function loadClassDetails(classId) {
         }
 
         const classData = classDoc.data();
+        window.currentClassTeacherId = classData.teacherId;
 
         // ดึงข้อมูลครูผู้สอน
         const teacherDoc = await db.collection('users').doc(classData.teacherId).get();
@@ -294,6 +295,9 @@ async function loadProblems(classId) {
 
         let problems = (await Promise.all(problemPromises))
             .filter(problem => problem !== null);
+
+        const classTeacherId = window.currentClassTeacherId || auth.currentUser?.uid || '';
+        problems = problems.filter(p => (p.teacherId === classTeacherId) || (p.shared === true));
 
         // 3. เรียงลำดับตาม orderIndex
         // ถ้า orderIndex เท่ากัน (เช่นโจทย์เก่า) ให้เรียงตามเวลาที่เพิ่ม
@@ -1786,14 +1790,20 @@ async function loadProblemBank() {
         problemBankList.innerHTML = '<div style="text-align: center; padding: 20px;">กำลังโหลดข้อมูล...</div>';
 
         const currentClassId = new URLSearchParams(window.location.search).get('id');
+        const mode = window.problemBankMode || 'mine';
+        const modeLabel = document.getElementById('problemBankModeLabel');
+        if (modeLabel) {
+            modeLabel.textContent = mode === 'shared' ? '(โจทย์ที่แชร์จากครูท่านอื่น)' : '(โจทย์ของฉัน)';
+        }
 
         // โหลดข้อมูลทั้งหมดพร้อมกัน
+        const problemsQuery = mode === 'shared'
+            ? db.collection('problems').where('shared', '==', true).orderBy('createdAt', 'desc').get()
+            : db.collection('problems').where('teacherId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').get();
+
         const [currentClass, problemsSnapshot, classProblemSnapshot] = await Promise.all([
             db.collection('classes').doc(currentClassId).get(),
-            db.collection('problems')
-                .where('teacherId', '==', auth.currentUser.uid)
-                .orderBy('createdAt', 'desc')
-                .get(),
+            problemsQuery,
             db.collection('class_problems')
                 .where('classId', '==', currentClassId)
                 .get()
@@ -1810,7 +1820,8 @@ async function loadProblemBank() {
                 id: doc.id,
                 ...doc.data()
             }))
-            .filter(problem => !existingProblemIds.has(problem.id));
+            .filter(problem => !existingProblemIds.has(problem.id))
+            .filter(problem => mode !== 'shared' || problem.teacherId !== auth.currentUser.uid);
 
         // เก็บข้อมูล availableProblems ไว้สำหรับ filter
         window.allAvailableProblems = availableProblems;
@@ -2006,6 +2017,7 @@ async function createProblem() {
         if (!isEditing) {
             problemData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             problemData.classNames = [];
+            problemData.shared = false;
         }
 
         const testCases = [];
@@ -2114,9 +2126,10 @@ async function deleteProblem(problemId) {
     }
 }
 // แสดง/ปิด Modal คลังโจทย์
-function showProblemBankModal() {
+function showProblemBankModal(mode) {
     const modal = document.getElementById('problemBankModal');
     if (modal) {
+        window.problemBankMode = mode === 'shared' ? 'shared' : 'mine';
         modal.style.display = 'block';
         loadProblemBank(); // โหลดรายการโจทย์
     }
