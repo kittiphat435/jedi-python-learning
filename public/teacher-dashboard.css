@@ -226,6 +226,26 @@ textarea.input-field {
     background: #cbd5e0;
 }
 
+.share-on-btn {
+    background: #2e7d32;
+    color: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.share-on-btn:hover {
+    background: #256428;
+}
+
+.has-code-warp .share-on-btn {
+    background: rgba(46, 125, 50, 0.55);
+    color: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(46, 125, 50, 0.45);
+}
+
+.has-code-warp .share-on-btn:hover {
+    background: rgba(46, 125, 50, 0.70);
+}
+
 .save-widget-bar {
     display: flex;
     justify-content: center; /* เปลี่ยนเป็นกลางเพื่อให้เด่น */

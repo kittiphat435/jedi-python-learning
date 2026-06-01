@@ -2610,6 +2610,7 @@ function renderProblemList(problems) {
         const isShared = !!problem.shared;
         const shareLabel = isShared ? 'ปิดแชร์' : 'แชร์';
         const shareStatus = isShared ? 'แชร์: เปิด' : 'แชร์: ปิด';
+        const shareBtnClass = isShared ? 'share-on-btn' : '';
 
         // แปลงประเภทโจทย์เป็นภาษาไทย
         const typeMapping = {
@@ -2676,7 +2677,7 @@ function renderProblemList(problems) {
                 <p>${countText}</p>
             </div>
             <div class="problem-actions">
-                <button onclick="toggleProblemShare('${problem.id}', ${isShared ? 'false' : 'true'})" class="secondary-btn">${shareLabel}</button>
+                <button onclick="toggleProblemShare('${problem.id}', ${isShared ? 'false' : 'true'})" class="secondary-btn ${shareBtnClass}">${shareLabel}</button>
                 <button onclick="editProblem('${problem.id}')" class="secondary-btn">แก้ไข</button>
                 <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
             </div>
