@@ -912,47 +912,53 @@ async function testGUICode(code, problemTestCases, iframe) {
             maxScore += testCaseMaxScore;
 
             const failedTestCases = [];
+            const sharedTestIframe = document.createElement('iframe');
+            sharedTestIframe.style.display = 'none';
+            document.body.appendChild(sharedTestIframe);
+            try {
+                for (let i = 0; i < problemTestCases.length; i++) {
+                    const testCase = problemTestCases[i];
 
-            for (let i = 0; i < problemTestCases.length; i++) {
-                const testCase = problemTestCases[i];
-                
-                const liveResult = await testSpecificTestCaseInternal(htmlOutput, testCase, i + 1);
-                
-                const passed = liveResult.passed;
-                const score = liveResult.score; 
-                
-                totalScore += score;
-                testCaseScore += score;
+                    const liveResult = await testSpecificTestCaseInternal(htmlOutput, testCase, i + 1, { iframe: sharedTestIframe });
 
-                console.log(`Test Case ${i + 1}: ${passed ? 'PASSED' : 'FAILED'} (ได้ ${score}/${testCase.score||1} คะแนน)`);
+                    const passed = liveResult.passed;
+                    const score = liveResult.score; 
 
-                const simulatedOutputs = testCase.outputs.map((o, idx) => ({
-                    widget: o.widget,
-                    type: 'Unknown',
-                    text: o.text || '',
-                    value: passed ? o.value : (liveResult.details[idx] || 'Mismatch'), 
-                    error: passed ? null : 'Check Failed'
-                }));
+                    totalScore += score;
+                    testCaseScore += score;
 
-                testResults.push({
-                    index: i + 1,
-                    passed: passed,
-                    message: passed ? `Test Case ${i + 1}: ✅ ผ่าน` : `Test Case ${i + 1}: ❌ ไม่ผ่าน`,
-                    inputs: testCase.inputs,
-                    actions: testCase.actions,
-                    expected: testCase.outputs,
-                    actual: simulatedOutputs,
-                    explanation: testCase.explanation || '',
-                    score: score,
-                    maxScore: liveResult.maxScore || (testCase.score || 1)
-                });
-                
-                if (!passed) {
-                    failedTestCases.push({
-                       index: i + 1,
-                       details: liveResult.details 
+                    console.log(`Test Case ${i + 1}: ${passed ? 'PASSED' : 'FAILED'} (ได้ ${score}/${testCase.score||1} คะแนน)`);
+
+                    const simulatedOutputs = testCase.outputs.map((o, idx) => ({
+                        widget: o.widget,
+                        type: 'Unknown',
+                        text: o.text || '',
+                        value: passed ? o.value : (liveResult.details[idx] || 'Mismatch'), 
+                        error: passed ? null : 'Check Failed'
+                    }));
+
+                    testResults.push({
+                        index: i + 1,
+                        passed: passed,
+                        message: passed ? `Test Case ${i + 1}: ✅ ผ่าน` : `Test Case ${i + 1}: ❌ ไม่ผ่าน`,
+                        inputs: testCase.inputs,
+                        actions: testCase.actions,
+                        expected: testCase.outputs,
+                        actual: simulatedOutputs,
+                        explanation: testCase.explanation || '',
+                        score: score,
+                        maxScore: liveResult.maxScore || (testCase.score || 1)
                     });
+
+                    if (!passed) {
+                        failedTestCases.push({
+                           index: i + 1,
+                           details: liveResult.details 
+                        });
+                    }
                 }
+            } finally {
+                if (sharedTestIframe.parentNode) sharedTestIframe.parentNode.removeChild(sharedTestIframe);
             }
 
             console.log(`ผลการทดสอบ: ผ่าน ${testResults.filter(r => r.passed).length}/${testResults.length} test cases`);
@@ -4564,56 +4570,63 @@ if (testCaseBtn) {
             let passedScore = 0;
             let totalCount = 0;
             let totalScore = 0;
+            const sharedTestIframe = document.createElement('iframe');
+            sharedTestIframe.style.display = 'none';
+            document.body.appendChild(sharedTestIframe);
             
-            // วนลูปทดสอบทุกข้อ
-            for (let i = 0; i < window.problemTestCases.length; i++) {
-                const testCase = window.problemTestCases[i];
-                console.log(`=== เริ่มทดสอบข้อที่ #${i + 1} ===`);
-                const caseMaxScore = testCase.score || 1;
-                totalCount += 1;
-                totalScore += caseMaxScore;
-                
-                // Format ข้อมูล
-                const formattedTestCase = {
-                    inputs: (testCase.inputs || []).map(input => {
-                        const widgetName = input.name || input.widget; 
-                        const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
-                        return {
-                            name: widgetName, widget: widgetDef.type || 'Entry',
-                            text: widgetDef.text || '', value: input.value
-                        };
-                    }),
-                    actions: (testCase.actions || []).map(action => {
-                        const widgetName = action.widget || action.name;
-                        const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
-                        return {
-                            name: widgetName, widget: action.widget || widgetDef.type || 'Button',
-                            text: action.text || widgetDef.text || '', state: action.state
-                        };
-                    }),
-                    outputs: (testCase.outputs || []).map(output => {
-                        const widgetName = output.widget || output.name;
-                        const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
-                        return {
-                            name: widgetName,
-                            widget: widgetName,
-                            type: widgetDef.type || '',
-                            text: widgetDef.text || '',
-                            value: output.value
-                        };
-                    }),
-                    explanation: testCase.explanation || ""
-                };
-                
-                // เรียกฟังก์ชันทดสอบภายใน
-                const result = await testSpecificTestCaseInternal(resultFrame.srcdoc, formattedTestCase, i + 1);
-                
-                // เช็คว่าผ่านหรือไม่ (เพื่อเก็บแต้ม)
-                if (result && (result.passed === true || result.score > 0)) {
-                    passedCount += 1;
-                    passedScore += caseMaxScore;
+            try {
+                // วนลูปทดสอบทุกข้อ
+                for (let i = 0; i < window.problemTestCases.length; i++) {
+                    const testCase = window.problemTestCases[i];
+                    console.log(`=== เริ่มทดสอบข้อที่ #${i + 1} ===`);
+                    const caseMaxScore = testCase.score || 1;
+                    totalCount += 1;
+                    totalScore += caseMaxScore;
+                    
+                    // Format ข้อมูล
+                    const formattedTestCase = {
+                        inputs: (testCase.inputs || []).map(input => {
+                            const widgetName = input.name || input.widget; 
+                            const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
+                            return {
+                                name: widgetName, widget: widgetDef.type || 'Entry',
+                                text: widgetDef.text || '', value: input.value
+                            };
+                        }),
+                        actions: (testCase.actions || []).map(action => {
+                            const widgetName = action.widget || action.name;
+                            const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
+                            return {
+                                name: widgetName, widget: action.widget || widgetDef.type || 'Button',
+                                text: action.text || widgetDef.text || '', state: action.state
+                            };
+                        }),
+                        outputs: (testCase.outputs || []).map(output => {
+                            const widgetName = output.widget || output.name;
+                            const widgetDef = window.widgetDefinitions.find(w => w.name === widgetName) || {};
+                            return {
+                                name: widgetName,
+                                widget: widgetName,
+                                type: widgetDef.type || '',
+                                text: widgetDef.text || '',
+                                value: output.value
+                            };
+                        }),
+                        explanation: testCase.explanation || ""
+                    };
+                    
+                    // เรียกฟังก์ชันทดสอบภายใน
+                    const result = await testSpecificTestCaseInternal(resultFrame.srcdoc, formattedTestCase, i + 1, { iframe: sharedTestIframe });
+                    
+                    // เช็คว่าผ่านหรือไม่ (เพื่อเก็บแต้ม)
+                    if (result && (result.passed === true || result.score > 0)) {
+                        passedCount += 1;
+                        passedScore += caseMaxScore;
+                    }
+                    allResults.push(result);
                 }
-                allResults.push(result);
+            } finally {
+                if (sharedTestIframe.parentNode) sharedTestIframe.parentNode.removeChild(sharedTestIframe);
             }
             
             // แสดงผลตารางสรุป
@@ -4674,15 +4687,25 @@ async function runPython() {
 }
 // ฟังก์ชันสำหรับทดสอบ test case เดียว (แก้ไขใหม่ - ใช้ ID)
 // ฟังก์ชันสำหรับทดสอบ test case เดียว (ฉบับแก้จุดบอด: จำ ID Widget ไว้ก่อนค่าจะเปลี่ยน)
-async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber) {
+async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber, options = {}) {
 
     return new Promise((resolve) => {
-        // สร้าง iframe แบบซ่อนเพื่อจำลองการทำงาน
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.srcdoc = generatedHTML;
-        document.body.appendChild(iframe);
-        
+        const sharedIframe = options && options.iframe ? options.iframe : null;
+        const iframe = sharedIframe || document.createElement('iframe');
+        const ownsIframe = !sharedIframe;
+
+        if (ownsIframe) {
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        const cleanup = () => {
+            iframe.onload = null;
+            if (ownsIframe && iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        };
+
         iframe.onload = async () => {
             try {
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -5057,9 +5080,6 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                     }
                 }
                 
-                // Cleanup: ลบ iframe ทิ้ง
-                document.body.removeChild(iframe);
-
                 // 👇👇 ลบอันเก่า แล้วแปะอันใหม่ตรงนี้เลยครับ 👇👇
                 const caseScore = testCase.score || 1;      // ดึงคะแนนเต็มของข้อนี้ (ถ้าไม่มีให้เป็น 1)
                 const earnedScore = passed ? caseScore : 0; // ถ้าผ่านก็ได้คะแนนเต็ม ถ้าไม่ผ่านได้ 0
@@ -5074,17 +5094,17 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                 
             } catch (error) {
                 console.error("Error in testSpecificTestCaseInternal:", error);
-                // Cleanup ในกรณี Error
-                if (iframe.parentNode) document.body.removeChild(iframe);
-                
                 resolve({ 
                     testNumber, 
                     passed: false, 
                     details: [`System Error: ${error.message}`], 
                     score: 0 
                 });
+            } finally {
+                cleanup();
             }
         };
+        iframe.srcdoc = generatedHTML;
     });
 }
 
