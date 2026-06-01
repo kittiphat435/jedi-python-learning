@@ -439,17 +439,14 @@ function displayPrompt(promptText) {
 function updateCodeHighlight() {
     const codeEditor = document.getElementById('codeEditor');
     const highlightElement = document.querySelector('.code-highlight code');
-
-    console.log('Updating highlight...');
-    console.log('Editor value:', codeEditor?.value);
-    console.log('Highlight element:', highlightElement);
-
-    if (codeEditor && highlightElement) {
-        highlightElement.textContent = codeEditor.value;
-        console.log('Before Prism highlight');
-        Prism.highlightElement(highlightElement);
-        console.log('After Prism highlight');
+    if (!codeEditor || !highlightElement) return;
+    if (window.__highlightRafId) {
+        cancelAnimationFrame(window.__highlightRafId);
     }
+    window.__highlightRafId = requestAnimationFrame(() => {
+        highlightElement.textContent = codeEditor.value;
+        Prism.highlightElement(highlightElement);
+    });
 }
 async function testCode() {
     if (!currentProblem?.testCases) {
@@ -464,6 +461,7 @@ async function testCode() {
         loadingOverlay.style.display = 'flex';
         const code = document.getElementById('codeEditor').value;
         const analysisCode = stripPythonCommentsForAnalysis(code);
+        const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
         
         const results = await Promise.all(currentProblem.testCases.map(async (testCase) => {
             try {
@@ -477,8 +475,6 @@ async function testCode() {
                 
                 if (testCase.inputs && testCase.inputs.length > 0) {
                     // ดึงข้อความ input() จากโค้ดนักเรียน
-                    const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                    
                     // เช็คจำนวน input ว่าตรงกับ testCase หรือไม่
                     if (testCase.inputs.length !== inputMatches.length) {
                         inputFormatErrors.push(`จำนวนการรับค่าไม่ถูกต้อง (ต้องการ ${testCase.inputs.length} ค่า)`);
@@ -518,8 +514,6 @@ async function testCode() {
                 // --- ปรับปรุงการแสดงผล Actual Output ให้สวยงาม (สำหรับหน้าตรวจคำตอบ) ---
                 // โดยค้นหาข้อความ Prompt (เช่น กรอกปีเกิด::) จากโค้ด แล้วเติม \n เข้าไปข้างหน้าหากยังไม่มี
                 if (testCase.inputs && testCase.inputs.length > 0) {
-                    const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                    
                     let promptCounts = {};
                     inputMatches.forEach((match, idx) => {
                         const promptMatch = match[1].match(/["'](.*?)["']/) || [];
@@ -594,7 +588,6 @@ async function testCode() {
                     // เราจะเอาค่า Input ที่มีใน test case ไปต่อท้าย Expected Output บรรทัดที่เป็น Prompt ด้วย
                     let adjustedExpected = normExpected;
                     if (testCase.inputs && testCase.inputs.length > 0) {
-                        const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
                         let promptCounts = {};
                         inputMatches.forEach((match, idx) => {
                             const pMatch = match[1].match(/["'](.*?)["']/) || [];
@@ -741,7 +734,6 @@ function updateLineNumbers() {
             { length: lines.length },
             (_, i) => i + 1
         ).join('\n');
-        updateCodeHighlight(); // เพิ่มการเรียก highlight
     }
 }
 
