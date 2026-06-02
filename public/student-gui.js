@@ -5196,11 +5196,17 @@ function saveTestResults(additionalScore, runMaxScore) {
     }
 
     if (submitBtn && guiBaseResult?.passed === true) {
-          // ถ้าทำการทดสอบ Test Case แล้ว (guiTestCaseBonus.maxScore > 0) ก็ให้สามารถส่งงานได้
-          submitBtn.disabled = false;
-          submitBtn.style.opacity = "1";
-          submitBtn.style.cursor = "pointer";
-      }
+        // ให้ส่งงานได้เฉพาะเมื่อได้คะแนนเต็ม (คะแนนเท่ากับคะแนนเต็ม) เท่านั้น
+        if (displayMaxScore > 0 && displayScore === displayMaxScore) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = "1";
+            submitBtn.style.cursor = "pointer";
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = "0.5";
+            submitBtn.style.cursor = "not-allowed";
+        }
+    }
 }
 
 function showYarnReward() {
