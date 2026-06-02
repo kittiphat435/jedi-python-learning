@@ -358,6 +358,8 @@ textarea.input-field {
 .modal-content button,
 .modal-content select,
 .modal-content input,
+.modal-content textarea,
+.modal-content .CodeMirror,
 .modal-content div {
     color: #333;
 }
