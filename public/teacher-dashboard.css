@@ -2196,3 +2196,25 @@ body.has-code-warp {
     background: #111;
     color: rgba(255, 255, 255, 0.92);
 }
+
+/* Force all form elements inside modal to have light theme regardless of body.has-code-warp */
+body.has-code-warp .modal-content .input-field,
+body.has-code-warp .modal-content textarea.input-field,
+body.has-code-warp .modal-content select.input-field,
+body.has-code-warp .modal-content textarea.code-editor,
+body.has-code-warp .modal-content .CodeMirror,
+body.has-code-warp .modal-content input,
+body.has-code-warp .modal-content textarea,
+body.has-code-warp .modal-content select {
+    background: #fff !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+}
+
+body.has-code-warp .modal-content .CodeMirror * {
+    color: #333;
+}
+
+body.has-code-warp .modal-content .CodeMirror-cursor {
+    border-left: 1px solid black !important;
+}
