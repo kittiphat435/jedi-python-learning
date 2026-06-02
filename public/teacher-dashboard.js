@@ -1644,30 +1644,33 @@ async function editProblem(problemId) {
                 if (document.getElementById('comprehensionContent')) {
                     document.getElementById('comprehensionContent').value = problemData.content || '';
                 }
-                const questionsList = document.getElementById('comprehensionQuestions');
+                const questionsList = document.getElementById('questionsList');
                 if (questionsList && problemData.questions) {
                     questionsList.innerHTML = '';
-                    problemData.questions.forEach(q => {
+                    problemData.questions.forEach((q, index) => {
                         const questionItem = document.createElement('div');
                         questionItem.className = 'question-item';
                         questionItem.innerHTML = `
+                            <div class="question-header">
+                                <h4>คำถามที่ ${index + 1}</h4>
+                                <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn">ลบคำถาม</button>
+                            </div>
                             <div class="form-group">
                                 <label>คำถาม *</label>
-                                <input type="text" class="question-text input-field" value="${q.question}" required>
+                                <textarea class="question-text input-field" required>${q.question || q.questionText || ''}</textarea>
                             </div>
                             <div class="form-group">
                                 <label>คำตอบที่ถูกต้อง *</label>
-                                <input type="text" class="correct-answer input-field" value="${q.correctAnswer}" required>
+                                <textarea class="correct-answer input-field" required>${q.correctAnswer || ''}</textarea>
                             </div>
                             <div class="form-group">
                                 <label>คะแนน</label>
-                                <input type="number" class="question-score input-field" value="${q.score || 1}" min="1">
+                                <input type="number" class="question-score input-field" value="${q.score || 1}" min="1" max="10">
                             </div>
                             <div class="form-group">
                                 <label>คำอธิบาย</label>
-                                <input type="text" class="question-explanation input-field" value="${q.explanation || ''}">
+                                <textarea class="question-explanation input-field">${q.explanation || ''}</textarea>
                             </div>
-                            <button type="button" class="delete-btn" onclick="this.parentElement.remove()">ลบ</button>
                         `;
                         questionsList.appendChild(questionItem);
                     });
