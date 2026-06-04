@@ -187,6 +187,9 @@
     border-radius: 8px;
     width: 90%;
     max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
 }
 
 .modal-header {
@@ -194,7 +197,13 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-
+    position: sticky;
+    top: -20px; /* To stick to the top of modal-content padding */
+    background: white;
+    padding-top: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+    z-index: 10;
 }
 
 .close-btn {
