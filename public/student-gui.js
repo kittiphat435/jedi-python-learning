@@ -1365,6 +1365,8 @@ function enhanceCodeEditor() {
     ];
 
     codeEditor.addEventListener('keydown', function (e) {
+        if (this.hasAttribute('readonly')) return;
+
         if (e.key === 'Enter') {
             e.preventDefault();
 
@@ -1431,6 +1433,8 @@ function enhanceCodeEditor() {
 
     // Auto-closing brackets และ quotes
     codeEditor.addEventListener('keypress', function (e) {
+        if (this.hasAttribute('readonly')) return;
+
         const pairs = {
             '(': ')',
             '[': ']',
@@ -2671,7 +2675,6 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             
             if (codeEditorContainer) {
                 codeEditorContainer.classList.add('readonly-mode');
-                codeEditorContainer.addEventListener('contextmenu', e => e.preventDefault());
                 codeEditorContainer.addEventListener('copy', e => {
                     e.preventDefault();
                 });
@@ -2683,14 +2686,22 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             }
 
             if (codeEditorTextarea) {
-                codeEditorTextarea.setAttribute('readonly', 'readonly');
+                // ✅ ยกเลิก readonly เพื่อให้เบราว์เซอร์ยอมให้ scroll และ focus ได้ปกติ
+                codeEditorTextarea.removeAttribute('readonly');
                 codeEditorTextarea.classList.add('readonly-mode');
                 codeEditorTextarea.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
                 
                 codeEditorTextarea.addEventListener('contextmenu', e => e.preventDefault());
                 codeEditorTextarea.addEventListener('copy', e => e.preventDefault());
                 codeEditorTextarea.addEventListener('cut', e => e.preventDefault());
+                
+                // ✅ ปิดกั้นการพิมพ์ทุกอย่าง ยกเว้นปุ่มลูกศร (Navigation) และการเลื่อนหน้าจอ
                 codeEditorTextarea.addEventListener('keydown', e => {
+                    const allowedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'];
+                    if (!allowedKeys.includes(e.key) && !(e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                    }
+                    // ปิด Ctrl+C / Ctrl+X
                     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
                         e.preventDefault();
                     }
@@ -3398,15 +3409,12 @@ async function checkSubmissionStatus(problemId, userId) {
             
             if (codeEditorContainer) {
                 codeEditorContainer.classList.add('readonly-mode');
-                codeEditorContainer.addEventListener('contextmenu', e => e.preventDefault());
                 codeEditorContainer.addEventListener('copy', e => {
                     e.preventDefault();
-                    alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                 });
                 codeEditorContainer.addEventListener('keydown', e => {
                     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
                         e.preventDefault();
-                        alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                     }
                 });
             }
@@ -3420,7 +3428,6 @@ async function checkSubmissionStatus(problemId, userId) {
                 codeEditor.addEventListener('contextmenu', e => e.preventDefault());
                 codeEditor.addEventListener('copy', e => {
                     e.preventDefault();
-                    // alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                 });
                 codeEditor.addEventListener('cut', e => e.preventDefault());
                 codeEditor.addEventListener('keydown', e => {

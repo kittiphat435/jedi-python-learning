@@ -227,11 +227,12 @@ body {
 /* Code Editor */
 /* ป้องกันการ Copy Code เมื่อส่งงานแล้ว แต่ยังให้ Scroll ได้ */
 .readonly-mode {
-    background-color: #f5f5f5 !important;
+    opacity: 0.9;
 }
 
-.readonly-mode:not(.code-input):not(.code-highlight) {
-    color: #666 !important;
+.readonly-mode.code-input {
+    cursor: not-allowed;
+    pointer-events: auto; /* บังคับให้รับ Event เลื่อนหน้าจอ */
 }
 
 .code-editor-container {
@@ -280,7 +281,7 @@ body {
    outline: none;
    white-space: pre;
    tab-size: 4;
-   overflow-y: auto;
+   overflow: auto;
    -webkit-overflow-scrolling: touch;
    box-sizing: border-box;
    z-index: 2;

@@ -827,9 +827,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Code Editor Management (คงเดิม)
     codeEditor.addEventListener('input', updateLineNumbers);
     codeEditor.addEventListener('keyup', updateLineNumbers);
+    
     codeEditor.addEventListener('scroll', () => {
         lineNumbers.scrollTop = codeEditor.scrollTop;
-        document.querySelector('.code-highlight').scrollTop = codeEditor.scrollTop;
+        const highlight = document.querySelector('.code-highlight');
+        if (highlight) {
+            highlight.scrollTop = codeEditor.scrollTop;
+            highlight.scrollLeft = codeEditor.scrollLeft;
+        }
     });
 
     // Firebase Auth (คงเดิม)
@@ -941,6 +946,8 @@ function enhanceCodeEditor() {
     ];
 
     codeEditor.addEventListener('keydown', function (e) {
+        if (this.hasAttribute('readonly') || this.readOnly) return;
+
         if (e.key === 'Enter') {
             e.preventDefault();
 
@@ -1010,6 +1017,8 @@ function enhanceCodeEditor() {
 
     // Auto-closing brackets และ quotes
     codeEditor.addEventListener('keypress', function (e) {
+        if (this.hasAttribute('readonly') || this.readOnly) return;
+
         const pairs = {
             '(': ')',
             '[': ']',
