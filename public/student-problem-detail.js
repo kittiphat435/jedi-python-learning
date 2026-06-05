@@ -157,9 +157,25 @@ async function loadLastSubmission(problemId, userId) {
                 if (lastSubmission.status === 'completed') {
                     const codeEditor = document.getElementById('codeEditor');
                     const codeHighlight = document.querySelector('.code-highlight');
+                    const codeEditorContainer = document.querySelector('.code-editor-container');
                     const submitBtn = document.querySelector('.submit-btn');
                     const runBtn = document.querySelector('.run-btn');
                     
+                    if (codeEditorContainer) {
+                        codeEditorContainer.classList.add('readonly-mode');
+                        codeEditorContainer.addEventListener('contextmenu', e => e.preventDefault());
+                        codeEditorContainer.addEventListener('copy', e => {
+                            e.preventDefault();
+                            alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                        });
+                        codeEditorContainer.addEventListener('keydown', e => {
+                            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                                e.preventDefault();
+                                alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                            }
+                        });
+                    }
+
                     if (codeEditor) {
                         codeEditor.readOnly = true;
                         codeEditor.classList.add('readonly-mode');
@@ -169,13 +185,11 @@ async function loadLastSubmission(problemId, userId) {
                         codeEditor.addEventListener('contextmenu', e => e.preventDefault());
                         codeEditor.addEventListener('copy', e => {
                             e.preventDefault();
-                            alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                         });
                         codeEditor.addEventListener('cut', e => e.preventDefault());
                         codeEditor.addEventListener('keydown', e => {
                             if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
                                 e.preventDefault();
-                                alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                             }
                         });
                     }

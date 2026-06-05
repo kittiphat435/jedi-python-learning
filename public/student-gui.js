@@ -2664,10 +2664,64 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         updateLineNumbers();
 
         if (viewMode) {
-            codeEditor.setAttribute('readonly', 'readonly');
-            document.getElementById('checkBtn').style.display = 'none';
-            document.getElementById('testBtn').style.display = 'none'; // ซ่อนปุ่มตรวจคำตอบในโหมด view
-            document.getElementById('submitBtn').style.display = 'none';
+            // ใช้ฟังก์ชันป้องกันการคัดลอกที่ส่วนกลาง (ถ้ามี) หรือกำหนดตรงนี้
+            const codeEditorTextarea = document.getElementById('codeEditorTextarea');
+            const codeHighlight = document.querySelector('.code-highlight');
+            const codeEditorContainer = document.getElementById('codeEditor');
+            
+            if (codeEditorContainer) {
+                codeEditorContainer.classList.add('readonly-mode');
+                codeEditorContainer.addEventListener('contextmenu', e => e.preventDefault());
+                codeEditorContainer.addEventListener('copy', e => {
+                    e.preventDefault();
+                });
+                codeEditorContainer.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            if (codeEditorTextarea) {
+                codeEditorTextarea.setAttribute('readonly', 'readonly');
+                codeEditorTextarea.classList.add('readonly-mode');
+                codeEditorTextarea.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
+                
+                codeEditorTextarea.addEventListener('contextmenu', e => e.preventDefault());
+                codeEditorTextarea.addEventListener('copy', e => e.preventDefault());
+                codeEditorTextarea.addEventListener('cut', e => e.preventDefault());
+                codeEditorTextarea.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+            
+            if (codeHighlight) {
+                codeHighlight.classList.add('readonly-mode');
+                codeHighlight.addEventListener('contextmenu', e => e.preventDefault());
+                codeHighlight.addEventListener('copy', e => e.preventDefault());
+                codeHighlight.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            const checkBtn = document.getElementById('checkBtn');
+            if (checkBtn) checkBtn.style.display = 'none';
+            
+            const testBtn = document.getElementById('testBtn');
+            if (testBtn) testBtn.style.display = 'none';
+            
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) submitBtn.style.display = 'none';
+            
+            const testCaseBtn = document.getElementById('testCaseBtn');
+            if (testCaseBtn) testCaseBtn.style.display = 'none';
+            
+            const resetBtn = document.getElementById('resetBtn');
+            if (resetBtn) resetBtn.style.display = 'none';
             
             // เปิดปุ่ม Run GUI ให้ใช้งานได้ในโหมด View
             const convertBtn = document.getElementById('convertBtn');
