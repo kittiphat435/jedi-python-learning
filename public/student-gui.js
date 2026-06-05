@@ -3349,6 +3349,12 @@ async function checkSubmissionStatus(problemId, userId) {
                     e.preventDefault();
                     alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                 });
+                codeEditorContainer.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                        e.preventDefault();
+                        alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                    }
+                });
             }
 
             if (codeEditor) {
@@ -3363,6 +3369,11 @@ async function checkSubmissionStatus(problemId, userId) {
                     // alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                 });
                 codeEditor.addEventListener('cut', e => e.preventDefault());
+                codeEditor.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                        e.preventDefault();
+                    }
+                });
             }
             
             if (codeHighlight) {
@@ -3370,6 +3381,11 @@ async function checkSubmissionStatus(problemId, userId) {
                 // ปิดการเลือกข้อความและการคัดลอกใน highlight div ด้วย
                 codeHighlight.addEventListener('contextmenu', e => e.preventDefault());
                 codeHighlight.addEventListener('copy', e => e.preventDefault());
+                codeHighlight.addEventListener('keydown', e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                        e.preventDefault();
+                    }
+                });
             }
 
             // 2. ซ่อนปุ่มต่างๆ และเปิดปุ่ม RUN GUI

@@ -172,6 +172,12 @@ async function loadLastSubmission(problemId, userId) {
                             alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                         });
                         codeEditor.addEventListener('cut', e => e.preventDefault());
+                        codeEditor.addEventListener('keydown', e => {
+                            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                                e.preventDefault();
+                                alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                            }
+                        });
                     }
                     
                     if (codeHighlight) {
@@ -179,6 +185,11 @@ async function loadLastSubmission(problemId, userId) {
                         // ปิดการเลือกข้อความและการคัดลอกใน highlight div ด้วย
                         codeHighlight.addEventListener('contextmenu', e => e.preventDefault());
                         codeHighlight.addEventListener('copy', e => e.preventDefault());
+                        codeHighlight.addEventListener('keydown', e => {
+                            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                                e.preventDefault();
+                            }
+                        });
                     }
                     
                     if (submitBtn) submitBtn.style.display = 'none';
