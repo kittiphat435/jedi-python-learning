@@ -3339,8 +3339,18 @@ async function checkSubmissionStatus(problemId, userId) {
 
             // 1. ล็อก Editor
             const codeEditor = document.getElementById('codeEditorTextarea');
-            const codeHighlight = document.getElementById('codeHighlight');
+            const codeHighlight = document.querySelector('.code-highlight');
+            const codeEditorContainer = document.getElementById('codeEditor');
             
+            if (codeEditorContainer) {
+                codeEditorContainer.classList.add('readonly-mode');
+                codeEditorContainer.addEventListener('contextmenu', e => e.preventDefault());
+                codeEditorContainer.addEventListener('copy', e => {
+                    e.preventDefault();
+                    alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                });
+            }
+
             if (codeEditor) {
                 codeEditor.setAttribute('readonly', 'readonly');
                 codeEditor.classList.add('readonly-mode');
@@ -3350,7 +3360,7 @@ async function checkSubmissionStatus(problemId, userId) {
                 codeEditor.addEventListener('contextmenu', e => e.preventDefault());
                 codeEditor.addEventListener('copy', e => {
                     e.preventDefault();
-                    alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                    // alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
                 });
                 codeEditor.addEventListener('cut', e => e.preventDefault());
             }
