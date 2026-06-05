@@ -152,6 +152,38 @@ async function loadLastSubmission(problemId, userId) {
                 document.getElementById('codeEditor').value = lastSubmission.code || '';
                 updateCodeHighlight();
                 updateStatusBadge(lastSubmission.status);
+                
+                // ถ้าโจทย์ถูกส่งและตรวจเสร็จแล้ว ล็อกไม่ให้แก้ไขและ Copy โค้ด
+                if (lastSubmission.status === 'completed') {
+                    const codeEditor = document.getElementById('codeEditor');
+                    const codeHighlight = document.querySelector('.code-highlight');
+                    const submitBtn = document.querySelector('.submit-btn');
+                    const runBtn = document.querySelector('.run-btn');
+                    
+                    if (codeEditor) {
+                        codeEditor.readOnly = true;
+                        codeEditor.classList.add('readonly-mode');
+                        codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
+                        
+                        // ปิดการคลิกขวาและการคัดลอก
+                        codeEditor.addEventListener('contextmenu', e => e.preventDefault());
+                        codeEditor.addEventListener('copy', e => {
+                            e.preventDefault();
+                            alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                        });
+                        codeEditor.addEventListener('cut', e => e.preventDefault());
+                    }
+                    
+                    if (codeHighlight) {
+                        codeHighlight.classList.add('readonly-mode');
+                        // ปิดการเลือกข้อความและการคัดลอกใน highlight div ด้วย
+                        codeHighlight.addEventListener('contextmenu', e => e.preventDefault());
+                        codeHighlight.addEventListener('copy', e => e.preventDefault());
+                    }
+                    
+                    if (submitBtn) submitBtn.style.display = 'none';
+                    if (runBtn) runBtn.style.display = 'none';
+                }
             } else {
                 setDefaultCode();
             }
