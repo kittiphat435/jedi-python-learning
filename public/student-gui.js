@@ -3339,10 +3339,27 @@ async function checkSubmissionStatus(problemId, userId) {
 
             // 1. ล็อก Editor
             const codeEditor = document.getElementById('codeEditorTextarea');
+            const codeHighlight = document.getElementById('codeHighlight');
+            
             if (codeEditor) {
                 codeEditor.setAttribute('readonly', 'readonly');
-                codeEditor.style.backgroundColor = '#f0f0f0';
-                codeEditor.style.color = '#555';
+                codeEditor.classList.add('readonly-mode');
+                codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
+                
+                // ปิดการคลิกขวาและการคัดลอก
+                codeEditor.addEventListener('contextmenu', e => e.preventDefault());
+                codeEditor.addEventListener('copy', e => {
+                    e.preventDefault();
+                    alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+                });
+                codeEditor.addEventListener('cut', e => e.preventDefault());
+            }
+            
+            if (codeHighlight) {
+                codeHighlight.classList.add('readonly-mode');
+                // ปิดการเลือกข้อความและการคัดลอกใน highlight div ด้วย
+                codeHighlight.addEventListener('contextmenu', e => e.preventDefault());
+                codeHighlight.addEventListener('copy', e => e.preventDefault());
             }
 
             // 2. ซ่อนปุ่มต่างๆ และเปิดปุ่ม RUN GUI
