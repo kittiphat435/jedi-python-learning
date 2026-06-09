@@ -320,7 +320,7 @@ async function runCode() {
                 // เข้ารหัสโค้ดเป็น Base64 เพื่อส่งไปรันผ่าน exec() ป้องกันปัญหา syntax
                 const btoaUtf8 = (str) => btoa(unescape(encodeURIComponent(str)));
                 const base64Code = btoaUtf8(code);
-                const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code)\nexcept EOFError:\n    pass`;
+                const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code, {})\nexcept EOFError:\n    pass`;
                 
                 const initialResponse = await fetch(config.API_URL, {
                     method: 'POST',
@@ -415,7 +415,7 @@ async function runCode() {
                     try {
                         const btoaUtf8 = (str) => btoa(unescape(encodeURIComponent(str)));
                         const base64Code = btoaUtf8(code);
-                        const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code)\nexcept EOFError:\n    pass`;
+                        const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code, {})\nexcept EOFError:\n    pass`;
                         
                         const response = await fetch(config.API_URL, {
                             method: 'POST',
@@ -449,12 +449,16 @@ async function runCode() {
         } else {
             // กรณีไม่มี input() - รันโค้ดเลย
             loadingOverlay.style.display = 'flex';
+            const btoaUtf8 = (str) => btoa(unescape(encodeURIComponent(str)));
+            const base64Code = btoaUtf8(code);
+            const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code, {})\nexcept EOFError:\n    pass`;
+
             const response = await fetch(config.API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ code: code })
+                body: JSON.stringify({ code: wrapperCode })
             });
 
             const data = await response.json();
@@ -524,35 +528,45 @@ async function testCode() {
         
         const results = await Promise.all(currentProblem.testCases.map(async (testCase) => {
             try {
-                let inputStr = testCase.input;
-                inputStr = inputStr.replace(/^["']|["']$/g, '');
-                const inputs = inputStr.split('\\n');
+                // --- ปรับปรุงการดึง Input ให้รองรับทั้ง 2 รูปแบบ ---
+                let inputs = [];
+                if (testCase.inputs && testCase.inputs.length > 0) {
+                    // รูปแบบใหม่: เป็น Array ของ Object {name, value}
+                    inputs = testCase.inputs.map(item => {
+                        if (typeof item === 'object' && item !== null) {
+                            return item.value !== undefined ? item.value.toString() : '';
+                        }
+                        return item.toString();
+                    });
+                } else if (testCase.input) {
+                    // รูปแบบเก่า: เป็น String ก้อนเดียวคั่นด้วย \n
+                    let inputStr = testCase.input.replace(/^["']|["']$/g, '');
+                    inputs = inputStr.split(/\r?\n|\\n/);
+                }
+                
+                console.log('--- Debug Input Preparation ---');
+                console.log('testCase.inputs (Array):', testCase.inputs);
+                console.log('testCase.input (String):', testCase.input);
+                console.log('Final inputs array to be used:', inputs);
+                console.log('Joined input string for API:', inputs.join('\n') + '\n');
 
-                // เช็ค Input Format เฉพาะเมื่อโจทย์มี inputs
+                // ... (Input Format Check remains same) ...
                 let hasInputFormatError = false;
                 let inputFormatErrors = [];
                 
                 if (testCase.inputs && testCase.inputs.length > 0) {
-                    // ดึงข้อความ input() จากโค้ดนักเรียน
                     const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                    
-                    // เช็คจำนวน input ว่าตรงกับ testCase หรือไม่
                     if (testCase.inputs.length !== inputMatches.length) {
                         inputFormatErrors.push(`จำนวนการรับค่าไม่ถูกต้อง (ต้องการ ${testCase.inputs.length} ค่า)`);
                         hasInputFormatError = true;
                     }
-
-                    // เช็คข้อความ prompt ของแต่ละ input
                     testCase.inputs.forEach((expectedInput, index) => {
                         if (index < inputMatches.length) {
                             const inputCode = inputMatches[index][1];
                             const promptMatch = inputCode.match(/["'](.*?)["']/) || [];
                             const promptText = promptMatch[1] || '';
-                            
                             if (!promptText.includes(expectedInput.name)) {
-                                inputFormatErrors.push(
-                                    `ข้อความรับค่าที่ ${index + 1} ควรมี "${expectedInput.name}"`
-                                );
+                                inputFormatErrors.push(`ข้อความรับค่าที่ ${index + 1} ควรมี "${expectedInput.name}"`);
                                 hasInputFormatError = true;
                             }
                         }
@@ -560,33 +574,41 @@ async function testCode() {
                 }
 
                 // รันโค้ดและเช็ค output
+                const btoaUtf8 = (str) => btoa(unescape(encodeURIComponent(str)));
+                const base64Code = btoaUtf8(code);
+                // ใช้ dict เปล่าครอบ exec เพื่อแยก scope แต่ละ test case และแก้ปัญหา name not defined
+                const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code, {})\nexcept EOFError:\n    pass`;
+
                 const response = await fetch(config.API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        code: code,
+                        code: wrapperCode,
                         input: inputs.join('\n') + '\n'
                     })
                 });
 
                 const data = await response.json();
-                let actualOutputRaw = data.output.replace(/\r\n/g, '\n').trim();
+                console.log('--- Debug Test Case API Response ---');
+                console.log('Raw data from API:', data);
+
+                let actualOutputRaw = (data.output || '').replace(/\r\n/g, '\n');
+                const isError = data.status === 'error';
                 
-                // --- ปรับปรุงการแสดงผล Actual Output ให้สวยงาม (สำหรับหน้าตรวจคำตอบ) ---
-                // โดยค้นหาข้อความ Prompt (เช่น กรอกปีเกิด::) จากโค้ด แล้วเติม \n เข้าไปข้างหน้าหากยังไม่มี
-                if (testCase.inputs && testCase.inputs.length > 0) {
+                // เก็บค่า original ไว้ก่อน trim
+                const actualOutputOriginal = actualOutputRaw;
+                actualOutputRaw = actualOutputRaw.trim();
+                
+                // --- ปรับปรุงการแสดงผล Actual Output ให้สวยงาม ---
+                if (!isError && testCase.inputs && testCase.inputs.length > 0) {
                     const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                    
                     let promptCounts = {};
                     inputMatches.forEach((match, idx) => {
                         const promptMatch = match[1].match(/["'](.*?)["']/) || [];
                         const promptText = promptMatch[1] || '';
-                        
                         if (promptText) {
                             promptCounts[promptText] = (promptCounts[promptText] || 0) + 1;
                             let occurrence = 0;
-                            
-                            // แทรกค่าที่จำลองการกรอกลงไปหลัง Prompt เพื่อให้แสดงผลในกล่องสีดำเหมือนตอนรันจริง
                             const inputItem = testCase.inputs[idx];
                             let val = '';
                             if (typeof inputItem === 'object' && inputItem !== null) {
@@ -594,17 +616,13 @@ async function testCode() {
                             } else {
                                 val = inputItem !== undefined ? inputItem.toString() : '';
                             }
-                            // Fallback ไปใช้ testCase.input ถ้าไม่มีใน inputs
                             if (!val && testCase.input) {
-                                const splitInputs = testCase.input.replace(/^["']|["']$/g, '').split('\\n');
+                                const splitInputs = testCase.input.replace(/^["']|["']$/g, '').split(/\r?\n|\\n/);
                                 val = splitInputs[idx] || '';
                             }
-                            
                             actualOutputRaw = actualOutputRaw.replace(new RegExp(`(${escapeRegExp(promptText)})`, 'g'), (m) => {
                                 occurrence++;
-                                if (occurrence === promptCounts[promptText]) {
-                                    return `${m}${val}\n`;
-                                }
+                                if (occurrence === promptCounts[promptText]) return `${m}${val}\n`;
                                 return m;
                             });
                         }
@@ -613,12 +631,14 @@ async function testCode() {
 
                 const expectedOutput = testCase.expected.replace(/\r\n/g, '\n').trim();
                 const expectedLines = expectedOutput.split('\n');
+                const n = expectedLines.length;
                 
                 let actualOutput = actualOutputRaw;
                 const lines = actualOutputRaw.split('\n');
-                const n = expectedLines.length;
-                
-                if (lines.length >= n) {
+                let slicedActual = actualOutputRaw;
+
+                // ไม่ต้อง slice ถ้าเป็น Error
+                if (!isError && lines.length >= n) {
                     const lastNLines = lines.slice(-n);
                     const firstExpected = expectedLines[0];
                     const firstActual = lastNLines[0];
@@ -627,29 +647,36 @@ async function testCode() {
                         const precedingChar = firstActual.charAt(firstActual.length - firstExpected.length - 1);
                         if ([' ', ':', '>', '-'].includes(precedingChar)) {
                             lastNLines[0] = firstExpected;
-                        } else if (expectedLines.length === 1 && firstActual.includes(':')) {
+                        } else if (n === 1 && firstActual.includes(':')) {
+                            // ป้องกันการ slice error message โดยเช็คว่าไม่ได้อยู่ในโหมด error
                             lastNLines[0] = firstActual.split(':').slice(-1)[0].trimStart();
                         }
-                    } else if (expectedLines.length === 1 && firstActual.includes(':') && firstActual !== firstExpected) {
+                    } else if (n === 1 && firstActual.includes(':') && firstActual !== firstExpected) {
                         lastNLines[0] = firstActual.split(':').slice(-1)[0].trimStart();
                     }
-                    
-                    actualOutput = lastNLines.join('\n').trim();
+                    slicedActual = lastNLines.join('\n').trim();
                 }
 
-                let outputCorrect = actualOutput === expectedOutput;
+                // ตรวจสอบความถูกต้อง
+                let outputCorrect = !isError && ((slicedActual === expectedOutput) || (actualOutputRaw === expectedOutput));
+                
+                // จัดการค่าที่จะแสดงใน UI
+                if (isError) {
+                    actualOutput = actualOutputRaw || 'Error occurred';
+                } else if (!outputCorrect) {
+                    actualOutput = slicedActual || actualOutputRaw || '';
+                } else {
+                    actualOutput = slicedActual;
+                }
 
                 // --- Lenient Match: อนุโลมเรื่องช่องว่าง แต่ "บังคับ" เรื่องการขึ้นบรรทัดใหม่ ---
-                // ป้องกันปัญหาโค้ดที่ปริ้นท์บรรทัดเดียวติดกัน ไปตรงกับเฉลยที่ต้องการหลายบรรทัด
                 if (!outputCorrect) {
-                    // ลบช่องว่างทิ้งเฉพาะในแต่ละบรรทัด แต่คงโครงสร้างการขึ้นบรรทัดใหม่ (\n) ไว้เปรียบเทียบ
                     const normExpected = expectedOutput.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normActual = actualOutput.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normSlicedActual = slicedActual.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
                     const normActualRaw = actualOutputRaw.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
                     
-                    // เพื่อแก้ปัญหา Expected Output ของครูไม่มีค่า Input (เช่น ไม่มีเลข 2529)
-                    // เราจะเอาค่า Input ที่มีใน test case ไปต่อท้าย Expected Output บรรทัดที่เป็น Prompt ด้วย
                     let adjustedExpected = normExpected;
+                    // ... (adjustedExpected logic remains) ...
                     if (testCase.inputs && testCase.inputs.length > 0) {
                         const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
                         let promptCounts = {};
@@ -659,33 +686,25 @@ async function testCode() {
                             if (pText) {
                                 promptCounts[pText] = (promptCounts[pText] || 0) + 1;
                                 let occurrence = 0;
-                                
-                                // ป้องกัน error ในกรณีที่ Test Case แบบเก่ามี input แต่ไม่ได้เก็บเป็น array (เก็บเป็น string ก้อนเดียว)
                                 let val = '';
                                 if (testCase.inputs && testCase.inputs[idx]) {
                                     val = testCase.inputs[idx].value !== undefined 
                                         ? testCase.inputs[idx].value.toString().replace(/\s+/g, '') 
                                         : testCase.inputs[idx].toString().replace(/\s+/g, '');
                                 } else if (testCase.input) {
-                                    // Fallback: ดึงค่าจาก testCase.input (string ที่คั่นด้วย \n)
-                                    const splitInputs = testCase.input.replace(/^["']|["']$/g, '').split('\\n');
+                                    const splitInputs = testCase.input.replace(/^["']|["']$/g, '').split(/\r?\n|\\n/);
                                     val = splitInputs[idx] ? splitInputs[idx].replace(/\s+/g, '') : '';
                                 }
-                                
-                                // แทรก val ลงไปต่อท้าย pText ใน adjustedExpected เฉพาะจุดที่ไม่มี val อยู่แล้ว
                                 adjustedExpected = adjustedExpected.replace(new RegExp(`(${escapeRegExp(pText)})(?!${escapeRegExp(val)})`, 'g'), (m) => {
                                     occurrence++;
-                                    if (occurrence === promptCounts[pText]) {
-                                        return `${m}${val}`;
-                                    }
+                                    if (occurrence === promptCounts[pText]) return `${m}${val}`;
                                     return m;
                                 });
                             }
                         });
                     }
 
-                    // ตรวจผ่านถ้าผลลัพธ์ที่ตัดช่องว่างตรงกัน หรือ adjustedExpected ตรงกับ normActual หรือ normActualRaw ลงท้ายด้วย normExpected
-                    if (normActual === normExpected || normActual === adjustedExpected || normActualRaw.endsWith(normExpected)) {
+                    if (normSlicedActual === normExpected || normSlicedActual === adjustedExpected || normActualRaw.endsWith(normExpected)) {
                         outputCorrect = true;
                     }
                 }

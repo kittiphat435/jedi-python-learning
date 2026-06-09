@@ -12,7 +12,7 @@ const base64Code = encodeBase64(userCode);
 const code = `import base64
 user_code = base64.b64decode(b"${base64Code}").decode('utf-8')
 try:
-    exec(user_code)
+    exec(user_code, globals())
 except EOFError:
     pass`;
 
