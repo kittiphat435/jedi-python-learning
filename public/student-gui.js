@@ -4971,6 +4971,15 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                 if (targetElement) break;
                             }
                         }
+
+                        // 5) Fallback สุดท้าย: ถ้ายังไม่เจออะไรเลย ให้เลือก Label ตัวที่ index (กรณี Label ชื่อเหมือนกันหมด)
+                        if (!targetElement) {
+                            const allLabels = Array.from(iframeDoc.querySelectorAll('.tk-label'));
+                            if (allLabels[index]) {
+                                targetElement = allLabels[index];
+                                console.log(`Step 0: Fallback เลือก Label ตัวที่ ${index} สำหรับ "${output.text || 'Output'}"`);
+                            }
+                        }
                         
                         // ถ้าเจอตัวตนแล้ว ให้จด ID ไว้ (ถ้าไม่มี ID ให้สร้างยัดใส่เข้าไปเลย)
                         if (targetElement) {
