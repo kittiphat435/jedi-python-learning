@@ -764,48 +764,84 @@ async function testGUICode(code, problemTestCases, iframe) {
         const requiredWidgets = problemData.widgets || [];
         maxScore += requiredWidgets.reduce((sum, w) => sum + (w.score || 1), 0);
 
-        // สร้าง map ของ widget ที่พบในโค้ด
+        // --- ส่วนที่แก้ไข: ปรับปรุงการตรวจสอบ Widget ให้แม่นยำขึ้น ---
+        let orderScore = 0;
+        const maxOrderScore = 5; 
+        maxScore += maxOrderScore;
+
+        const widgetMapping = new Array(requiredWidgets.length).fill(-1);
+        const usedParsedIndices = new Set();
+
+        // ขั้นตอนที่ 1: จับคู่ตัวที่ตรงทั้ง Type และ Text ตรงกันเป๊ะ และยังไม่ถูกใช้
+        requiredWidgets.forEach((req, reqIdx) => {
+            const rText = (req.text || "").trim();
+            if (rText && rText !== 'ไม่มีข้อความ') {
+                const matchIdx = parsedWidgets.findIndex((p, pIdx) => 
+                    !usedParsedIndices.has(pIdx) && 
+                    p.type === req.type && 
+                    (p.text || "").trim() === rText
+                );
+                if (matchIdx !== -1) {
+                    widgetMapping[reqIdx] = matchIdx;
+                    usedParsedIndices.add(matchIdx);
+                }
+            }
+        });
+
+        // ขั้นตอนที่ 2: จับคู่ตัวที่ Type ตรงกัน สำหรับ requirement ที่ไม่ระบุ Text และยังไม่ถูกใช้
+        requiredWidgets.forEach((req, reqIdx) => {
+            const rText = (req.text || "").trim();
+            if (widgetMapping[reqIdx] === -1 && (!rText || rText === 'ไม่มีข้อความ')) {
+                const matchIdx = parsedWidgets.findIndex((p, pIdx) => 
+                    !usedParsedIndices.has(pIdx) && 
+                    p.type === req.type
+                );
+                if (matchIdx !== -1) {
+                    widgetMapping[reqIdx] = matchIdx;
+                    usedParsedIndices.add(matchIdx);
+                }
+            }
+        });
+
+        // ลบ ขั้นตอนที่ 3 (Fallback แบบไม่สน Text) ออกเพื่อให้การตรวจเข้มงวดขึ้น
+        // ถ้าระบุ Text ไว้ในโจทย์ แต่นักเรียนพิมพ์ไม่ตรง จะถือว่าไม่พบทันที
+
+        // ให้คะแนนและบันทึกผล widgetResults
         const foundWidgets = {};
-        requiredWidgets.forEach(widget => {
-            const found = Object.values(parsedWidgets).some(parsed => 
-                parsed.type === widget.type && 
-                (widget.text ? parsed.text === widget.text : true)
-            );
+        requiredWidgets.forEach((widget, idx) => {
+            const found = widgetMapping[idx] !== -1;
             const score = found ? (widget.score || 1) : 0;
             totalScore += score;
             foundWidgets[widget.name] = found;
+            
+            // ดึง text จาก widgetDefinitions ถ้าใน requiredWidgets ไม่มี
+            let displayText = widget.text;
+            if (!displayText || displayText === 'ไม่มีข้อความ') {
+                const def = (window.widgetDefinitions || []).find(d => d.name === widget.name);
+                if (def && def.text) displayText = def.text;
+            }
+
             widgetResults.push({
                 type: widget.type,
-                text: widget.text || 'ไม่มีข้อความ',
+                text: displayText || 'ไม่มีข้อความ',
                 found,
                 score
             });
         });
 
-        // ตรวจสอบลำดับของ widget
-        let orderScore = 0;
-        const maxOrderScore = 5; // คะแนนสูงสุดสำหรับการเรียงลำดับถูกต้อง
-        maxScore += maxOrderScore;
-        
-        // สร้างลำดับของ widget ที่พบในโค้ด
-        const widgetOrder = [];
-        
-        // วนลูปดู Widget ที่โปรแกรมแปลงมาแล้ว (ซึ่งเรียงลำดับมาให้แล้ว)
-        parsedWidgets.forEach(pWidget => {
-            // เอา widget ที่พบ ไปเทียบกับโจทย์ (requiredWidgets) ว่าตรงกับตัวไหน
-            // โดยเช็คทั้ง Type และ Text (ถ้าโจทย์กำหนด Text)
-            const matchedDef = requiredWidgets.find(req => 
-                req.type === pWidget.type && 
-                (!req.text || req.text === pWidget.text) // ถ้า Entry text จะมาจาก value='...' ก็เช็คตรงนี้ได้
-            );
+        // สร้างลำดับของ widget ที่พบในโค้ด (อิงตามลำดับที่ปรากฏใน parsedWidgets)
+        const parsedToReqMapping = new Array(parsedWidgets.length).fill(-1);
+        widgetMapping.forEach((pIdx, reqIdx) => {
+            if (pIdx !== -1) parsedToReqMapping[pIdx] = reqIdx;
+        });
 
-            // ถ้าเจอว่าตรงกับโจทย์ ให้บันทึกชื่อ (ID) ลงในลำดับที่พบ
-            if (matchedDef) {
-                // กันการใส่ซ้ำ (Duplicate) กรณี code บรรทัดเดียวสร้างหลายอย่าง (เผื่อไว้)
-                // แต่ปกติ parsedWidgets จะแยก object กันอยู่แล้ว
-                widgetOrder.push(matchedDef.name);
+        const widgetOrder = [];
+        parsedToReqMapping.forEach(reqIdx => {
+            if (reqIdx !== -1) {
+                widgetOrder.push(requiredWidgets[reqIdx].name);
             }
         });
+        // --- จบส่วนที่แก้ไข ---
         
         console.log('Final Widget Order Found:', widgetOrder);
         
@@ -971,7 +1007,7 @@ async function testGUICode(code, problemTestCases, iframe) {
                 <h4>ผลการตรวจ Widgets (${widgetResults.filter(w => w.found).length}/${widgetResults.length})</h4>
                 ${widgetResults.map(w => `
                     <div class="${w.found ? 'test-passed' : 'test-failed'}">
-                        <p>${w.type}: ${w.text} - ${w.found ? '✅ พบ' : '❌ ไม่พบ'}</p>
+                        <p>${w.type}: <span style="background-color: #007bff; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${w.text}</span> - ${w.found ? '✅ พบ' : '❌ ไม่พบ'}</p>
                         <p>คะแนน: ${w.score}</p>
                     </div>
                 `).join('')}
@@ -2401,6 +2437,52 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
 
         // เรียกใช้ loadProblemConfig เพื่อตั้งค่า window.widgetDefinitions และ window.guiTestCases
         await loadProblemConfig(problemId);
+
+        // ✅ [FIX] ดึงข้อมูล text จาก "เฉลย" (Solution Code) มาเติมให้ Widgets
+        if (problemData.solutionCode) {
+            try {
+                const solResult = convertTkinterToHtml(problemData.solutionCode);
+                const solWidgets = solResult.widgets || [];
+                
+                if (problemData.widgets && Array.isArray(problemData.widgets)) {
+                    problemData.widgets = problemData.widgets.map((w, idx) => {
+                        let solText = "";
+                        // พยายามหา widget ในเฉลยที่ตรงกับความต้องการ
+                        // รอบที่ 1: หาตาม index (ถ้าลำดับการสร้างตรงกัน)
+                        if (solWidgets[idx] && solWidgets[idx].type === w.type) {
+                            solText = solWidgets[idx].text;
+                        } else {
+                            // รอบที่ 2: หาตัวแรกที่ type ตรงกัน
+                            const match = solWidgets.find(sw => sw.type === w.type && !sw._matched);
+                            if (match) {
+                                solText = match.text;
+                                match._matched = true; // ทำเครื่องหมายว่าถูกใช้แล้ว
+                            }
+                        }
+
+                        const def = (window.widgetDefinitions || []).find(d => d.name === w.name);
+                        let finalText = w.text;
+                        
+                        // ลำดับความสำคัญของ Text: 
+                        // 1. จาก requirement โดยตรง (ถ้าไม่ใช่ "ไม่มีข้อความ")
+                        // 2. จาก widgetDefinitions (ที่ครูอาจจะแก้ในหน้า Admin)
+                        // 3. จากการแกะโค้ดเฉลย (Solution Code)
+                        if (!finalText || finalText === 'ไม่มีข้อความ') {
+                            if (def && def.text && def.text !== 'ไม่มีข้อความ') {
+                                finalText = def.text;
+                            } else {
+                                finalText = solText;
+                            }
+                        }
+                        
+                        return { ...w, text: finalText || 'ไม่มีข้อความ' };
+                    });
+                }
+            } catch (e) {
+                console.error("Error parsing solution for widgets:", e);
+            }
+        }
+
         
         // Ensure the problem is of type 'gui'
         if (problemData.type !== 'gui') {
@@ -2762,13 +2844,25 @@ function displayWidgets(widgets) {
     }
 
     const ul = document.createElement('ul');
+    // ดึงข้อมูล widget definitions หลักมาเทียบ
+    const defs = window.widgetDefinitions || [];
+
     widgets.forEach(widget => {
         const li = document.createElement('li');
-        let widgetText = `${widget.type}: ${widget.text || 'ไม่มีข้อความ'}`;
+        
+        // ค้นหาข้อมูลจาก definitions ก่อน เพราะมักจะมี text ที่สมบูรณ์กว่า
+        const def = defs.find(d => d.name === widget.name) || {};
+        
+        let displayText = widget.text;
+        if (!displayText || displayText === 'ไม่มีข้อความ') {
+            displayText = def.text;
+        }
+
+        let widgetText = `${widget.type}: <span style="background-color: #007bff; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${displayText || 'ไม่มีข้อความ'}</span>`;
         if (widget.props) widgetText += ` - คุณสมบัติ: ${widget.props}`;
         if (widget.action) widgetText += ` - การทำงาน: ${widget.action}`;
         if (widget.score) widgetText += ` - คะแนน: ${widget.score}`;
-        li.textContent = widgetText;
+        li.innerHTML = widgetText;
         ul.appendChild(li);
     });
 
@@ -3983,7 +4077,7 @@ async function sendToSimulator(autoRun = false) {
         branchVarByName[fn.name] = Array.from(branchVars);
       }
   
-      // (B) สร้าง branchArray: อ่านเงื่อนไข if/elif/else กับ config(text=…)
+      // (B) สร้าง branchArray: อ่านเงื่อนไข if/elif/else กับ config(text=…) และ return
       currCond = null;
       branchIndex = -1;
       fn.lines.forEach(fl => {
@@ -3991,24 +4085,27 @@ async function sendToSimulator(autoRun = false) {
         if (m = fl.match(/^\s*(if|elif)\s*\((.+?)\)\s*:/)) {
           currCond = m[2].trim();
           branchIndex++;
-          branchArray[branchIndex] = { cond: currCond, varName: null, text: null };
+          branchArray[branchIndex] = { cond: currCond, actions: [] };
         }
         else if (/^\s*else\s*:/.test(fl)) {
           currCond = null;
           branchIndex++;
-          branchArray[branchIndex] = { cond: null, varName: null, text: null };
+          branchArray[branchIndex] = { cond: null, actions: [] };
         }
         else if (m = fl.match(/^\s*(\w+)\.config\(\s*text\s*=\s*f?['"](.+?)['"]\s*\)/)) {
           if (branchIndex >= 0 && branchArray[branchIndex]) {
-            branchArray[branchIndex].varName = m[1];
             let text = m[2];
-            // แปลง {expression} เป็น ${expression} สำหรับ template literals
             text = text.replace(/\{([^}]+)\}/g, '${$1}');
-            branchArray[branchIndex].text = text;
+            branchArray[branchIndex].actions.push({ type: 'config', varName: m[1], text: text });
+          }
+        }
+        else if (m = fl.match(/^\s*return\s+(.+)$/)) {
+          if (branchIndex >= 0 && branchArray[branchIndex]) {
+            branchArray[branchIndex].actions.push({ type: 'return', expr: m[1] });
           }
         }
       });
-  
+
       if (branchArray.length > 0) {
         branchArrayByName[fn.name] = branchArray;
       }
@@ -4200,6 +4297,7 @@ async function sendToSimulator(autoRun = false) {
       js += `function ${fn.name}(${fn.args || ''}) {\n`;
   
       const fnLocalMap = {};
+      let returnExpr = null;
 
       // (0) General python code logic (assignments, basic ops)
       fn.lines.forEach(fl => {
@@ -4207,6 +4305,12 @@ async function sendToSimulator(autoRun = false) {
         const line = fl.trim();
         // remove global keyword
         if (line.startsWith('global ')) return;
+
+        // Capture return statement
+        if (m = line.match(/^return\s+(.+)$/)) {
+            returnExpr = m[1];
+            return;
+        }
         
         // Capture A1=int(number1.get()) or A1=float(number1.get()) into fnLocalMap
         if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*)\s*=\s*(int|float)\(\s*([\p{L}_][\p{L}\p{N}_]*)\.get\(\)\s*\)$/u)) {
@@ -4296,7 +4400,7 @@ async function sendToSimulator(autoRun = false) {
         if (branchArrayByName[fn.name]) {
             branchArrayByName[fn.name].forEach(b => {
                 const rawCond = (b.cond || '')
-                    .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'value_$1')
+                    .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)')
                     .replace(/\band\b/g, '&&')
                     .replace(/\bor\b/g, '||')
                     .replace(/\bnot\b/g, '!')
@@ -4304,12 +4408,32 @@ async function sendToSimulator(autoRun = false) {
                     .replace(/\bfloat\s*\(/g, 'parseFloat(')
                     .replace(/\bstr\s*\(/g, 'String(')
                     .trim() || 'true';
+                
                 js += `  if (${rawCond}) {\n`;
-                js += `    document.getElementById("label_${b.varName}")`
-                    + `.textContent = \`${b.text}\`;\n`;
+                (b.actions || []).forEach(action => {
+                    if (action.type === 'config') {
+                        js += `    document.getElementById("label_${action.varName}").textContent = \`${action.text}\`;\n`;
+                    } else if (action.type === 'return') {
+                        let expr = action.expr
+                            .replace(/\bint\s*\(/g, 'parseInt(')
+                            .replace(/\bfloat\s*\(/g, 'parseFloat(')
+                            .replace(/\bstr\s*\(/g, 'String(')
+                            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+                        js += `    return ${expr};\n`;
+                    }
+                });
                 js += `  }\n`;
             });
         }
+
+      if (returnExpr) {
+          let expr = returnExpr
+            .replace(/\bint\s*\(/g, 'parseInt(')
+            .replace(/\bfloat\s*\(/g, 'parseFloat(')
+            .replace(/\bstr\s*\(/g, 'String(')
+            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+          js += `  return ${expr};\n`;
+      }
   
       // ปิดฟังก์ชัน
       js += `}\n\n`;
@@ -4810,23 +4934,15 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             targetElement = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
                         }
 
-                        // 2) ถ้าไม่เจอ ค่อยลองจาก ID pattern ต่าง ๆ (กันเคส HTML บางแบบที่ตั้ง id ไว้)
-                        if (!targetElement) {
-                            const possibleIds = [
-                                `label_${String.fromCharCode(65 + index)}`, // label_A, label_B, label_C...
-                                `output_${index + 1}`,
-                                `result_${index + 1}`,
-                                `answer_${index + 1}`,
-                                `label${index + 1}`
-                            ];
-
-                            for (const id of possibleIds) {
-                                targetElement = iframeDoc.getElementById(id);
-                                if (targetElement) break;
-                            }
+                        // 2) หาจากข้อความเดิม (output.text) - มีความแม่นยำสูงกว่าการเดา ID
+                        if (!targetElement && output.text) {
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
+                            targetElement = allElements.find(el =>
+                                el.textContent && el.textContent.trim() === output.text
+                            );
                         }
 
-                        // 3) ถ้าไม่เจออีก ให้หา element ที่มีข้อความ "ตรงกับค่าที่คาดหวัง" ก่อน
+                        // 3) หาจากค่าที่คาดหวัง (output.value) - กรณีที่ค่านี้ปรากฏตั้งแต่ต้น
                         if (!targetElement && output.value) {
                             const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
                             targetElement = allElements.find(el =>
@@ -4834,12 +4950,19 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             );
                         }
 
-                        // 4) สุดท้าย ค่อย fallback เป็นข้อความเดิม (ถ้ามี)
-                        if (!targetElement && output.text) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
-                            targetElement = allElements.find(el =>
-                                el.textContent && el.textContent.trim() === output.text
-                            );
+                        // 4) ค่อยลองจาก ID pattern ต่าง ๆ (Fallback สุดท้าย)
+                        if (!targetElement) {
+                            const possibleIds = [
+                                `label_${output.widget}`,
+                                `label_${String.fromCharCode(65 + index)}`, // label_A, label_B...
+                                `output_${index + 1}`,
+                                `label${index + 1}`
+                            ];
+
+                            for (const id of possibleIds) {
+                                targetElement = iframeDoc.getElementById(id);
+                                if (targetElement) break;
+                            }
                         }
                         
                         // ถ้าเจอตัวตนแล้ว ให้จด ID ไว้ (ถ้าไม่มี ID ให้สร้างยัดใส่เข้าไปเลย)
@@ -5097,12 +5220,25 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                 }
 
                                 if (!recovered) {
-                                    details.push(`✗ "${output.text || output.widget || 'Output'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`);
+                                    // ระบบวิเคราะห์เพิ่มเติม: ลองหาดูว่าค่าที่คาดหวัง ไปโผล่ที่ Widget อื่นหรือไม่
+                                    const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
+                                    const misplacedEl = allElements.find(el => {
+                                        const val = (el.textContent || el.value || '').trim();
+                                        return val === expected;
+                                    });
+
+                                    let diagnostic = `✗ "${output.text || 'Output'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`;
+                                    if (misplacedEl) {
+                                        const misplacedVar = misplacedEl.getAttribute('data-var') || misplacedEl.id || 'Widget อื่น';
+                                        const misplacedText = (misplacedEl.textContent || '').substring(0, 20);
+                                        diagnostic += ` (พบค่านี้ที่ Widget "${misplacedText}..." ซึ่งไม่ตรงกับที่โจทย์กำหนด)`;
+                                    }
+                                    details.push(diagnostic);
                                     passed = false;
                                 }
                             }
                         } else {
-                            details.push(`✗ ไม่พบ Widget สำหรับผลลัพธ์: "${output.text || output.widget || ''}" (หา Element ไม่เจอ)`);
+                            details.push(`✗ ไม่พบ Widget สำหรับผลลัพธ์: "${output.text || 'Output'}" (output Label ไม่ถูกต้อง)`);
                             passed = false;
                         }
                     }
