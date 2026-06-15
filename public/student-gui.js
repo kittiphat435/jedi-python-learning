@@ -4934,12 +4934,19 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             targetElement = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
                         }
 
-                        // 2) หาจากข้อความเดิม (output.text) - มีความแม่นยำสูงกว่าการเดา ID
+                        // 2) หาจากข้อความเดิม (output.text) - ค้นหาแบบกว้างขึ้น (contains)
                         if (!targetElement && output.text) {
                             const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
+                            // ลองหาแบบตรงตัวก่อน (Exact Match)
                             targetElement = allElements.find(el =>
-                                el.textContent && el.textContent.trim() === output.text
+                                el.textContent && el.textContent.trim() === output.text.trim()
                             );
+                            // ถ้าไม่เจอ ลองหาแบบที่มีข้อความนั้นอยู่ข้างใน (Partial Match)
+                            if (!targetElement) {
+                                targetElement = allElements.find(el =>
+                                    el.textContent && el.textContent.includes(output.text.trim())
+                                );
+                            }
                         }
 
                         // 3) หาจากค่าที่คาดหวัง (output.value) - กรณีที่ค่านี้ปรากฏตั้งแต่ต้น
@@ -5227,11 +5234,10 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                         return val === expected;
                                     });
 
-                                    let diagnostic = `✗ "${output.text || 'Output'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`;
+                                    let diagnostic = `✗ "${output.text || 'Label'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"`;
                                     if (misplacedEl) {
-                                        const misplacedVar = misplacedEl.getAttribute('data-var') || misplacedEl.id || 'Widget อื่น';
-                                        const misplacedText = (misplacedEl.textContent || '').substring(0, 20);
-                                        diagnostic += ` (พบค่านี้ที่ Widget "${misplacedText}..." ซึ่งไม่ตรงกับที่โจทย์กำหนด)`;
+                                        const misplacedText = (misplacedEl.textContent || '').substring(0, 30).trim();
+                                        diagnostic = `✗ "${output.text || 'Label'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"\n   💡 (ตรวจพบว่าโค้ดของคุณส่งค่าไปผิดที่! พบผลลัพธ์ที่ถูกต้องปรากฏใน "${misplacedText}" แทน)`;
                                     }
                                     details.push(diagnostic);
                                     passed = false;
