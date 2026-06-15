@@ -473,18 +473,25 @@ async function submitAnswer() {
             return;
         }
 
+        // สร้าง Map สำหรับจัดลำดับ Symbols จากบนลงล่าง เพื่อใช้ในการแสดงลำดับในข้อความแจ้งเตือน
+        const sortedStudentSymbols = [...flowchartData.symbols].sort((a, b) => a.y - b.y);
+        const symbolOrderMap = new Map();
+        sortedStudentSymbols.forEach((sym, index) => {
+            symbolOrderMap.set(sym.id, index + 1);
+        });
+
         // ทำการตรวจคำตอบสดอีกครั้งก่อนส่ง
         const details = {
-            symbolCount: checkSymbolCount(flowchartData, problemData.flowchartData),
-            arrowsAndText: checkArrowsAndText(flowchartData, problemData.flowchartData),
-            symbolText: checkSymbolText(flowchartData, problemData.flowchartData),
-            flowDirection: checkFlowDirection(flowchartData, problemData.flowchartData)
+            symbolCount: checkSymbolCount(flowchartData, problemData.flowchartData, symbolOrderMap),
+            arrowsAndText: checkArrowsAndText(flowchartData, problemData.flowchartData, symbolOrderMap),
+            symbolText: checkSymbolText(flowchartData, problemData.flowchartData, symbolOrderMap),
+            flowDirection: checkFlowDirection(flowchartData, problemData.flowchartData, symbolOrderMap)
         };
 
         const passed = details.symbolCount.passed && 
-                       details.arrowsAndText && 
-                       details.symbolText && 
-                       details.flowDirection;
+                       details.arrowsAndText.passed && 
+                       details.symbolText.passed && 
+                       details.flowDirection.passed;
 
         if (!passed) {
             alert('กรุณาตรวจคำตอบและแก้ไขให้ถูกต้องทั้งหมดก่อนส่งคำตอบ');

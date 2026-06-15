@@ -2674,6 +2674,7 @@ function renderProblemList(problems) {
                 <p>${countText}</p>
             </div>
             <div class="problem-actions">
+                <button onclick="duplicateProblem('${problem.id}')" class="secondary-btn" style="background-color: #ffc107; color: #000;">สำเนา</button>
                 <button onclick="editProblem('${problem.id}')" class="secondary-btn">แก้ไข</button>
                 <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
             </div>
@@ -4413,6 +4414,39 @@ function compressImage(file, maxWidth, maxHeight, quality) {
     });
 }
 
+async function duplicateProblem(problemId) {
+    try {
+        // 1. ใช้ editProblem โหลดข้อมูลเข้าฟอร์มก่อน
+        await editProblem(problemId);
+
+        // 2. ปรับแต่งข้อมูลเพื่อให้เป็นโจทย์ใหม่
+        const form = document.getElementById('problemForm');
+        const problemTitle = document.getElementById('problemTitle');
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        if (problemTitle) {
+            problemTitle.value = `สำเนา - ${problemTitle.value}`;
+        }
+
+        // 3. ลบ Problem ID ออกเพื่อให้ระบบบันทึกเป็น Document ใหม่ (ไม่ใช่ Update อันเดิม)
+        if (form) {
+            form.removeAttribute('data-problem-id');
+        }
+
+        // 4. เปลี่ยนข้อความปุ่มบันทึกให้ชัดเจน
+        if (submitBtn) {
+            submitBtn.textContent = 'บันทึก (สำเนา)';
+        }
+
+        console.log('เตรียมสำเนาโจทย์เสร็จแล้ว:', problemId);
+        
+    } catch (error) {
+        console.error('เกิดข้อผิดพลาดในการสำเนาโจทย์:', error);
+        alert('เกิดข้อผิดพลาดในการสำเนาโจทย์');
+    }
+}
+
+window.duplicateProblem = duplicateProblem;
 window.saveProblem = saveProblem;
 window.deleteProblem = deleteProblem;
 window.editProblem = editProblem;
