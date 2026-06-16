@@ -1,5 +1,21 @@
 
 
+// ===============================
+// Robust Text Normalization (For Thai & Mobile Inputs)
+// ===============================
+function normalizeText(text) {
+    if (text === null || text === undefined) return '';
+    return text.toString()
+        .normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function compareText(actual, expected) {
+    return normalizeText(actual) === normalizeText(expected);
+}
+
 // Initialize Firebase
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
@@ -247,8 +263,8 @@ async function submitQuiz() {
                 question: question.question,
                 userAnswer,
                 correctAnswer: question.correctAnswer,
-                isCorrect: userAnswer.toLowerCase() === question.correctAnswer.toLowerCase(),
-                score: userAnswer.toLowerCase() === question.correctAnswer.toLowerCase() ? (question.score || 1) : 0
+                isCorrect: compareText(userAnswer, question.correctAnswer),
+                score: compareText(userAnswer, question.correctAnswer) ? (question.score || 1) : 0
             };
             return result;
         });

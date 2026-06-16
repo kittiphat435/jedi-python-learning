@@ -7,6 +7,22 @@ let isViewMode = false;
 
 
 
+// ===============================
+// Robust Text Normalization (For Thai & Mobile Inputs)
+// ===============================
+function normalizeText(text) {
+    if (text === null || text === undefined) return '';
+    return text.toString()
+        .normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function compareText(actual, expected) {
+    return normalizeText(actual) === normalizeText(expected);
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
     authDomain: "python-learning-platform-596e1.firebaseapp.com",
@@ -320,7 +336,7 @@ async function submitAnswer() {
         // ตรวจคำตอบและเก็บผลลัพธ์
         matches.forEach((answer, questionIndex) => {
             const currentPair = currentProblem.pairs[questionIndex];
-            const isCorrect = currentPair.answer === answer;
+            const isCorrect = compareText(currentPair.answer, answer);
             
             // ใส่ parseInt ป้องกันค่าคะแนนที่เป็น string (เช่น "1")
             const pairScore = isCorrect ? (parseInt(currentPair.score) || 1) : 0;

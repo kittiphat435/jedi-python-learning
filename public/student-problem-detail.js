@@ -4,6 +4,22 @@ const config = {
 
 };
 
+// ===============================
+// Robust Text Normalization (For Thai & Mobile Inputs)
+// ===============================
+function normalizeText(text) {
+    if (text === null || text === undefined) return '';
+    return text.toString()
+        .normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function compareText(actual, expected) {
+    return normalizeText(actual) === normalizeText(expected);
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
     authDomain: "python-learning-platform-596e1.firebaseapp.com",
@@ -658,8 +674,15 @@ async function testCode() {
                 }
 
                 // ตรวจสอบความถูกต้อง
-                let outputCorrect = !isError && ((slicedActual === expectedOutput) || (actualOutputRaw === expectedOutput));
-                
+                let outputCorrect = !isError && (compareText(slicedActual, expectedOutput) || compareText(actualOutputRaw, expectedOutput));
+
+                if (!outputCorrect && !isError) {
+                    console.log('--- DEBUG: Output Comparison Failed ---');
+                    console.log('Expected:', debugString(expectedOutput));
+                    console.log('Actual (Sliced):', debugString(slicedActual));
+                    console.log('Actual (Raw):', debugString(actualOutputRaw));
+                }
+
                 // จัดการค่าที่จะแสดงใน UI
                 if (isError) {
                     actualOutput = actualOutputRaw || 'Error occurred';
@@ -757,6 +780,19 @@ async function testCode() {
 // ฟังก์ชันช่วย Escape Regex เพื่อป้องกัน error หากใน prompt มีตัวอักษรพิเศษ
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ฟังก์ชันช่วยแสดงตัวอักษรพิเศษ (Hidden Characters) เพื่อการ Debug
+function debugString(str) {
+    if (!str) return 'empty';
+    return str.split('').map(c => {
+        const code = c.charCodeAt(0);
+        // แสดงโค้ดสำหรับตัวอักษรที่มองไม่เห็น หรือตัวอักษรพิเศษ
+        if (code < 32 || (code > 126 && code < 160) || code === 160 || code > 255) {
+            return `[U+${code.toString(16).toUpperCase().padStart(4, '0')}]`;
+        }
+        return c;
+    }).join('');
 }
 
 // อัพเดทฟังก์ชันแสดงผลให้เห็น debug info

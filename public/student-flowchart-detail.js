@@ -1,4 +1,20 @@
 // Firebase Configuration
+// ===============================
+// Robust Text Normalization (For Thai & Mobile Inputs)
+// ===============================
+function normalizeText(text) {
+    if (text === null || text === undefined) return '';
+    return text.toString()
+        .normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function compareText(actual, expected) {
+    return normalizeText(actual) === normalizeText(expected);
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
     authDomain: "python-learning-platform-596e1.firebaseapp.com",
@@ -643,6 +659,9 @@ async function checkAnswer() {
 
     try {
         const studentFlowchart = flowchartEditor.getData();
+        console.log('--- DEBUG: Start checkAnswer ---');
+        console.log('Student Flowchart:', studentFlowchart);
+        
         if (!studentFlowchart?.symbols?.length) {
             alert('กรุณาสร้าง Flowchart ก่อนตรวจคำตอบ');
             return;
@@ -654,6 +673,7 @@ async function checkAnswer() {
 
         const problemDoc = await db.collection('problems').doc(problemId).get();
         const problemData = problemDoc.data();
+        console.log('Solution Data:', problemData?.flowchartData);
 
         if (!problemData?.flowchartData) {
             alert('ไม่พบข้อมูลเฉลย');
@@ -773,29 +793,37 @@ function checkArrowsAndText(studentFlowchart, solutionFlowchart, symbolOrderMap)
         return clean;
     };
 
+    console.log('--- DEBUG: checkArrowsAndText ---');
     // เช็คข้อความบน connections
     for (let i = 0; i < studentFlowchart.connections.length; i++) {
         const studentConn = studentFlowchart.connections[i];
         const studentText = getCleanText(studentConn.text);
+        const sourceOrder = symbolOrderMap.get(studentConn.sourceSymbol) || '?';
+        console.log(`Arrow from Symbol #${sourceOrder}:`, {
+            rawText: studentConn.text,
+            cleanText: studentText
+        });
+
         let foundMatch = false;
         
         // ค้นหา connection ที่ตรงกันในเฉลย
         for (let j = 0; j < solutionFlowchart.connections.length; j++) {
             const solutionText = getCleanText(solutionFlowchart.connections[j].text);
-            if (studentText === solutionText) {
+            if (compareText(studentText, solutionText)) {
                 foundMatch = true;
                 break;
             }
         }
         
         if (!foundMatch) {
-            const sourceOrder = symbolOrderMap.get(studentConn.sourceSymbol) || '?';
+            console.log(`  => FAILED: No match found for arrow text "${studentText}"`);
             return {
                 passed: false,
                 message: `ข้อความบนเส้นเชื่อมลูกศรที่ออกจากสัญลักษณ์ลำดับที่ ${sourceOrder} ไม่ถูกต้อง`
             };
         }
     }
+    console.log('  => PASSED: All arrow texts matched');
     return { passed: true, message: 'ข้อความบนเส้นเชื่อมถูกต้อง' };
 }
 
@@ -809,10 +837,17 @@ function checkSymbolText(studentFlowchart, solutionFlowchart, symbolOrderMap) {
         return clean;
     };
 
+    console.log('--- DEBUG: checkSymbolText ---');
     // เช็คข้อความใน symbols
     for (let i = 0; i < studentFlowchart.symbols.length; i++) {
         const studentSym = studentFlowchart.symbols[i];
         const studentText = getCleanText(studentSym.text);
+        const order = symbolOrderMap.get(studentSym.id) || '?';
+        console.log(`Symbol #${order} (${studentSym.type}):`, {
+            rawText: studentSym.text,
+            cleanText: studentText
+        });
+
         let foundMatch = false;
         
         for (let j = 0; j < solutionFlowchart.symbols.length; j++) {
@@ -825,13 +860,14 @@ function checkSymbolText(studentFlowchart, solutionFlowchart, symbolOrderMap) {
         }
         
         if (!foundMatch) {
-            const order = symbolOrderMap.get(studentSym.id) || '?';
+            console.log(`  => FAILED: No match found for "${studentText}" in solution`);
             return {
                 passed: false,
                 message: `ข้อความในสัญลักษณ์ลำดับที่ ${order} (${getSymbolTypeName(studentSym.type)}) ไม่ถูกต้อง`
             };
         }
     }
+    console.log('  => PASSED: All symbol texts matched');
     return { passed: true, message: 'ข้อความในสัญลักษณ์ถูกต้อง' };
 }
 

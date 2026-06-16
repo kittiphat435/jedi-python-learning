@@ -379,7 +379,12 @@ root.mainloop()`);
             }
             
             // แสดง modal
-            document.getElementById('problemModal').style.display = 'flex';
+            const modal = document.getElementById('problemModal');
+            const modalTitle = document.getElementById('modalTitle');
+            if (modal) {
+                modal.style.display = 'flex';
+                if (modalTitle) modalTitle.textContent = 'สร้างโจทย์ใหม่';
+            }
         });
     }
 
@@ -1266,8 +1271,10 @@ async function editProblem(problemId) {
             }
 
         const modal = document.getElementById('problemModal');
+        const modalTitle = document.getElementById('modalTitle');
         if (modal) {
             modal.style.display = 'flex';
+            if (modalTitle) modalTitle.textContent = 'แก้ไขโจทย์';
         }
 
         await new Promise(resolve => setTimeout(resolve, 100));

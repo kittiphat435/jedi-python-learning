@@ -200,10 +200,17 @@ class FlowchartChecker {
         const text1 = this.cleanText(symbol1.text);
         const text2 = this.cleanText(symbol2.text);
         
+        console.log(`Comparing Symbol (${symbol1.type}):`, {
+            student: { raw: symbol1.text, clean: text1 },
+            solution: { raw: symbol2.text, clean: text2 }
+        });
+
         // ถ้าไม่มีข้อความทั้งคู่ถือว่าผ่าน
         if (!text1 && !text2) return true;
         
-        return this.calculateTextSimilarity(text1, text2) >= 0.8;
+        const similarity = this.calculateTextSimilarity(text1, text2);
+        console.log(`  => Similarity: ${similarity.toFixed(2)} (Target: >= 0.8)`);
+        return similarity >= 0.8;
     }
 
     isConnectionTextMatch(conn1, conn2) {

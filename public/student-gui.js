@@ -1,3 +1,19 @@
+// ===============================
+// Robust Text Normalization (For Thai & Mobile Inputs)
+// ===============================
+function normalizeText(text) {
+    if (text === null || text === undefined) return '';
+    return text.toString()
+        .normalize('NFC') // Normalize Unicode (e.g., Thai vowel ordering)
+        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove hidden characters (Zero-width space, etc.)
+        .replace(/\s+/g, ' ') // Collapse multiple spaces into one
+        .trim();
+}
+
+function compareText(actual, expected) {
+    return normalizeText(actual) === normalizeText(expected);
+}
+
 // Firebase Configuration
 // ==========================================
 // 🛡️ TRUSTED TYPES FIX (แก้ปัญหา bootstrap:19 blocked)
@@ -1106,6 +1122,10 @@ function convertPythonToJs(pythonCode) {
     let jsCode = pythonCode
         // แปลง global
         .replace(/global\s+[\p{L}\p{N}_]+(?:\s*,\s*[\p{L}\p{N}_]+)*/gu, '')
+        // แปลง return หลายค่า (tuples) เป็น array
+        .replace(/return\s+([\p{L}\p{N}_0-9\.\(\)\+\-\*\/\s]+(?:\s*,\s*[\p{L}\p{N}_0-9\.\(\)\+\-\*\/\s]+)+)/gu, 'return [$1]')
+        // แปลง tuple unpacking ใน assignment
+        .replace(/^(\s*)([\p{L}\p{N}_0-9\s]+(?:\s*,\s*[\p{L}\p{N}_0-9\s]+)+)\s*=\s*/gmu, '$1[$2] = ')
         // แปลงการเรียกใช้ .get()
         .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'document.querySelector(\'[data-var="$1"]\').value')
         // แปลงการเรียกใช้ .set(value)
@@ -4298,6 +4318,7 @@ async function sendToSimulator(autoRun = false) {
   
       const fnLocalMap = {};
       let returnExpr = null;
+      let functionBodyJs = '';
 
       // (0) General python code logic (assignments, basic ops)
       fn.lines.forEach(fl => {
@@ -4319,14 +4340,22 @@ async function sendToSimulator(autoRun = false) {
         }
 
         // basic assignment and ops (e.g. count+=1 or expression = expression+n)
-        if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*)\s*(\+|-|\*|\/|%|\*\*|\/\/)?=\s*(.+)$/u)) {
+        // [UPDATE] รองรับ tuple unpacking เช่น A1, A2 = cal()
+        if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*(?:\s*,\s*[\p{L}_][\p{L}\p{N}_]*)*)\s*(\+|-|\*|\/|%|\*\*|\/\/)?=\s*(.+)$/u)) {
+          let lhs = m[1];
+          let prefix = '';
+          if (lhs.includes(',')) {
+              lhs = `[${lhs}]`;
+              prefix = 'let '; // Ensure declaration for unpacking
+          }
+          
           let expr = m[3]
             .replace(/\bint\s*\(/g, 'parseInt(')
             .replace(/\bfloat\s*\(/g, 'parseFloat(')
             .replace(/\bstr\s*\(/g, 'String(')
             .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
           // Use let if it's a basic assignment without operator and hasn't been declared (simplified approach)
-          js += `  ${m[1]} ${m[2] ? m[2] + '=' : '='} ${expr};\n`;
+          functionBodyJs += `  ${prefix}${lhs} ${m[2] ? m[2] + '=' : '='} ${expr};\n`;
         }
         
         // str(...) conversion and variable set OR variable.set(value)
@@ -4339,11 +4368,10 @@ async function sendToSimulator(autoRun = false) {
                .replace(/\bfloat\s*\(/g, 'parseFloat(')
                .replace(/\bstr\s*\(/g, 'String(')
                .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
-             js += `  document.getElementById("label_${targetLabel.name}").textContent = String(${expr});\n`;
+             functionBodyJs += `  document.getElementById("label_${targetLabel.name}").textContent = String(${expr});\n`;
            }
         }
       });
-      js += '\n';
 
       // (1) locals จาก entry
       Object.entries(fnLocalMap).forEach(([local, data]) => {
@@ -4353,6 +4381,9 @@ async function sendToSimulator(autoRun = false) {
         js += `  let ${local} = ${parseStr};\n`;
       });
       js += '\n';
+
+      // เพิ่มบรรทัดที่เหลือจาก Step 0 เข้าไปที่ js หลัก
+      js += functionBodyJs;
   
       // (2) ตรวจสถานะ checkbox *ทุกตัวที่นิยาม* เพื่อเตรียม var_varName
       Object.keys(checks).forEach(v => {
@@ -4432,6 +4463,11 @@ async function sendToSimulator(autoRun = false) {
             .replace(/\bfloat\s*\(/g, 'parseFloat(')
             .replace(/\bstr\s*\(/g, 'String(')
             .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+          
+          // [UPDATE] ถ้ามีการ return หลายค่า (มีคอมมา) ให้ครอบด้วย [] เพื่อให้ JS unpack ได้
+          if (expr.includes(',') && !expr.startsWith('[') && !expr.startsWith('(')) {
+              expr = `[${expr}]`;
+          }
           js += `  return ${expr};\n`;
       }
   
@@ -4929,6 +4965,15 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                     testCase.outputs.forEach((output, index) => {
                         let targetElement = null;
 
+                        // [NEW] ตรวจสอบ widget definition เพื่อเอา text มาใช้ในการหา (ถ้าไม่มีระบุมา)
+                        if (!output.text && output.widget) {
+                            const widgetDef = (window.widgetDefinitions || []).find(w => w.name === output.widget);
+                            if (widgetDef && widgetDef.text) {
+                                output.text = widgetDef.text;
+                                console.log(`Step 0: พบข้อความ "${output.text}" สำหรับ widget "${output.widget}" จากนิยามโจทย์`);
+                            }
+                        }
+
                         // 1) ถ้าระบุชื่อ widget มา ให้จับจาก data-var ก่อน (แม่นสุด)
                         if (output.widget) {
                             targetElement = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
@@ -5117,7 +5162,8 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             element = iframeDoc.querySelector(`[data-var="${output.widget}"]`);
                         }
 
-                        // 3) fallback หา element ที่มีข้อความเท่ากับ expected
+                        // 3) fallback หา element ที่มีข้อความเท่ากับ expected (ปิดใช้งานเพื่อให้ตรวจตำแหน่งเข้มงวดขึ้น)
+                        /*
                         if (!element && output.value) {
                             const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]'));
                             element = allElements.find(el => {
@@ -5135,6 +5181,7 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                 return el.textContent && el.textContent.trim() === output.value;
                             });
                         }
+                        */
 
                         if (element) {
                             const expectedRaw = (output.value ?? '').toString();
@@ -5170,18 +5217,22 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             }
 
                             const actualComparable = (actualValue || '').toString().trim();
+                            
+                            // [UPDATE] ใช้ compareText เพื่อรองรับภาษาไทยและมือถือ
                             const matches = (expectedLower === 'disabled' || expectedLower === 'enabled')
                                 ? actualComparable.toLowerCase() === expectedLower
-                                : actualComparable === expected;
+                                : compareText(actualComparable, expected);
 
                             if (matches) {
                                 details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
                             } else {
-                                // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง แล้วเลือกตัวที่ match
+                                // ถ้า map ไปผิดตัว ให้ลองหาใหม่ด้วย expected อีกครั้ง (ปิดส่วนนี้เพื่อให้ไม่ผ่านถ้าอยู่ผิดที่)
                                 let recovered = false;
+                                /*
                                 if (expected) {
                                     const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], input[type="checkbox"]'));
                                     const matchEl = allElements.find(el => {
+                                        // ... (การค้นหา element ที่มีค่าตรงกัน)
                                         const tag = el.tagName.toLowerCase();
                                         const type = el.getAttribute('type') || '';
                                         const isCheckboxEl = tag === 'input' && type === 'checkbox';
@@ -5194,46 +5245,17 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                             return false;
                                         }
 
-                                        if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
-                                            const state = el.disabled ? 'disabled' : 'enabled';
-                                            return state === expectedLower;
-                                        }
-
                                         if (isInputEl) {
                                             return el.value && el.value.trim() === expected;
                                         }
                                         return el.textContent && el.textContent.trim() === expected;
                                     });
                                     if (matchEl) {
-                                        element = matchEl;
-                                        const tag = matchEl.tagName.toLowerCase();
-                                        const type = matchEl.getAttribute('type') || '';
-                                        const isCheckboxEl = tag === 'input' && type === 'checkbox';
-                                        const isInputEl = tag === 'input' && type !== 'button' && type !== 'checkbox';
-                                        const isButtonEl = tag === 'button' || type === 'button' || matchEl.classList.contains('tk-button');
-
-                                        if (isCheckboxEl) {
-                                            if (/^-?\d+(\.\d+)?$/.test(expected)) {
-                                                const widgetMeta = window.widgetDefinitions?.find(w => w.name === (output.widget || output.name)) || null;
-                                                const onvalue = widgetMeta?.onvalue != null ? widgetMeta.onvalue.toString() : '1';
-                                                const offvalue = widgetMeta?.offvalue != null ? widgetMeta.offvalue.toString() : '0';
-                                                actualValue = matchEl.checked ? onvalue : offvalue;
-                                            } else {
-                                                actualValue = matchEl.checked ? 'checked' : 'unchecked';
-                                            }
-                                        } else if (isButtonEl && (expectedLower === 'disabled' || expectedLower === 'enabled')) {
-                                            actualValue = matchEl.disabled ? 'disabled' : 'enabled';
-                                        } else if (tag === 'input' && type === 'button') {
-                                            actualValue = ((matchEl.value || matchEl.getAttribute('value') || '') + '').trim();
-                                        } else if (isInputEl) {
-                                            actualValue = (matchEl.value || '').trim();
-                                        } else {
-                                            actualValue = (matchEl.textContent || '').trim();
-                                        }
-                                        recovered = true;
-                                        details.push(`✓ "${output.text || output.widget || 'Output'}" = "${actualValue}" (ถูกต้อง)`);
+                                        // ... (ถอนการ recovery ออก)
+                                        // recovered = true;
                                     }
                                 }
+                                */
 
                                 if (!recovered) {
                                     // ระบบวิเคราะห์เพิ่มเติม: ลองหาดูว่าค่าที่คาดหวัง ไปโผล่ที่ Widget อื่นหรือไม่
