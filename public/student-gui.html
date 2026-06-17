@@ -47,13 +47,6 @@
                 <h1>JediCode</h1>
             </div>
             
-            <button id="backBtn" class="back-btn">กลับสู่หน้าห้องเรียน</button>
-        </div>
-
-        <div id="errorMessage" class="error-message"></div>
-        <div id="successMessage" class="success-message"></div>
-
-        <div class="problem-container">
             <div class="score-display">
                 <div class="score-container">
                     <div class="score-text">คะแนน</div>
@@ -63,42 +56,52 @@
                     <div class="score-percentage" id="scorePercentage">0%</div>
                 </div>
             </div>
-            <div class="problem-header">
-                <h2 id="problemTitle" class="problem-title">ชื่อโจทย์</h2>
-                <div id="problemDescription" class="problem-description"></div>
-            </div>
-            <div id="guiImagePreview" class="gui-image-preview" style="display: none;"></div>
-            
-            <div class="two-column-container">
-                <div class="requirements-section">
-                  <h3>ข้อกำหนดของโจทย์</h3>
-                  <div id="requirementsList" class="requirements-list"></div>
-                </div>
-                <div class="testcases-section">
-                  <h3>Test Cases</h3>
-                  <div id="guiTestCasesList" class="testcases-list"></div>
-                </div>
-            </div>
+
+            <button id="backBtn" class="back-btn">กลับสู่หน้าห้องเรียน</button>
         </div>
-        
-        <div class="editor-section">
-            <div id="codeEditor"></div>
 
-            <div class="button-container">
-                <span id="executionStatus" style="display:none; margin-right:10px; padding: 6px 12px; border-radius: 4px; font-size: 0.9rem; font-weight: bold;"></span>
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <div class="main-layout">
+            <div class="problem-container">
+                <div class="problem-header">
+                    <h2 id="problemTitle" class="problem-title">ชื่อโจทย์</h2>
+                    <div id="problemDescription" class="problem-description"></div>
+                </div>
+                <div id="guiImagePreview" class="gui-image-preview" style="display: none;"></div>
                 
-                <button id="checkBtn" class="action-btn">ตรวจสอบโค้ด</button>
-                <button id="convertBtn" class="action-btn">แสดง GUI</button>
-                <button id="testBtn" class="action-btn">ตรวจคำตอบ</button>
-                <button id="testCaseBtn" class="action-btn" disabled>ทดสอบ TestCase เฉพาะ</button>
-                <button id="submitBtn" class="action-btn" disabled>ส่งงาน</button>
-                <button id="resetBtn" class="control-btn" style="background-color: #607d8b; color: white; margin-left: 10px;"><i class="fas fa-undo"></i> Reset Code</button>
+                <div class="two-column-container">
+                    <div class="requirements-section">
+                      <h3>ข้อกำหนดของโจทย์</h3>
+                      <div id="requirementsList" class="requirements-list"></div>
+                    </div>
+                    <div class="testcases-section">
+                      <h3>Test Cases</h3>
+                      <div id="guiTestCasesList" class="testcases-list"></div>
+                    </div>
+                </div>
             </div>
+            
+            <div class="editor-section">
+                <div id="codeEditor"></div>
 
-            <div class="preview-section">
-                <h3>GUI Preview</h3>
-                <div id="guiPreview"></div>
-                <iframe id="result-frame" class="result-frame"></iframe>
+                <div class="button-container">
+                    <span id="executionStatus" style="display:none; margin-right:10px; padding: 6px 12px; border-radius: 4px; font-size: 0.9rem; font-weight: bold;"></span>
+                    
+                    <button id="checkBtn" class="action-btn">ตรวจสอบโค้ด</button>
+                    <button id="convertBtn" class="action-btn">แสดง GUI</button>
+                    <button id="testBtn" class="action-btn">ตรวจคำตอบ</button>
+                    <button id="testCaseBtn" class="action-btn" disabled>ทดสอบ TestCase เฉพาะ</button>
+                    <button id="submitBtn" class="action-btn" disabled>ส่งงาน</button>
+                    <button id="resetBtn" class="control-btn" style="background-color: #607d8b; color: white; margin-left: 10px;"><i class="fas fa-undo"></i> Reset Code</button>
+                </div>
+
+                <div class="preview-section">
+                    <h3>GUI Preview</h3>
+                    <div id="guiPreview"></div>
+                    <iframe id="result-frame" class="result-frame"></iframe>
+                </div>
             </div>
         </div>
     </div>

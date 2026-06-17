@@ -237,7 +237,7 @@ body {
 
 .code-editor-container {
    position: relative;
-   height: 500px;
+   height: 800px;
    background: #1e1e1e;
    border-radius: 0.75rem;
    overflow: hidden;

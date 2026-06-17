@@ -1,7 +1,29 @@
 .container {
-    max-width: 1200px;
+    max-width: 1400px; /* เพิ่มความกว้างเพื่อให้รองรับ 2 คอลัมน์ */
     margin: 0 auto;
     padding: 20px;
+}
+
+/* --- Layout ใหม่แบบ 2 คอลัมน์ --- */
+@media (min-width: 1024px) {
+    .main-layout {
+        display: grid;
+        grid-template-columns: 450px 1fr; /* โจทย์ 450px, Editor ที่เหลือ */
+        gap: 24px;
+        align-items: start;
+    }
+
+    .problem-container {
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        margin-bottom: 0 !important;
+    }
+
+    .editor-section {
+        margin-bottom: 0 !important;
+    }
 }
 
 /* Header and navigation styles */
@@ -68,9 +90,9 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
-    margin-left: auto;
     display: flex;
     align-items: center;
+    margin-right: 30px; /* ขยับไปทางซ้าย 30px */
 }
 
 .back-btn:hover {
@@ -385,7 +407,7 @@
 /* เพิ่ม CSS สำหรับ code editor แบบใหม่ */
 .code-editor-container {
     position: relative;
-    height: 400px;
+    height: 800px;
     background: #1e1e1e;
     border-radius: 0.75rem;
     overflow: hidden;
@@ -396,7 +418,7 @@
 /* รองรับการขยายความสูงอัตโนมัติเมื่ออยู่ในโหมดอ่านอย่างเดียว */
 .code-editor-container.readonly-mode {
     height: auto !important;
-    min-height: 400px;
+    min-height: 800px;
     overflow: visible !important;
 }
 
@@ -1705,7 +1727,7 @@
 }
 .code-editor-container {
     position: relative;
-    height: 400px;
+    height: 800px;
     background: #1e1e1e;
     border-radius: 0.75rem;
     overflow: hidden;
@@ -1716,7 +1738,7 @@
 /* รองรับการขยายความสูงอัตโนมัติเมื่ออยู่ในโหมดอ่านอย่างเดียว */
 .code-editor-container.readonly-mode {
     height: auto !important;
-    min-height: 400px;
+    min-height: 800px;
     overflow: visible !important;
 }
 
