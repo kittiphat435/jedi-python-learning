@@ -55,7 +55,7 @@
 body {
    background-color: var(--theme-bg);
    color: var(--theme-text);
-   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+   font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
    line-height: 1.5;
    margin: 0;
 }
@@ -252,7 +252,7 @@ body {
    width: 50px;
    background: #252525;
    color: #606060;
-   font-family: 'Consolas', monospace;
+   font-family: 'Consolas', 'Sarabun', monospace;
    font-size: 14px;
    line-height: 21px;
    text-align: right;
@@ -273,7 +273,7 @@ body {
    background: transparent;
    color: transparent;
    caret-color: #d4d4d4;
-   font-family: 'Consolas', monospace;
+   font-family: 'Consolas', 'Sarabun', monospace;
    font-size: 14px;
    line-height: 21px;
    border: none;
@@ -297,7 +297,7 @@ body {
    margin: 0;
    padding: 10px;
    background: transparent;
-   font-family: 'Consolas', monospace;
+   font-family: 'Consolas', 'Sarabun', monospace;
    font-size: 14px;
    line-height: 21px;
    white-space: pre;
@@ -310,8 +310,8 @@ body {
 .code-highlight code {
    margin: 0 !important;
    padding: 0 !important;
-   background: none !important;
-   font-family: 'Consolas', monospace !important;
+   background: transparent !important;
+   font-family: 'Consolas', 'Sarabun', monospace !important;
    font-size: 14px !important;
    line-height: 21px !important;
    white-space: pre !important;
@@ -644,7 +644,7 @@ body {
    padding: 1rem;
    border: 1px solid var(--theme-border);
    border-radius: 0.5rem;
-   font-family: 'Consolas', monospace;
+   font-family: 'Consolas', 'Sarabun', monospace;
    font-size: 0.9rem;
    line-height: 1.5;
    margin: 0.5rem 0;
@@ -680,7 +680,7 @@ body {
    background: var(--theme-bg);
    border-radius: 0.3rem;
    overflow-x: auto;
-   font-family: 'Consolas', monospace;
+   font-family: 'Consolas', 'Sarabun', monospace;
 }
 
 .input-form button {

@@ -1838,7 +1838,7 @@ if (this.currentTool === 'delete') {
         input.style.background = 'white';
         input.style.outline = 'none';
         input.style.resize = 'none';
-        input.style.fontFamily = 'inherit';
+        input.style.fontFamily = "'Sarabun', inherit";
         input.style.fontSize = 'inherit';
         input.style.textAlign = 'center';
         input.style.overflow = 'hidden';

@@ -694,9 +694,9 @@ async function testCode() {
 
                 // --- Lenient Match: อนุโลมเรื่องช่องว่าง แต่ "บังคับ" เรื่องการขึ้นบรรทัดใหม่ ---
                 if (!outputCorrect) {
-                    const normExpected = expectedOutput.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normSlicedActual = slicedActual.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normActualRaw = actualOutputRaw.split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normExpected = expectedOutput.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normSlicedActual = slicedActual.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normActualRaw = actualOutputRaw.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
                     
                     let adjustedExpected = normExpected;
                     // ... (adjustedExpected logic remains) ...

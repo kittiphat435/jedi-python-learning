@@ -790,12 +790,12 @@ async function testGUICode(code, problemTestCases, iframe) {
 
         // ขั้นตอนที่ 1: จับคู่ตัวที่ตรงทั้ง Type และ Text ตรงกันเป๊ะ และยังไม่ถูกใช้
         requiredWidgets.forEach((req, reqIdx) => {
-            const rText = (req.text || "").trim();
+            const rText = normalizeText(req.text);
             if (rText && rText !== 'ไม่มีข้อความ') {
                 const matchIdx = parsedWidgets.findIndex((p, pIdx) => 
                     !usedParsedIndices.has(pIdx) && 
                     p.type === req.type && 
-                    (p.text || "").trim() === rText
+                    normalizeText(p.text) === rText
                 );
                 if (matchIdx !== -1) {
                     widgetMapping[reqIdx] = matchIdx;
