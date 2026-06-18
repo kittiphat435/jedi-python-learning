@@ -329,6 +329,7 @@ body {
 
 .primary-button,
 .success-button,
+.submit-button,
 .secondary-button {
    padding: 0.6rem 1.2rem;
    /* ปรับขนาดปุ่มให้กะทัดรัดขึ้นถ้าต้องการ */
@@ -379,6 +380,11 @@ body {
    color: white;
 }
 
+.submit-button {
+   background: linear-gradient(135deg, var(--mint-green), var(--mint-dark));
+   color: white;
+}
+
 .secondary-button {
    background: linear-gradient(135deg, var(--pastel-purple), var(--pastel-purple-dark));
    color: white;
@@ -386,6 +392,7 @@ body {
 
 .primary-button:hover,
 .success-button:hover,
+.submit-button:hover,
 .secondary-button:hover {
    transform: translateY(-2px);
    box-shadow: 0 6px 12px -2px var(--theme-shadow);

@@ -173,6 +173,60 @@
       background-color: #f2dede;
       color: #a94442;
     }
+    
+    /* Reward Overlay Styles */
+    .reward-overlay {
+       position: fixed;
+       inset: 0;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       padding: 16px;
+       background: rgba(0, 0, 0, 0.25);
+       z-index: 9999;
+       opacity: 1;
+    }
+
+    .reward-overlay-hide {
+       opacity: 0;
+       transition: opacity 0.22s ease;
+    }
+
+    .reward-card {
+       width: min(320px, 86vw);
+       border-radius: 20px;
+       background: rgba(255, 255, 255, 0.85);
+       border: 1px solid rgba(255, 255, 255, 0.75);
+       box-shadow: 0 26px 80px rgba(0, 0, 0, 0.35);
+       backdrop-filter: blur(10px);
+       -webkit-backdrop-filter: blur(10px);
+       padding: 18px;
+       animation: reward-pop 220ms ease-out, reward-float 1.3s ease-in-out infinite;
+    }
+
+    .reward-image,
+    .reward-yarn {
+       width: 100%;
+       height: auto;
+       display: block;
+       border-radius: 16px;
+    }
+
+    @keyframes reward-pop {
+       from {
+          transform: translateY(10px) scale(0.94);
+          opacity: 0.5;
+       }
+       to {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+       }
+    }
+
+    @keyframes reward-float {
+       0%, 100% { transform: translateY(0); }
+       50% { transform: translateY(-6px); }
+    }
   </style>
 </head>
 <body>
@@ -1432,6 +1486,46 @@ function showSuccess(message) {
     }, 5000);
 }
 
+// ฟังก์ชันแสดงกลุ่มด้ายกลางจอเมื่อทำผ่านสำเร็จ
+function showYarnReward() {
+    console.log("🧶 กำลังแสดงรูปด้ายรางวัลความสำเร็จกลางจอ...");
+    
+    // สร้าง overlay element
+    const overlay = document.createElement('div');
+    overlay.className = 'reward-overlay';
+    
+    // โครงสร้างการ์ดภายใน
+    overlay.innerHTML = `
+        <div class="reward-card">
+            <img src="images/yarn-reward.png" class="reward-yarn" alt="ไหมพรมของรางวัล" onerror="this.src='logo.png';">
+            <h2 style="text-align: center; margin: 10px 0 0 0; color: #5ECBA5; font-family: 'Sarabun', sans-serif; font-size: 1.4rem;">ยินดีด้วย! คุณได้รับไหมพรม 🧶</h2>
+            <p style="text-align: center; margin: 5px 0 0 0; color: #666; font-family: 'Sarabun', sans-serif; font-size: 0.95rem;">คุณได้พิชิตโจทย์ GUI ข้อนี้สำเร็จแล้ว!</p>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // ปิดอัตโนมัติหลังจากผ่านไป 4 วินาที
+    setTimeout(() => {
+        overlay.classList.add('reward-overlay-hide');
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+        }, 250);
+    }, 4000);
+    
+    // กดที่ overlay เพื่อปิดได้เช่นกัน
+    overlay.addEventListener('click', () => {
+        overlay.classList.add('reward-overlay-hide');
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+        }, 250);
+    });
+}
+
 
 // --- 🔄 ฟังก์ชัน checkGUICode (ฉบับ Hybrid: ประหยัดเงิน AWS) ---
 async function checkGUICode(code) {
@@ -1937,6 +2031,7 @@ async function checkAnswer() {
             }
             alert(`✅ โครงสร้างถูกต้อง และได้คะแนนเต็ม!\n\nคะแนน: ${testResult.totalScore}/${testResult.maxScore}`);
             showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
+            showYarnReward(); // 🎉 แสดงกลุ่มด้ายความสำเร็จกลางจอ
         } else {
             // โครงสร้างถูก แต่คะแนนไม่เต็ม
             if (submitBtn) submitBtn.disabled = true;

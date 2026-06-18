@@ -222,7 +222,8 @@ async function loadLastSubmission(problemId, userId) {
                         });
                     }
                     
-                    if (submitBtn) submitBtn.style.display = 'none';
+                    const submitBtnElement = document.getElementById('submitBtn');
+                    if (submitBtnElement) submitBtnElement.style.display = 'none';
                     if (runBtn) runBtn.style.display = 'none';
                 }
             } else {
@@ -831,17 +832,17 @@ function displayTestResults(results) {
         </div>
     `).join('');
 
-    if (allPassed) {
-        html += `
-            <div class="submit-section">
-                <button onclick="submitToTeacher()" class="primary-btn">
-                    ส่งงานให้ครูตรวจ
-                </button>
-            </div>
-        `;
-    }
-
     container.innerHTML = html;
+
+    // จัดการแสดงปุ่มส่งงานที่ย้ายไปอยู่ข้างปุ่มตรวจ
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        if (allPassed) {
+            submitBtn.style.display = 'inline-block';
+        } else {
+            submitBtn.style.display = 'none';
+        }
+    }
 }
 
 function updateLineNumbers() {
