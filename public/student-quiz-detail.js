@@ -95,11 +95,11 @@ function updateQuizDisplay(isViewMode = false) {
 
         console.log('Content:', content); // เพิ่ม log เพื่อตรวจสอบ
 
-        // แสดงรูปภาพประกอบถ้ามี (แบบย่อ/ขยายได้)
+        // แสดงรูปภาพประกอบถ้ามี (แบบขยายได้)
         if (currentQuiz.image) {
             content = `
-                <div id="problemImagePreview" class="problem-image collapsed">
-                    <button type="button" class="image-toggle-btn" onclick="toggleImageSize()">ขยายภาพ</button>
+                <div id="problemImagePreview" class="problem-image">
+                    <button type="button" class="image-toggle-btn" onclick="toggleImageSize()">ย่อภาพ</button>
                     <img src="${currentQuiz.image}" alt="ภาพประกอบโจทย์" onclick="toggleImageSize()" onerror="this.parentElement.style.display='none'">
                 </div>
                 ${content}
@@ -420,72 +420,88 @@ window.openMediaModal = function(url) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'globalMediaModal';
-        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center;';
+        // เปลี่ยนเป็นโปร่งใส ไม่บังส่วนที่เหลือ
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; display: flex; justify-content: flex-start; align-items: flex-start; padding: 20px;';
         
         const contentBox = document.createElement('div');
         contentBox.id = 'globalMediaContentBox';
-        contentBox.style.cssText = 'position: relative; width: 90%; height: 90%; background: #fff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; transition: all 0.3s ease;';
+        // เพิ่ม pointer-events: auto เพื่อให้กดได้เฉพาะตัวหน้าต่าง
+        contentBox.style.cssText = 'position: relative; width: 400px; height: 500px; background: #fff; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.3); pointer-events: auto; border: 2px solid #1a73e8; resize: both; overflow: auto;';
         
         const header = document.createElement('div');
-        header.style.cssText = 'display: flex; justify-content: flex-end; margin-bottom: 10px;';
+        header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; cursor: move; background: #f8f9fa; padding: 5px 10px; border-radius: 6px;';
+        header.innerHTML = '<span style="font-weight: bold; color: #1a73e8; font-size: 14px;">🖼️ รูปภาพประกอบ</span>';
         
         const closeBtn = document.createElement('button');
-        closeBtn.innerHTML = '✖ ปิดหน้าต่าง';
-        closeBtn.style.cssText = 'background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;';
+        closeBtn.innerHTML = '✖';
+        closeBtn.style.cssText = 'background: #dc3545; color: white; border: none; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center;';
         closeBtn.onclick = () => {
             modal.style.display = 'none';
-            document.getElementById('globalMediaContainer').innerHTML = ''; // clear iframe to stop video
+            document.getElementById('globalMediaContainer').innerHTML = '';
         };
 
-        const fullscreenBtn = document.createElement('button');
-        fullscreenBtn.innerHTML = '🔲 เต็มหน้าจอ';
-        fullscreenBtn.style.cssText = 'background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin-right: 10px;';
-        fullscreenBtn.onclick = () => {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-                fullscreenBtn.innerHTML = '🔲 เต็มหน้าจอ';
-            } else {
-                contentBox.requestFullscreen().catch(err => {
-                    alert(`ไม่สามารถเปิดโหมดเต็มหน้าจอได้: ${err.message}`);
-                });
-                fullscreenBtn.innerHTML = '✖ ออกจากเต็มหน้าจอ';
-            }
-        };
-        
         const mediaContainer = document.createElement('div');
         mediaContainer.id = 'globalMediaContainer';
-        mediaContainer.style.cssText = 'flex-grow: 1; width: 100%; height: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #f8f9fa; border-radius: 4px;';
+        mediaContainer.style.cssText = 'flex-grow: 1; width: 100%; height: 100%; overflow: auto; display: flex; justify-content: center; align-items: center; background: #f8f9fa; border-radius: 4px;';
         
-        header.appendChild(fullscreenBtn);
         header.appendChild(closeBtn);
         contentBox.appendChild(header);
         contentBox.appendChild(mediaContainer);
         modal.appendChild(contentBox);
         document.body.appendChild(modal);
+
+        // ทำให้ลากได้ (Drag feature)
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        header.addEventListener("mousedown", dragStart);
+        document.addEventListener("mousemove", drag);
+        document.addEventListener("mouseup", dragEnd);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            if (e.target === header || header.contains(e.target)) {
+                isDragging = true;
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                xOffset = currentX;
+                yOffset = currentY;
+                setTranslate(currentX, currentY, contentBox);
+            }
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+        }
+
+        function dragEnd() {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+        }
     }
     
     const container = document.getElementById('globalMediaContainer');
     const contentBox = document.getElementById('globalMediaContentBox');
-    container.innerHTML = '<p>กำลังโหลดสื่อ...</p>';
+    container.innerHTML = '<p>กำลังโหลด...</p>';
     modal.style.display = 'flex';
     
     const lowerUrl = url.toLowerCase();
     let embedHtml = '';
     const isImage = lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|jfif)/i) != null || (lowerUrl.includes('alt=media') && !lowerUrl.includes('.pdf'));
 
-    // ปรับขนาดหน้าต่างตามประเภทสื่อ
-    if (isImage) {
-        contentBox.style.width = 'auto';
-        contentBox.style.height = 'auto';
-        contentBox.style.maxWidth = '90%';
-        contentBox.style.maxHeight = '90%';
-    } else {
-        contentBox.style.width = '90%';
-        contentBox.style.height = '90%';
-        contentBox.style.maxWidth = '90%';
-        contentBox.style.maxHeight = '90%';
-    }
-    
     if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
         let videoId = '';
         if (lowerUrl.includes('youtu.be/')) {
@@ -493,13 +509,9 @@ window.openMediaModal = function(url) {
         } else if (lowerUrl.includes('v=')) {
             videoId = url.split('v=')[1].split('&')[0];
         }
-        if (videoId) {
-            embedHtml = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-        } else {
-            embedHtml = `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
-        }
+        embedHtml = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
     } else if (isImage) {
-        embedHtml = `<img src="${url}" style="max-width: 100%; max-height: 80vh; object-fit: contain; margin: auto; display: block; border-radius: 4px;">`;
+        embedHtml = `<img src="${url}" style="max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; display: block;">`;
     } else {
         embedHtml = `<iframe width="100%" height="100%" src="${url}" frameborder="0" allowfullscreen></iframe>`;
     }
