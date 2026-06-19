@@ -655,7 +655,7 @@ function debugFlowchartData(flowchartData) {
         connections: flowchartData.connections
     });
 }
-async function viewProblem(problemId) {
+async function viewProblem(problemId, targetStudentId = null) {
     try {
         const classId = new URLSearchParams(window.location.search).get('id');
 
@@ -698,6 +698,8 @@ async function viewProblem(problemId) {
         // สร้าง HTML สำหรับแต่ละนักเรียน
         for (const enrollment of enrollments.docs) {
             const studentId = enrollment.data().studentId;
+            if (targetStudentId && studentId !== targetStudentId) continue;
+            
             const studentDoc = await db.collection('users').doc(studentId).get();
             const studentData = studentDoc.data();
             const submission = studentSubmissions.get(studentId);
@@ -811,8 +813,8 @@ async function viewProblem(problemId) {
                     </div>
                     ${submission ? `
                         <span class="submission-status status-submitted">ส่งแล้ว</span>
-                        <button class="expand-btn" onclick="toggleSubmission(this)">ดูคำตอบ</button>
-                        <div class="submission-expand" style="display: none;">
+                        <button class="expand-btn ${targetStudentId ? 'expanded' : ''}" onclick="toggleSubmission(this)">${targetStudentId ? 'ซ่อนคำตอบ' : 'ดูคำตอบ'}</button>
+                        <div class="submission-expand" style="display: ${targetStudentId ? 'block' : 'none'};">
                             <div class="submission-date">
                                 ส่งเมื่อ: ${submission.submittedAt.toDate().toLocaleString('th-TH')}
                             </div>
@@ -1354,6 +1356,11 @@ async function viewProgress(studentId) {
                     maxScore: data.maxScore,
                     finalMaxScore: maxScore
                 });
+            } else if (data.type === 'gui' || data.type === 'quiz' || data.type === 'comprehension') {
+                maxScore = data.maxScore || 0;
+                if ((data.type === 'quiz' || data.type === 'comprehension') && !maxScore && data.questions) {
+                    maxScore = data.questions.reduce((sum, q) => sum + (q.score || 1), 0);
+                }
             }
 
             console.log(`Problem ${data.problemId}:`, {
@@ -1373,14 +1380,15 @@ async function viewProgress(studentId) {
         let totalMaxScore = 0;
 
         problemDetails.forEach((problem, problemId) => {
-            console.log(`Problem ${problemId}:`, {
-                type: problem.type,
-                maxScore: problem.maxScore
-            });
-            totalMaxScore += problem.maxScore;
+            const submission = latestSubmissions.get(problemId);
+            
+            // ใช้ maxScore จาก submission ถ้ามี (เผื่อกรณีครูแก้โจทย์ทีหลัง)
+            const actualMaxScore = (submission && submission.maxScore) ? submission.maxScore : problem.maxScore;
+            problem.displayMaxScore = actualMaxScore;
+            
+            totalMaxScore += actualMaxScore;
         
             // ตรวจสอบ submission ของแต่ละโจทย์
-            const submission = latestSubmissions.get(problemId);
             if (submission && submission.score && submission.status === 'completed') {
                 // นับคะแนนเฉพาะ status completed เท่านั้น
                 completedCount++;
@@ -1452,7 +1460,10 @@ async function viewProgress(studentId) {
                         const submission = latestSubmissions.get(problemId);
                         const score = submission?.status === 'completed' ? submission.score : 0;
                         let statusText = 'ยังไม่ส่ง';
-                        if (submission) {
+                        let viewLink = '';
+                        
+                        // ถ้าสถานะเป็น draft ให้ถือว่ายังไม่ส่ง
+                        if (submission && submission.status !== 'draft') {
                             switch(submission.status) {
                                 case 'completed':
                                     statusText = 'ส่งแล้ว';
@@ -1463,6 +1474,16 @@ async function viewProgress(studentId) {
                                 default:
                                     statusText = 'รอตรวจ';
                             }
+                            
+                            if (problem.type) {
+                                viewLink = `
+                                    <button onclick="viewProblem('${problemId}', '${studentId}')" 
+                                       class="view-answer-btn" 
+                                       style="margin-left: 10px; font-size: 0.9em; color: #3498db; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0;">
+                                       <i class="fas fa-search"></i> ดูคำตอบ
+                                    </button>
+                                `;
+                            }
                         }
                         return `
                             <div class="problem-item">
@@ -1470,8 +1491,9 @@ async function viewProgress(studentId) {
                                 <div class="problem-info">
                                     <span class="problem-type">${problem.type}</span>
                                     <span class="problem-score ${submission?.status === 'completed' ? 'completed' : ''}">
-                                        ${score}/${problem.maxScore}
+                                        ${score}/${problem.displayMaxScore || problem.maxScore}
                                         (${statusText})
+                                        ${viewLink}
                                     </span>
                                 </div>
                             </div>

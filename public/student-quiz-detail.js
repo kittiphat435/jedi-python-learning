@@ -204,15 +204,39 @@ async function loadLastSubmission(quizId, userId) {
 
             // ใส่คำตอบที่เคยตอบไว้
             submission.answers.forEach((answer, index) => {
+                const isExamCompleted = currentQuiz?.assignmentType === 'exam' && submission.status === 'completed';
                 const textarea = document.querySelector(`textarea[data-question="${index}"]`);
                 if (textarea) {
-                    textarea.value = answer;
-                    if (isViewMode) {
+                    if (isExamCompleted) {
+                        textarea.value = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูคำตอบย้อนหลังได้";
                         textarea.readOnly = true;
-                        textarea.classList.add('view-mode');  // เพิ่ม class สำหรับ styling
+                        textarea.classList.add('view-mode');
+                    } else {
+                        textarea.value = answer;
+                        if (isViewMode) {
+                            textarea.readOnly = true;
+                            textarea.classList.add('view-mode');
+                        }
+                    }
+                } else {
+                    if (isExamCompleted) {
+                        const radios = document.querySelectorAll(`input[name="question-${index}"]`);
+                        radios.forEach(r => r.disabled = true);
+                    } else if (answer) {
+                        const radio = document.querySelector(`input[name="question-${index}"][value="${answer}"]`);
+                        if (radio) radio.checked = true;
+                        if (isViewMode) {
+                            const radios = document.querySelectorAll(`input[name="question-${index}"]`);
+                            radios.forEach(r => r.disabled = true);
+                        }
                     }
                 }
             });
+
+            if (currentQuiz?.assignmentType === 'exam' && submission.status === 'completed') {
+                const btn = document.querySelector('.submit-btn');
+                if (btn) btn.style.display = 'none';
+            }
 
             updateStatusBadge(submission.status);
             if (submission.status === 'completed') {
@@ -291,6 +315,10 @@ async function submitQuiz() {
 
         showResults(results, totalScore, maxScore);
         updateStatusBadge(totalScore === maxScore ? 'completed' : 'pending');
+
+        if (allCorrect && currentQuiz?.assignmentType === 'exam') {
+            alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
+        }
 
         if (allCorrect) {
             setTimeout(() => {

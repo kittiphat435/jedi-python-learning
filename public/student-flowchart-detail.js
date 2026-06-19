@@ -197,22 +197,29 @@ async function loadExistingSubmission(problemId, classId, userId) {
         if (!snapshot.empty && isViewMode) {
             const submission = snapshot.docs[0].data();
 
-            // จัดการ bendPoints ให้ถูกต้อง
-            if (submission.flowchartData?.connections) {
-                submission.flowchartData.connections = submission.flowchartData.connections.map(conn => {
-                    const bendPoints = conn.bendPoints || [];
-                    return {
-                        ...conn,
-                        bendPoints: bendPoints.map(point => ({
-                            x: point.x,
-                            y: point.y
-                        }))
-                    };
-                });
-            }
+            if (problemData?.assignmentType === 'exam') {
+                const canvas = document.getElementById('flowchartCanvas');
+                if (canvas) {
+                    canvas.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 1.2em;">ข้อสอบถูกส่งแล้ว ไม่สามารถดู Flowchart ย้อนหลังได้</div>';
+                }
+            } else {
+                // จัดการ bendPoints ให้ถูกต้อง
+                if (submission.flowchartData?.connections) {
+                    submission.flowchartData.connections = submission.flowchartData.connections.map(conn => {
+                        const bendPoints = conn.bendPoints || [];
+                        return {
+                            ...conn,
+                            bendPoints: bendPoints.map(point => ({
+                                x: point.x,
+                                y: point.y
+                            }))
+                        };
+                    });
+                }
 
-            // โหลดข้อมูลเข้า flowchart editor
-            flowchartEditor.loadData(submission.flowchartData);
+                // โหลดข้อมูลเข้า flowchart editor
+                flowchartEditor.loadData(submission.flowchartData);
+            }
 
             // ทำให้ไม่สามารถแก้ไขได้ในโหมด view เท่านั้น
             if (isViewMode) {
@@ -573,7 +580,11 @@ async function submitAnswer() {
         localStorage.removeItem(autoSaveKey);
         window.hasUnsavedChanges = false; // ปิดการแจ้งเตือนตอนออก
 
-        alert('ส่งคำตอบสำเร็จ');
+        if (problemData?.assignmentType === 'exam') {
+            alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
+        } else {
+            alert('ส่งคำตอบสำเร็จ');
+        }
         if (classId === 'admin') {
             window.location.href = 'student-problem-admin.html';
         } else {
@@ -713,8 +724,13 @@ async function checkAnswer() {
         // Enable/Disable ปุ่มส่งคำตอบตามผลการตรวจ
         const submitBtn = document.getElementById('submitBtn');
         if (submitBtn) {
-            submitBtn.disabled = !passed;
-            submitBtn.classList.toggle('disabled', !passed);
+            if (passed && problemData?.assignmentType === 'exam') {
+                submitBtn.style.display = 'none';
+                submitAnswer();
+            } else {
+                submitBtn.disabled = !passed;
+                submitBtn.classList.toggle('disabled', !passed);
+            }
         }
 
     } catch (error) {

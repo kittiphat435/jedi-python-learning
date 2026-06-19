@@ -152,6 +152,12 @@ async function loadProblem() {
                 console.log('Drawing lines after setup...'); // Debug log
                 drawAllLines();
             }, 500);
+        } else {
+            // ซ่อนปุ่ม Submit ถ้าเป็นโหมดข้อสอบ
+            if (currentProblem?.assignmentType === 'exam') {
+                const submitBtn = document.querySelector('.submit-btn');
+                if (submitBtn) submitBtn.style.display = 'none';
+            }
         }
 
     } catch (error) {
@@ -244,6 +250,11 @@ function endLine(e) {
     }
 
     drawAllLines();
+    
+    // Auto submit สำหรับโหมดข้อสอบ เมื่อจับคู่ครบ
+    if (currentProblem?.assignmentType === 'exam' && matches.size === currentProblem.pairs.length) {
+        submitAnswer();
+    }
 }
 
 
@@ -384,6 +395,16 @@ async function submitAnswer() {
                 totalScore: (currentData.totalScore || 0) + score,
                 totalMaxScore: (currentData.totalMaxScore || 0) + maxScore
             });
+        }
+
+        if (currentProblem?.assignmentType === 'exam') {
+            alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
+            if (classId === 'admin') {
+                window.location.href = 'student-problem-admin.html';
+            } else {
+                window.location.href = `student-class-detail.html?id=${classId}&refresh=true`;
+            }
+            return;
         }
 
         // สร้าง modal แสดงผล

@@ -195,7 +195,12 @@ async function loadLastSubmission(problemId, userId) {
                     if (codeEditor) {
                         codeEditor.readOnly = true;
                         codeEditor.classList.add('readonly-mode');
-                        codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
+                        if (currentProblem?.assignmentType === 'exam') {
+                            codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้';
+                            codeEditor.placeholder = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้";
+                        } else {
+                            codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
+                        }
                         
                         // ปิดการคลิกขวาและการคัดลอก
                         codeEditor.addEventListener('contextmenu', e => e.preventDefault());
@@ -838,7 +843,12 @@ function displayTestResults(results) {
     const submitBtn = document.getElementById('submitBtn');
     if (submitBtn) {
         if (allPassed) {
-            submitBtn.style.display = 'inline-block';
+            if (currentProblem?.assignmentType === 'exam') {
+                submitBtn.style.display = 'none';
+                submitToTeacher();
+            } else {
+                submitBtn.style.display = 'inline-block';
+            }
         } else {
             submitBtn.style.display = 'none';
         }
@@ -1188,7 +1198,12 @@ async function submitToTeacher() {
 
         console.log('บันทึก submission สำเร็จ:', submissionData);
 
-        alert('ส่งงานสำเร็จ');
+        if (currentProblem?.assignmentType === 'exam') {
+            alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
+        } else {
+            alert('ส่งงานสำเร็จ');
+        }
+        
         if (classId === 'admin') {
             window.location.href = 'student-problem-admin.html';
         } else {

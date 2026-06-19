@@ -2754,9 +2754,17 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
                 const currentScore = submission.score || 0;
                 updateScoreDisplay(currentScore, maxScore);
                 
-                codeEditor.value = submission.code || problemData.templateCode || '';
-                if (viewMode) {
-                    checkGUICode(submission.code);
+                if (problemData?.assignmentType === 'exam') {
+                    codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้';
+                    if (codeEditor) {
+                        codeEditor.readOnly = true;
+                        codeEditor.placeholder = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้";
+                    }
+                } else {
+                    codeEditor.value = submission.code || problemData.templateCode || '';
+                    if (viewMode) {
+                        checkGUICode(submission.code);
+                    }
                 }
             } else {
                 updateScoreDisplay(0, maxScore);
@@ -3632,7 +3640,11 @@ async function submitGUICode(code, problemId, userId, classId) {
         console.log('✅ บันทึกข้อมูลสำเร็จ');
 
         // 4. แจ้งเตือนและกลับ
-        alert('ส่งงานเรียบร้อยแล้ว! (คะแนนเต็ม)');
+        if (problemData?.assignmentType === 'exam') {
+            alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
+        } else {
+            alert('ส่งงานเรียบร้อยแล้ว! (คะแนนเต็ม)');
+        }
         if (classId === 'admin') {
             window.location.href = 'student-problem-admin.html';
         } else {
@@ -5475,9 +5487,28 @@ function saveTestResults(additionalScore, runMaxScore) {
     if (submitBtn && guiBaseResult?.passed === true) {
         // ให้ส่งงานได้เฉพาะเมื่อได้คะแนนเต็ม (คะแนนเท่ากับคะแนนเต็ม) เท่านั้น
         if (displayMaxScore > 0 && displayScore === displayMaxScore) {
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = "1";
-            submitBtn.style.cursor = "pointer";
+            if (problemData?.assignmentType === 'exam') {
+                submitBtn.style.display = 'none';
+                
+                // ดึงข้อมูลเพิ่มเติมเพื่อส่ง
+                const codeEditor = document.getElementById('codeEditorTextarea');
+                const urlParams = new URLSearchParams(window.location.search);
+                const problemId = urlParams.get('id');
+                const userId = auth.currentUser ? auth.currentUser.uid : '';
+                let classId = urlParams.get('classId');
+                if (!classId && document.referrer) {
+                    const refUrl = new URL(document.referrer);
+                    const refParams = new URLSearchParams(refUrl.search);
+                    classId = refParams.get('id');
+                }
+                if (!classId && problemData?.classId) classId = problemData.classId;
+                
+                submitGUICode(codeEditor?.value || '', problemId, userId, classId);
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = "1";
+                submitBtn.style.cursor = "pointer";
+            }
         } else {
             submitBtn.disabled = true;
             submitBtn.style.opacity = "0.5";

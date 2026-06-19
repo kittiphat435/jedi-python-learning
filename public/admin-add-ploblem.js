@@ -1281,6 +1281,7 @@ async function editProblem(problemId) {
         const problemType = document.getElementById('problemType');
         const problemTopic = document.getElementById('problemTopic');
         const problemDifficulty = document.getElementById('problemDifficulty');
+        const assignmentType = document.getElementById('assignmentType');
         const problemImage = document.getElementById('problemImage');
 
         if (problemTitle && problemType && problemDifficulty) {
@@ -1290,6 +1291,7 @@ async function editProblem(problemId) {
                 problemTopic.value = problemData.topic || 'basic';
             }
             problemDifficulty.value = problemData.difficulty || 'medium';
+            if (assignmentType) assignmentType.value = problemData.assignmentType || 'exercise';
             if (problemImage) problemImage.value = problemData.image || '';
             toggleProblemTypeFields(); // จะเรียก addSaveWidgetButton ถ้าเป็น gui
         }
@@ -2207,11 +2209,14 @@ async function saveProblem(event) {
         };
     }).filter(item => item.url);
 
+    const assignmentType = document.getElementById('assignmentType')?.value || 'exercise';
+
     const problemData = {
         title: problemTitle,
         type: problemType,
         topic: problemTopic,
         difficulty: problemDifficulty,
+        assignmentType: assignmentType,
         variables: variables,
         image: problemImage,
         attachments: attachments,
