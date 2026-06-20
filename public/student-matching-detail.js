@@ -397,6 +397,8 @@ async function submitAnswer() {
             });
         }
 
+        await playScoreAnimation(score, maxScore);
+
         if (currentProblem?.assignmentType === 'exam') {
             alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
             if (classId === 'admin') {

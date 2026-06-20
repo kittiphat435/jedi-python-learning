@@ -14,6 +14,10 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./student-class-detail.css">
@@ -41,12 +45,36 @@
             <a href="student-dashboard.html" class="back-btn">กลับ</a>
         </div>
 
-        <!-- Class Info -->
-        <div class="section class-info">
-            <h2 id="className">ชื่อห้องเรียน</h2>
-            <div class="class-details">
-                <div class="detail-item">รหัสห้องเรียน: <span id="classCode"></span></div>
-                <div class="detail-item">ผู้สอน: <span id="teacherName"></span></div>
+        <!-- Unified Class & Profile Header Card -->
+        <div class="section" style="display: flex; justify-content: space-between; align-items: center; gap: 30px; flex-wrap: wrap; padding: 20px 28px; border-radius: 16px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; margin-bottom: 25px;">
+            <!-- Left: Class Info (target of loadClassDetails) -->
+            <div id="classInfoContainer" style="flex: 1; min-width: 300px;">
+                <div class="class-header" style="display: flex; flex-direction: column; gap: 6px;">
+                    <h2 id="className" style="font-size: 22px; font-weight: 700; margin: 0; color: #1e293b;">ชื่อห้องเรียน</h2>
+                    <div style="font-size: 13px; color: #64748b;">รหัสห้องเรียน: <span id="classCode" style="font-weight: 600;">-</span></div>
+                    <div class="teacher-profile" style="display: flex; align-items: center; gap: 12px; padding: 8px 0; margin-top: 5px; border-top: 1px dashed #e2e8f0;">
+                        <img src="" alt="อาจารย์ผู้สอน" class="teacher-image" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid #e2e8f0;">
+                        <div class="teacher-info">
+                            <div class="teacher-name" style="font-size: 14px; font-weight: 600; color: #334155;">ผู้สอน: <span id="teacherName">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Vertical Divider -->
+            <div class="header-divider" style="width: 1px; height: 80px; background: #e2e8f0; align-self: center;"></div>
+            
+            <!-- Right: Student Profile & Rank Section (Shadow Glow Card Style) -->
+            <div id="studentProfileCard" class="section" style="display: flex; align-items: center; gap: 16px; min-width: 250px; padding: 12px 20px; border-radius: 8px; background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02); margin-bottom: 0; transition: all 0.3s ease;">
+                <div class="profile-pic-container" style="position: relative; display: flex; align-items: center; justify-content: center;">
+                    <img id="studentProfilePic" src="" alt="โปรไฟล์" style="width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 1.5px solid #e2e8f0; display: block; transition: all 0.3s ease;">
+                </div>
+                <div class="profile-text" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                    <div id="studentName" style="font-weight: 700; color: #1e293b; font-size: 15px;">ชื่อผู้ใช้</div>
+                    <div id="studentRankBadge" class="rank-badge" style="display: inline-block; padding: 4px 13px; border-radius: 20px; font-size: 15px; font-weight: 800; text-transform: uppercase; border: 1.5px solid #e2e8f0; color: #64748b; background: transparent; transition: all 0.3s ease; white-space: nowrap;">
+                        กำลังประเมิน...
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -76,24 +104,65 @@
             </div>
         </div>
 
-        <!-- Problems Section -->
-        <div class="section">
-            <div class="section-header">
-                <h2>โจทย์ในห้องเรียน</h2>
-                <div class="search-box">
-                    <input type="text" id="searchProblem" placeholder="ค้นหาโจทย์...">
+        <!-- Tab Navigation -->
+        <div class="class-detail-tabs" style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+            <button onclick="switchClassTab('problems')" id="tabBtn-problems" class="class-tab-btn active" style="background: none; border: none; font-size: 16px; font-weight: 600; padding: 8px 16px; cursor: pointer; color: #3b82f6; border-bottom: 3px solid #3b82f6; transition: all 0.2s; font-family: inherit;">
+                <i class="fas fa-tasks"></i> แบบฝึกหัด
+            </button>
+            <button onclick="switchClassTab('analysis')" id="tabBtn-analysis" class="class-tab-btn" style="background: none; border: none; font-size: 16px; font-weight: 600; padding: 8px 16px; cursor: pointer; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; font-family: inherit;">
+                <i class="fas fa-chart-pie"></i> วิเคราะห์ตนเอง
+            </button>
+        </div>
+
+        <!-- Problems Tab Content -->
+        <div id="problemsTabContent" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <h2>โจทย์ในห้องเรียน</h2>
+                    <div class="search-box">
+                        <input type="text" id="searchProblem" placeholder="ค้นหาโจทย์...">
+                    </div>
                 </div>
-            </div>
-            <div id="problemList" class="problem-list">
-                <!-- จะถูกเติมด้วย JavaScript -->
+                <div id="problemList" class="problem-list">
+                    <!-- จะถูกเติมด้วย JavaScript -->
+                </div>
             </div>
         </div>
 
-        <!-- Progress Chart -->
-        <div class="section">
-            <h2>ความคืบหน้าของฉัน</h2>
-            <div class="progress-chart">
-                <canvas id="progressChart"></canvas>
+        <!-- Analysis Tab Content -->
+        <div id="analysisTabContent" class="tab-content" style="display: none;">
+            <div class="analysis-charts-grid">
+                <!-- Left: Progress Chart -->
+                <div class="section" style="margin-bottom: 0;">
+                    <h2>ความคืบหน้าของฉัน</h2>
+                    <div class="progress-chart-container" style="background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); min-height: 320px; display: flex; flex-direction: column; justify-content: center;">
+                        <canvas id="progressChart" style="max-height: 280px; width: 100%;"></canvas>
+                    </div>
+                </div>
+                <!-- Right: Radar Chart -->
+                <div class="section" style="margin-bottom: 0;">
+                    <h2>วิเคราะห์ทักษะ (Skill Profile)</h2>
+                    <div class="radar-chart-container" style="background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; justify-content: center; align-items: center; min-height: 320px; position: relative;">
+                        <canvas id="analysisRadarChart" style="max-height: 300px; max-width: 300px;"></canvas>
+                        <div id="radarPlaceholder" style="display: none; text-align: center; color: #64748b; padding: 40px 0;">
+                            <i class="far fa-chart-bar fa-3x" style="color: #cbd5e1; margin-bottom:10px; display: block;"></i>
+                            <p>เรนเดอร์กราฟใยแมงมุมไม่ได้เนื่องจากคุณยังไม่เคยส่งคำตอบแบบฝึกหัดเรื่องใดเลย</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations Card -->
+            <div class="section" style="margin-top: 24px;">
+                <h2>คำแนะนำเพื่อพัฒนาตนเอง</h2>
+                <div class="recommendations-card" style="background: #fff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                    <div class="recommendations-container" id="recommendationsList">
+                        <div style="color: #64748b; text-align: center; padding: 20px;">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p style="margin-top: 10px;">กำลังวิเคราะห์ผลคะแนนและจัดทำคำแนะนำ...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

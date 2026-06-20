@@ -129,6 +129,11 @@ function updateQuizDisplay(isViewMode = false) {
                         <span class="question-score">(${question.score || 1} คะแนน)</span>
                     </div>
                     <div class="question-text">${question.question || ''}</div>
+                    ${question.image ? `
+                        <div class="question-image" style="margin-top: 12px; margin-bottom: 15px; text-align: center;">
+                            <img src="${question.image}" alt="รูปภาพประกอบข้อ ${index + 1}" style="max-width: 100%; max-height: 350px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        </div>
+                    ` : ''}
                     <textarea 
                         class="answer-input"
                         data-question="${index}"

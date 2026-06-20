@@ -359,6 +359,7 @@ function renderProblemsPage() {
             case 'matching': problemTypeIcon = '🔄'; problemTypeText = 'โจทย์จับคู่'; break;
             case 'comprehension': problemTypeIcon = '📝'; problemTypeText = 'คำถามความเข้าใจ'; break;
             case 'gui': problemTypeIcon = '🪟'; problemTypeText = 'โจทย์ GUI'; break;
+            case 'summary': problemTypeIcon = '📋'; problemTypeText = 'สรุปผลการเรียน'; break;
             default: problemTypeIcon = '📄'; problemTypeText = 'ไม่ระบุประเภท';
         }
 
@@ -679,6 +680,12 @@ async function viewProblem(problemId, targetStudentId = null) {
         const problemData = problemDoc.data();
         console.log('Problem Data:', problemData);
 
+        if (problemData.type === 'summary') {
+            const studentIdParam = targetStudentId ? `&studentId=${targetStudentId}` : '';
+            window.location.href = `teacher-summary-detail.html?id=${problemId}&classId=${classId}${studentIdParam}`;
+            return;
+        }
+
         // จัดการข้อมูลการส่งงาน - เก็บเฉพาะการส่งล่าสุดของแต่ละคน
         const studentSubmissions = new Map();
         submissionsSnapshot.docs.forEach(doc => {
@@ -792,6 +799,18 @@ async function viewProblem(problemId, targetStudentId = null) {
                                 <div class="gui-preview">
                                     <h4>โค้ด Python (GUI) ที่ส่ง:</h4>
                                     <pre><code>${submission.code || 'ไม่มีโค้ด'}</code></pre>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'summary':
+                        const note = submission.note || {};
+                        submissionContent = `
+                            <div class="summary-submission">
+                                <div class="score-display">คะแนน: ${submission.score || 0}/${submission.maxScore || problemData.maxScore || 10}</div>
+                                <div style="background-color: ${note.color || '#fff2a3'}; border-radius: 8px; padding: 15px; border: 1px solid #e2e8f0; color: #333; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-family: 'Outfit', sans-serif;">
+                                    <h4 style="margin: 0 0 10px 0; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: bold;">📌 ${note.title || 'ไม่มีหัวข้อ'}</h4>
+                                    <p style="margin: 0; white-space: pre-wrap; font-size: 1.1em; line-height: 1.5;">${note.content || 'ไม่มีเนื้อหา'}</p>
                                 </div>
                             </div>
                         `;
@@ -918,6 +937,7 @@ async function viewProblem(problemId, targetStudentId = null) {
                                                 <div class="question-item">
                                                     <h4>คำถามข้อที่ ${idx + 1}</h4>
                                                     <div class="question-text">${q.question}</div>
+                                                    ${q.image ? `<div style="margin-top:8px; margin-bottom:8px;"><img src="${q.image}" style="max-height:120px; border-radius:6px; border:1px solid #eee; display:block;"></div>` : ''}
                                                     <div class="correct-answer">เฉลย: ${q.correctAnswer}</div>
                                                 </div>
                                             `).join('')}
@@ -996,6 +1016,14 @@ async function viewProblem(problemId, targetStudentId = null) {
                                                     <img src="${problemData.guiImage}" alt="ภาพตัวอย่าง GUI" class="gui-example-image">
                                                 </div>
                                             ` : ''}
+                                        </div>
+                                    `;
+
+                                case 'summary':
+                                    return `
+                                        <div class="summary-section" style="padding: 15px; background-color: #ebf5fb; border-left: 5px solid #3498db; border-radius: 4px; margin-bottom: 20px; font-family: 'Outfit', sans-serif;">
+                                            <p style="color: #2980b9; font-weight: bold; margin: 0 0 5px 0; font-size: 1.1em;">📝 กิจกรรมกระดานสรุปความรู้ (สไตล์ Padlet)</p>
+                                            <p style="margin: 0; color: #555;">กิจกรรมนี้จะแสดงสรุปของนักเรียนทั้งห้องเรียนบนกระดานเดียวกัน โดยมีคะแนนเต็มสูงสุด ${problemData.maxScore || 10} คะแนน</p>
                                         </div>
                                     `;
 
@@ -1487,7 +1515,7 @@ async function viewProgress(studentId) {
                         }
                         return `
                             <div class="problem-item">
-                                <div class="problem-title">${problem.title}</div>
+                                <div class="problem-title"${statusText === 'ยังไม่ส่ง' ? ' style="color: #e67e22;"' : ''}>${problem.title}</div>
                                 <div class="problem-info">
                                     <span class="problem-type">${problem.type}</span>
                                     <span class="problem-score ${submission?.status === 'completed' ? 'completed' : ''}">

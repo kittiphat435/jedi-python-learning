@@ -78,6 +78,7 @@
         <!-- Tab Navigation -->
         <div class="tab-navigation">
             <button class="tab-btn active" onclick="window.adminDashboard.switchTab('problems')">รายการโจทย์</button>
+            <button class="tab-btn" onclick="window.adminDashboard.switchTab('sharedProblems')">โจทย์ที่ครูแชร์</button>
             <button class="tab-btn" onclick="window.adminDashboard.switchTab('classes')">ห้องเรียน</button>
             <button class="tab-btn" onclick="window.adminDashboard.switchTab('teachers')">รายชื่อครู</button>
             <button class="tab-btn" onclick="window.adminDashboard.switchTab('students')">รายชื่อนักเรียน</button>
@@ -97,6 +98,24 @@
             </div>
             <div class="problems-list" id="problemsList">
                 <!-- Problems will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Shared Problems Tab -->
+        <div id="sharedProblemsTab" class="tab-content">
+            <div class="search-section">
+                <input type="text" id="sharedProblemSearch" placeholder="ค้นหาโจทย์ที่ครูแชร์..." class="search-input">
+                <select id="sharedProblemTypeFilter" class="filter-select">
+                    <option value="">ทุกประเภท</option>
+                    <option value="flowchart">Flowchart</option>
+                    <option value="python">Python</option>
+                    <option value="comprehension">Comprehension</option>
+                    <option value="matching">Matching</option>
+                    <option value="gui">GUI</option>
+                </select>
+            </div>
+            <div class="problems-list" id="sharedProblemsList">
+                <!-- Shared Problems will be loaded here -->
             </div>
         </div>
 

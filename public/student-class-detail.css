@@ -1,3 +1,7 @@
+body {
+    font-family: 'Sarabun', 'Outfit', Arial, sans-serif;
+}
+
 /* Container และ Header */
 .container {
     max-width: 1200px;
@@ -172,9 +176,9 @@
 }
 
 /* Progress Chart */
-.progress-chart {
+.progress-chart-container {
     width: 100%;
-    height: 100px;
+    min-height: 320px;
     margin-top: 20px;
 }
 
@@ -497,5 +501,9 @@
     .stats {
         grid-template-columns: 1fr;
         gap: 10px;
+    }
+
+    .header-divider {
+        display: none !important;
     }
 }

@@ -1,4 +1,25 @@
 let savedWidgets = [];
+
+const TAGS_LIST = [
+    { value: 'GUI', label: 'รูปแบบ GUI' },
+    { value: 'Function', label: 'ฟังก์ชัน (Function)' },
+    { value: 'Condition', label: 'เงื่อนไข (Condition)' },
+    { value: 'Analysis', label: 'การวิเคราะห์ปัญหา' },
+    { value: 'DataFlow', label: 'flow ข้อมูล (Data Flow)' },
+    { value: 'DataScience', label: 'Data Science' },
+    { value: 'IoT', label: 'IoT' },
+    { value: 'Loop', label: 'วนซ้ำ (Loop)' },
+    { value: 'Input', label: 'การรับค่าข้อมูล (Input)' }
+];
+
+function generateTagOptions(selectedVal = '') {
+    let options = '<option value="">-- เลือกแท็กวิเคราะห์ --</option>';
+    TAGS_LIST.forEach(tag => {
+        const isSelected = tag.value === selectedVal ? 'selected' : '';
+        options += `<option value="${tag.value}" ${isSelected}>${tag.label}</option>`;
+    });
+    return options;
+}
 // Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
@@ -406,7 +427,7 @@ root.mainloop()`);
 
 window.toggleProblemTypeFields = function () {
     const problemType = document.getElementById('problemType').value;
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'summarySection'];
 
     sections.forEach(section => {
         const element = document.getElementById(section);
@@ -433,6 +454,8 @@ window.toggleProblemTypeFields = function () {
         setTimeout(() => {
             addSaveWidgetButton();
         }, 100); // เพิ่ม delay เพื่อให้แน่ใจว่า DOM อัพเดตแล้ว
+    } else if (problemType === 'summary') {
+        document.getElementById('summarySection').style.display = 'block';
     }
 };
 
@@ -1291,6 +1314,14 @@ async function editProblem(problemId) {
             problemDifficulty.value = problemData.difficulty || 'medium';
             if (assignmentType) assignmentType.value = problemData.assignmentType || 'exercise';
             if (problemImage) problemImage.value = problemData.image || '';
+            
+            if (problemData.type === 'summary') {
+                const summaryDescription = document.getElementById('summaryDescription');
+                const summaryMaxScore = document.getElementById('summaryMaxScore');
+                if (summaryDescription) summaryDescription.value = problemData.description || '';
+                if (summaryMaxScore) summaryMaxScore.value = problemData.maxScore || 10;
+            }
+            
             toggleProblemTypeFields(); // จะเรียก addSaveWidgetButton ถ้าเป็น gui
         }
 
@@ -1659,28 +1690,7 @@ async function editProblem(problemId) {
                     problemData.questions.forEach((q, index) => {
                         const questionItem = document.createElement('div');
                         questionItem.className = 'question-item';
-                        questionItem.innerHTML = `
-                            <div class="question-header">
-                                <h4>คำถามที่ ${index + 1}</h4>
-                                <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn">ลบคำถาม</button>
-                            </div>
-                            <div class="form-group">
-                                <label>คำถาม *</label>
-                                <textarea class="question-text input-field" required>${q.question || q.questionText || ''}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>คำตอบที่ถูกต้อง *</label>
-                                <textarea class="correct-answer input-field" required>${q.correctAnswer || ''}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>คะแนน</label>
-                                <input type="number" class="question-score input-field" value="${q.score || 1}" min="1" max="10">
-                            </div>
-                            <div class="form-group">
-                                <label>คำอธิบาย</label>
-                                <textarea class="question-explanation input-field">${q.explanation || ''}</textarea>
-                            </div>
-                        `;
+                        questionItem.innerHTML = renderComprehensionQuestionHTML(index + 1, q);
                         questionsList.appendChild(questionItem);
                     });
                 }
@@ -1758,31 +1768,8 @@ async function editProblem(problemId) {
                     matchingPairsList.innerHTML = '';
                     // เช็คว่ามีตัวแปร pairs หรือไม่
                     if (Array.isArray(problemData.pairs)) {
-                        problemData.pairs.forEach((pair, index) => {
-                            // Helper สร้าง Options (ใส่ไว้ใน loop หรือข้างนอกก็ได้)
-                            // ... (Logic สร้าง qOptions, aOptions เหมือนข้อ 2) ...
-
-                            // สร้าง HTML ที่มีช่องคะแนน
-                            matchingPairsList.insertAdjacentHTML('beforeend', `
-                                <div class="matching-pair" style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px;">
-                                    <div style="flex: 2;">
-                                        <label style="font-size: 12px;">คำถาม</label>
-                                        <select class="pair-question input-field" required style="width: 100%;">
-                                            ${createOptions(questions.length, pair.questionIndex)} 
-                                        </select>
-                                    </div>
-                                    <div style="flex: 2;">
-                                        <label style="font-size: 12px;">คำตอบ</label>
-                                        <select class="pair-answer input-field" required style="width: 100%;">
-                                            ${createOptions(answers.length, pair.answerIndex)}
-                                        </select>
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <label style="font-size: 12px;">คะแนน</label>
-                                        <input type="number" class="pair-score input-field" value="${pair.score || 1}" min="1" style="width: 100%;">
-                                    </div>
-                                    <button type="button" class="delete-btn" onclick="this.parentElement.remove()">ลบ</button>
-                                </div>`);
+                        problemData.pairs.forEach((pair) => {
+                            addMatchingPairRow(pair);
                         });
                     }
                 }
@@ -1879,40 +1866,133 @@ function handleImageSuccess(img) {
 }
 
 
+function renderComprehensionQuestionHTML(questionNumber, q = null) {
+    return `
+        <div style="display: flex; gap: 20px;">
+            <!-- ด้านซ้าย: คำถามและรูปภาพ -->
+            <div class="left-panel" style="flex: 1; border-right: 1px solid #555; padding-right: 20px;">
+                <div class="question-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="margin: 0; color: #fff;">คำถามที่ ${questionNumber}</h4>
+                    <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">ลบคำถาม</button>
+                </div>
+
+                <div class="form-group">
+                    <label>คำถาม *</label>
+                    <textarea class="question-text input-field" required 
+                        placeholder="พิมพ์คำถามที่ต้องการถามนักเรียน" style="height: 80px;">${q?.question || q?.questionText || ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>รูปภาพประกอบคำถาม (ถ้ามี) - ใส่ URL หรืออัปโหลดรูปภาพ</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" class="question-image-url input-field" value="${q?.image || ''}" placeholder="https://example.com/image.jpg" style="flex: 1;">
+                        <input type="file" accept="image/*" class="question-image-file" style="display: none;" onchange="uploadQuestionImage(event, this)">
+                        <button type="button" class="primary-btn" onclick="this.previousElementSibling.click()">
+                            <i class="fas fa-upload"></i> อัปโหลด
+                        </button>
+                    </div>
+                    <div class="question-image-preview-container" style="margin-top: 10px; display: ${q?.image ? 'flex' : 'none'}; align-items: center;">
+                        <img class="question-image-preview" src="${q?.image || ''}" alt="พรีวิวรูปภาพ" style="max-height: 150px; border-radius: 8px; border: 1px solid #ddd;">
+                        <button type="button" class="delete-btn" onclick="removeQuestionImage(this)" style="margin-left: 10px;">ลบรูป</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>ด้านการเรียนรู้ (Tag วิเคราะห์ทักษะ)</label>
+                    <select class="question-tag input-field" style="width: 100%;">
+                        ${generateTagOptions(q?.tag || '')}
+                    </select>
+                </div>
+            </div>
+
+            <!-- ด้านขวา: เฉลย (ซ่อนจากนักเรียน) -->
+            <div class="right-panel" style="flex: 1; padding-left: 20px;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: #fff;">ส่วนของเฉลย (ซ่อนจากนักเรียน)</h4>
+                
+                <div class="form-group">
+                    <label>คำตอบที่ถูกต้อง *</label>
+                    <textarea class="correct-answer input-field" required 
+                        placeholder="ใส่คำตอบที่ถูกต้อง" style="height: 80px;">${q?.correctAnswer || ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>คะแนน</label>
+                    <input type="number" class="question-score input-field" 
+                        value="${q?.score || 1}" min="1" max="10">
+                </div>
+
+                <div class="form-group">
+                    <label>คำอธิบายเฉลย</label>
+                    <textarea class="question-explanation input-field" placeholder="อธิบายทำไมข้อนี้ถึงถูก (เลือกได้)" style="height: 60px;">${q?.explanation || ''}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function uploadQuestionImage(event, fileInput) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น'); return; }
+    
+    const questionItem = fileInput.closest('.question-item');
+    const urlInput = questionItem.querySelector('.question-image-url');
+    const previewContainer = questionItem.querySelector('.question-image-preview-container');
+    const previewImg = questionItem.querySelector('.question-image-preview');
+    const uploadBtn = fileInput.nextElementSibling;
+    
+    const originalBtnText = uploadBtn.innerHTML;
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังอัปโหลด...';
+    
+    try {
+        const compressedFile = await compressImage(file, 1024, 1024, 0.7);
+        const fileName = `problem_images/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+        const storageRef = firebase.storage().ref();
+        const imageRef = storageRef.child(fileName);
+        
+        const snapshot = await imageRef.put(compressedFile);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+        
+        urlInput.value = downloadURL;
+        previewImg.src = downloadURL;
+        previewContainer.style.display = 'flex';
+        previewContainer.style.alignItems = 'center';
+        
+        // บันทึก URL ไว้ในคิวรอลบกรณีกดยกเลิก
+        window.pendingImageUploads = window.pendingImageUploads || [];
+        window.pendingImageUploads.push(downloadURL);
+        
+        uploadBtn.innerHTML = '<i class="fas fa-check"></i> อัปโหลดแล้ว';
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+        uploadBtn.innerHTML = originalBtnText;
+    } finally {
+        uploadBtn.disabled = false;
+    }
+}
+
+function removeQuestionImage(deleteBtn) {
+    const questionItem = deleteBtn.closest('.question-item');
+    const urlInput = questionItem.querySelector('.question-image-url');
+    const previewContainer = questionItem.querySelector('.question-image-preview-container');
+    const uploadBtn = questionItem.querySelector('button[onclick*="previousElementSibling.click()"]');
+    
+    urlInput.value = '';
+    previewContainer.style.display = 'none';
+    if (uploadBtn) {
+        uploadBtn.innerHTML = '<i class="fas fa-upload"></i> อัปโหลด';
+    }
+}
+
 function addComprehensionQuestion() {
     const questionsList = document.getElementById('questionsList');
     const questionNumber = questionsList.children.length + 1;
 
     const questionDiv = document.createElement('div');
     questionDiv.className = 'question-item';
-    questionDiv.innerHTML = `
-        <div class="question-header">
-            <h4>คำถามที่ ${questionNumber}</h4>
-            <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn">
-                ลบคำถาม
-            </button>
-        </div>
-
-        <div class="form-group">
-            <label>คำถาม *</label>
-            <textarea class="question-text input-field" required 
-                placeholder="พิมพ์คำถามที่ต้องการถามนักเรียน"></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>คำตอบที่ถูกต้อง *</label>
-            <textarea class="correct-answer input-field" required 
-                placeholder="ใส่คำตอบที่ถูกต้อง"></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>คะแนน</label>
-            <input type="number" class="question-score input-field" 
-                value="1" min="1" max="10">
-        </div>
-
-       
-    `;
+    questionDiv.innerHTML = renderComprehensionQuestionHTML(questionNumber);
 
     questionsList.appendChild(questionDiv);
 }
@@ -2185,11 +2265,13 @@ async function saveProblem(event) {
                     const questionIndex = parseInt(pair.querySelector('.pair-question')?.value) || -1;
                     const answerIndex = parseInt(pair.querySelector('.pair-answer')?.value) || -1;
                     const score = parseInt(pair.querySelector('.pair-score')?.value) || 1;
+                    const tag = pair.querySelector('.pair-tag')?.value || '';
                     
                     return questionIndex >= 0 && answerIndex >= 0 ? { 
                         questionIndex, 
                         answerIndex,
-                        score 
+                        score,
+                        tag
                     } : null;
                 }).filter(p => p);
             
@@ -2271,6 +2353,14 @@ async function saveProblem(event) {
                 flowchartData,
                 scoringCriteria
             });
+        } else if (problemType === 'summary') {
+            const description = document.getElementById('summaryDescription')?.value?.trim() || '';
+            const maxScore = parseInt(document.getElementById('summaryMaxScore')?.value) || 10;
+            
+            Object.assign(problemData, {
+                description,
+                maxScore
+            });
         }
 
         console.log('กำลังบันทึกข้อมูลโจทย์:', problemData);
@@ -2281,8 +2371,9 @@ async function saveProblem(event) {
             console.log('อัพเดทโจทย์สำเร็จ:', problemId);
             alert('อัพเดทโจทย์สำเร็จ');
         } else {
-            // เพิ่ม createdAt เฉพาะเมื่อสร้างโจทย์ใหม่
+            // เพิ่ม createdAt และกำหนดให้เป็นโจทย์ส่วนตัวในตอนแรก (isShared = false)
             problemData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            problemData.isShared = false;
             const docRef = await db.collection('problems').add(problemData);
             console.log('สร้างโจทย์ใหม่สำเร็จ:', docRef.id);
             alert('บันทึกโจทย์สำเร็จ');
@@ -2292,7 +2383,13 @@ async function saveProblem(event) {
         window.pendingImageUploads = [];
         
         document.getElementById('problemModal').style.display = 'none';
-        loadProblems();
+        
+        // ถ้าคัดลอกสำเร็จ ให้สลับกลับไปแท็บโจทย์ของฉัน เพื่อความสะดวก
+        if (currentProblemTab === 'sharedProblems') {
+            await switchProblemBankTab('myProblems');
+        } else {
+            await loadProblems();
+        }
     } catch (error) {
         console.error('เกิดข้อผิดพลาดในการบันทึกโจทย์:', error);
         alert('เกิดข้อผิดพลาดในการบันทึกโจทย์: ' + error.message);
@@ -2470,7 +2567,9 @@ async function saveComprehensionProblem() {
                 question: el.querySelector('.question-text').value.trim(),
                 correctAnswer: el.querySelector('.correct-answer').value.trim(),
                 score: parseInt(el.querySelector('.question-score').value) || 1,
-                explanation: el.querySelector('.question-explanation').value.trim()
+                explanation: el.querySelector('.question-explanation').value.trim(),
+                tag: el.querySelector('.question-tag')?.value || '',
+                image: el.querySelector('.question-image-url')?.value || ''
             });
         });
 
@@ -2495,15 +2594,141 @@ async function saveComprehensionProblem() {
     }
 }
 
+let currentProblemTab = 'myProblems';
+window.allSharedProblems = [];
+
+async function switchProblemBankTab(tabName) {
+    currentProblemTab = tabName;
+    
+    // Update active class on tab buttons
+    const myBtn = document.getElementById('myProblemsTabBtn');
+    const sharedBtn = document.getElementById('sharedProblemsTabBtn');
+    if (myBtn) myBtn.classList.toggle('active', tabName === 'myProblems');
+    if (sharedBtn) sharedBtn.classList.toggle('active', tabName === 'sharedProblems');
+    
+    // Clear filters
+    const filterSelect = document.getElementById('filterProblemType');
+    if (filterSelect) filterSelect.value = '';
+    
+    // Hide/Show "สร้างโจทย์ใหม่" button (shared tab shouldn't create new problems directly)
+    const createBtn = document.getElementById('createProblemBtn');
+    if (createBtn) {
+        createBtn.style.display = tabName === 'myProblems' ? 'block' : 'none';
+    }
+    
+    if (tabName === 'myProblems') {
+        await loadProblems();
+    } else {
+        await loadSharedProblems();
+    }
+}
+window.switchProblemBankTab = switchProblemBankTab;
+
+async function loadSharedProblems() {
+    const problemList = document.getElementById('problemList');
+    if (!problemList) return;
+
+    try {
+        console.log('loadSharedProblems: Fetching shared problems');
+        problemList.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
+        
+        const snapshot = await db.collection('problems')
+            .where('isShared', '==', true)
+            .get();
+
+        if (snapshot.empty) {
+            problemList.innerHTML = '<p>ยังไม่มีโจทย์ที่ครูท่านอื่นแบ่งปัน</p>';
+            window.allSharedProblems = [];
+            setTeacherProblemsView([]);
+            return;
+        }
+
+        const problemPromises = snapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            
+            // กรองโจทย์ตัวเองออก
+            if (data.teacherId === auth.currentUser.uid) {
+                return null;
+            }
+
+            try {
+                const userDoc = await db.collection('users').doc(data.teacherId).get();
+                if (!userDoc.exists) return null;
+                
+                const userData = userDoc.data();
+                
+                // กรองโจทย์ของ Admin ออก
+                if (userData.role === 'admin' || userData.email === 'kitti2@thawara.ac.th') {
+                    return null;
+                }
+
+                return {
+                    id: doc.id,
+                    ...data,
+                    creatorName: userData.displayName || 'ครูผู้สอน',
+                    creatorSchool: userData.school || 'ไม่ระบุโรงเรียน'
+                };
+            } catch (err) {
+                console.error("Error loading creator details:", err);
+                return null;
+            }
+        });
+
+        const sharedProblems = (await Promise.all(problemPromises)).filter(p => p !== null);
+
+        sharedProblems.sort((a, b) => {
+            const timeA = a.createdAt ? (a.createdAt.seconds || 0) : 0;
+            const timeB = b.createdAt ? (b.createdAt.seconds || 0) : 0;
+            return timeB - timeA;
+        });
+
+        window.allSharedProblems = sharedProblems;
+        setTeacherProblemsView(sharedProblems);
+        
+        setupProblemListFilter();
+
+    } catch (error) {
+        console.error('Error loading shared problems:', error);
+        problemList.innerHTML = '<p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+    }
+}
+window.loadSharedProblems = loadSharedProblems;
+
+async function toggleShareProblem(problemId, isChecked) {
+    try {
+        await db.collection('problems').doc(problemId).update({
+            isShared: isChecked
+        });
+        
+        if (window.allTeacherProblems) {
+            const prob = window.allTeacherProblems.find(p => p.id === problemId);
+            if (prob) prob.isShared = isChecked;
+        }
+        
+        // อัปเดตข้อความข้างปุ่ม Toggle
+        const card = document.querySelector(`.problem-card:has(input[onchange*="'${problemId}'"])`);
+        if (card) {
+            const label = card.querySelector('.switch-label');
+            if (label) label.textContent = isChecked ? 'แชร์อยู่' : 'แชร์โจทย์';
+        }
+
+        console.log(`อัปเดตสถานะแชร์โจทย์ ${problemId} เป็น: ${isChecked}`);
+    } catch (error) {
+        console.error("Error toggling share:", error);
+        alert("เกิดข้อผิดพลาดในการบันทึกสถานะการแชร์");
+    }
+}
+window.toggleShareProblem = toggleShareProblem;
+
 async function loadProblems() {
     const problemList = document.getElementById('problemList');
     if (!problemList) {
-        console.error('loadProblems: problemList element not found'); // Debug log
+        console.error('loadProblems: problemList element not found');
         return;
     }
 
     try {
-        console.log('loadProblems: Fetching problems'); // Debug log
+        console.log('loadProblems: Fetching problems');
         const user = auth.currentUser;
         problemList.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
 
@@ -2514,22 +2739,21 @@ async function loadProblems() {
 
         if (snapshot.empty) {
             problemList.innerHTML = '<p>ยังไม่มีโจทย์</p>';
-            console.log('loadProblems: No problems found'); // Debug log
+            console.log('loadProblems: No problems found');
+            window.allTeacherProblems = [];
+            setTeacherProblemsView([]);
             return;
         }
 
-        // เก็บข้อมูลทั้งหมดไว้สำหรับ filter
         window.allTeacherProblems = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
 
         setTeacherProblemsView(window.allTeacherProblems);
-        
-        // ตั้งค่า Event Listener สำหรับ filter (ทำครั้งเดียว)
         setupProblemListFilter();
 
-        console.log('loadProblems: Loaded', snapshot.size, 'problems'); // Debug log
+        console.log('loadProblems: Loaded', snapshot.size, 'problems');
 
     } catch (error) {
         console.error('Error loading problems:', error);
@@ -2607,7 +2831,6 @@ function renderTeacherProblemPagination() {
     }
 }
 
-// ฟังก์ชันแยกสำหรับการแสดงผลรายการโจทย์
 function renderProblemList(problems) {
     const problemList = document.getElementById('problemList');
     if (!problemList) return;
@@ -2618,21 +2841,21 @@ function renderProblemList(problems) {
     }
 
     problemList.innerHTML = '';
+    const isAdmin = auth.currentUser.email === 'kitti2@thawara.ac.th';
+
     problems.forEach(problem => {
         const div = document.createElement('div');
         div.className = 'problem-card';
 
-        // แปลงประเภทโจทย์เป็นภาษาไทย
         const typeMapping = {
             'python': 'โจทย์เขียนโปรแกรม',
             'comprehension': 'คำถามความเข้าใจ',
             'matching': 'จับคู่',
             'flowchart': 'ผังงาน',
-            'gui': 'ส่วนต่อประสานกราฟิก', // เพิ่ม gui
+            'gui': 'ส่วนต่อประสานกราฟิก',
             'quiz': 'ปรนัย'
         };
 
-        // เลือกไอคอนตามประเภทโจทย์
         const iconMapping = {
             'python': '💻',
             'comprehension': '📝',
@@ -2645,7 +2868,6 @@ function renderProblemList(problems) {
         const typeIcon = iconMapping[problem.type] || '📄';
         const typeText = typeMapping[problem.type] || 'ไม่ระบุประเภท';
 
-        // เลือกเนื้อหาที่จะแสดงตามประเภทโจทย์
         let contentPreview = '';
         let countText = '';
 
@@ -2676,6 +2898,37 @@ function renderProblemList(problems) {
                 countText = 'ไม่ระบุ';
         }
 
+        let actionButtonsHtml = '';
+        let creatorInfoHtml = '';
+
+        if (currentProblemTab === 'myProblems') {
+            const shareToggleHtml = isAdmin ? '' : `
+                <div class="switch-container">
+                    <label class="switch">
+                        <input type="checkbox" onchange="toggleShareProblem('${problem.id}', this.checked)" ${problem.isShared ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="switch-label">${problem.isShared ? 'แชร์อยู่' : 'แชร์โจทย์'}</span>
+                </div>
+            `;
+
+            actionButtonsHtml = `
+                ${shareToggleHtml}
+                <button onclick="duplicateProblem('${problem.id}')" class="secondary-btn" style="background-color: #ffc107; color: #000;">สำเนา</button>
+                <button onclick="editProblem('${problem.id}')" class="secondary-btn">แก้ไข</button>
+                <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
+            `;
+        } else {
+            creatorInfoHtml = `
+                <p style="font-size: 0.9rem; color: #2980b9; margin-top: 5px; margin-bottom: 0;">
+                    <strong>ผู้แบ่งปัน:</strong> ${problem.creatorName || 'ครูผู้สอน'} (${problem.creatorSchool || 'ไม่ระบุโรงเรียน'})
+                </p>
+            `;
+            actionButtonsHtml = `
+                <button onclick="duplicateProblem('${problem.id}')" class="secondary-btn" style="background-color: #ffc107; color: #000; font-weight: bold;">สำเนามาเป็นของฉัน</button>
+            `;
+        }
+
         div.innerHTML = `
             <div class="problem-info">
                 <div class="problem-header">
@@ -2684,34 +2937,33 @@ function renderProblemList(problems) {
                 <h3>${problem.title || 'ไม่มีชื่อ'}</h3>
                 <p>${contentPreview}</p>
                 <p>${countText}</p>
+                ${creatorInfoHtml}
             </div>
-            <div class="problem-actions">
-                <button onclick="duplicateProblem('${problem.id}')" class="secondary-btn" style="background-color: #ffc107; color: #000;">สำเนา</button>
-                <button onclick="editProblem('${problem.id}')" class="secondary-btn">แก้ไข</button>
-                <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
+            <div class="problem-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                ${actionButtonsHtml}
             </div>
         `;
         problemList.appendChild(div);
     });
 }
 
-// ตั้งค่า Event Listener สำหรับ Filter
 function setupProblemListFilter() {
     const filterSelect = document.getElementById('filterProblemType');
     if (!filterSelect || filterSelect.dataset.listenerAttached) return;
 
     filterSelect.addEventListener('change', () => {
-        if (!window.allTeacherProblems) return;
+        const baseProblems = currentProblemTab === 'myProblems' 
+            ? (window.allTeacherProblems || [])
+            : (window.allSharedProblems || []);
         
         const selectedType = filterSelect.value;
         const filteredProblems = selectedType === "" 
-            ? window.allTeacherProblems 
-            : window.allTeacherProblems.filter(p => p.type === selectedType);
+            ? baseProblems 
+            : baseProblems.filter(p => p.type === selectedType);
             
         setTeacherProblemsView(filteredProblems);
     });
     
-    // ป้องกันการ bind event ซ้ำซ้อน
     filterSelect.dataset.listenerAttached = 'true';
 }
 
@@ -2813,7 +3065,7 @@ function toggleProblemTypeFields() {
     const problemType = document.getElementById('problemType').value;
 
     // ซ่อนทุก section ก่อน
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'summarySection'];
     sections.forEach(section => {
         const element = document.getElementById(section);
         if (element) element.style.display = 'none';
@@ -2833,6 +3085,8 @@ function toggleProblemTypeFields() {
         document.getElementById('questionsSection').style.display = 'block';
     } else if (problemType === 'matching') {
         document.getElementById('matchingSection').style.display = 'block';
+    } else if (problemType === 'summary') {
+        document.getElementById('summarySection').style.display = 'block';
     }
 }
 
@@ -4158,7 +4412,7 @@ function saveWidgetRequirements() {
 }
 // ฟังก์ชันสำหรับเพิ่มคู่จับคู่ใหม่ (พร้อมช่องคะแนน)
 // ฟังก์ชันสำหรับปุ่ม "+ เพิ่มคู่จับคู่"
-function addMatchingPairRow() {
+function addMatchingPairRow(data = null) {
     const pairsList = document.getElementById('matchingPairsList');
     if (!pairsList) return;
 
@@ -4174,12 +4428,14 @@ function addMatchingPairRow() {
 
     let qOptions = '';
     questions.forEach((q, i) => {
-        qOptions += `<option value="${i}">ข้อ ${i + 1}: ${q.value.substring(0, 20)}...</option>`;
+        const isSelected = data && data.questionIndex === i ? 'selected' : '';
+        qOptions += `<option value="${i}" ${isSelected}>ข้อ ${i + 1}: ${q.value.substring(0, 20)}...</option>`;
     });
 
     let aOptions = '';
     answers.forEach((a, i) => {
-        aOptions += `<option value="${i}">ข้อ ${i + 1}: ${a.value.substring(0, 20)}...</option>`;
+        const isSelected = data && data.answerIndex === i ? 'selected' : '';
+        aOptions += `<option value="${i}" ${isSelected}>ข้อ ${i + 1}: ${a.value.substring(0, 20)}...</option>`;
     });
 
     const div = document.createElement('div');
@@ -4195,9 +4451,15 @@ function addMatchingPairRow() {
             <label style="font-size: 12px; font-weight:bold;">คู่กับคำตอบ</label>
             <select class="pair-answer input-field" required style="width: 100%;">${aOptions}</select>
         </div>
+        <div style="flex: 1.5;">
+            <label style="font-size: 12px; font-weight:bold;">ด้านการเรียนรู้</label>
+            <select class="pair-tag input-field" style="width: 100%;">
+                ${generateTagOptions(data?.tag || '')}
+            </select>
+        </div>
         <div style="flex: 1; min-width: 80px;">
             <label style="font-size: 12px; font-weight:bold;">คะแนน</label>
-            <input type="number" class="pair-score input-field" value="1" min="1" style="width: 100%; text-align: center;">
+            <input type="number" class="pair-score input-field" value="${data?.score || 1}" min="1" style="width: 100%; text-align: center;">
         </div>
         <button type="button" class="delete-btn" onclick="this.parentElement.remove()" style="margin-bottom: 2px;">ลบ</button>
     `;

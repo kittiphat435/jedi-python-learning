@@ -86,6 +86,12 @@
                     <button id="createProblemBtn" class="primary-btn" style="margin-top: 0;">สร้างโจทย์ใหม่</button>
                 </div>
             </div>
+            <!-- แท็บสลับหน้าโจทย์ -->
+            <div class="problem-bank-tabs">
+                <div id="myProblemsTabBtn" class="problem-bank-tab active" onclick="switchProblemBankTab('myProblems')">โจทย์ของฉัน</div>
+                <div id="sharedProblemsTabBtn" class="problem-bank-tab" onclick="switchProblemBankTab('sharedProblems')">โจทย์จากครูท่านอื่น</div>
+            </div>
+
             <div id="problemList" class="problem-list">
                 <!-- รายการโจทย์จะถูกเพิ่มที่นี่ -->
             </div>
@@ -117,6 +123,7 @@
                             <option value="matching">จับคู่</option>
                             <option value="flowchart">Flowchart</option>
                             <option value="gui">GUI (Graphical User Interface)</option>
+                            <option value="summary">สรุปผลการเรียน (กระดานสรุปความรู้สไตล์ Padlet)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -251,6 +258,17 @@
                                     + เพิ่มคู่จับคู่ (กำหนดคะแนน)
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <div id="summarySection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบาย/ข้อชี้แนะบอร์ดสรุปผลการเรียน *</label>
+                            <textarea id="summaryDescription" class="input-field" placeholder="ตัวอย่าง: ให้นักเรียนเขียนสรุปประเด็นหลักที่เข้าใจจากการเรียนเรื่อง Loops ในโพสต์อิทของตัวเอง" style="height: 120px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>คะแนนเต็มสำหรับกิจกรรมนี้ *</label>
+                            <input type="number" id="summaryMaxScore" class="input-field" value="10" min="1">
                         </div>
                     </div>
 

@@ -583,7 +583,7 @@ async function submitAnswer() {
         if (problemData?.assignmentType === 'exam') {
             alert('ระบบได้ทำการส่งข้อสอบของคุณเรียบร้อยแล้ว!');
         } else {
-            alert('ส่งคำตอบสำเร็จ');
+            await playScoreAnimation(maxScore, maxScore);
         }
         if (classId === 'admin') {
             window.location.href = 'student-problem-admin.html';
@@ -1574,4 +1574,53 @@ function toggleImageSize() {
             btn.textContent = isCollapsed ? 'ขยายภาพ' : 'ย่อภาพ';
         }
     }
+}
+
+function playScoreAnimation(earnedScore, maxScore) {
+    return new Promise(resolve => {
+        let overlay = document.getElementById('scoreAnimationOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'scoreAnimationOverlay';
+            overlay.innerHTML = \`
+                <div class="score-animation-content">
+                    <div class="score-animation-title">คะแนนที่ได้</div>
+                    <div class="score-animation-number" id="animScoreNumber">0</div>
+                    <div class="score-animation-label">จากคะแนนเต็ม \${maxScore}</div>
+                </div>
+            \`;
+            document.body.appendChild(overlay);
+        } else {
+            overlay.querySelector('.score-animation-label').innerText = \`จากคะแนนเต็ม \${maxScore}\`;
+        }
+        
+        overlay.style.display = 'flex';
+        const numberEl = document.getElementById('animScoreNumber');
+        numberEl.classList.remove('done');
+        numberEl.innerText = '0';
+        
+        let current = 0;
+        const duration = 1500;
+        const fps = 60;
+        const totalFrames = Math.max(1, duration / (1000 / fps));
+        const increment = earnedScore / totalFrames;
+        
+        let frame = 0;
+        const timer = setInterval(() => {
+            frame++;
+            current += increment;
+            if (frame >= totalFrames || current >= earnedScore) {
+                clearInterval(timer);
+                current = earnedScore;
+                numberEl.innerText = Math.round(current);
+                numberEl.classList.add('done');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    resolve();
+                }, 1500);
+            } else {
+                numberEl.innerText = Math.round(current);
+            }
+        }, 1000 / fps);
+    });
 }

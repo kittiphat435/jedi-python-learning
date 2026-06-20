@@ -81,21 +81,24 @@ function switchTab(tabName) {
     document.getElementById(`${tabName}Tab`).classList.add('active');
     document.querySelector(`[onclick*="switchTab('${tabName}')"]`).classList.add('active');
 
-    // Load content based on selected tab
-    switch (tabName) {
-        case 'problems':
-            loadProblems();
-            break;
-        case 'classes':
-            loadClasses();
-            break;
-        case 'teachers':
-            loadTeachers();
-            break;
-        case 'students':
-            loadStudents();
-            break;
-    }
+        // Load content based on selected tab
+        switch (tabName) {
+            case 'problems':
+                loadProblems();
+                break;
+            case 'sharedProblems':
+                loadSharedProblems();
+                break;
+            case 'classes':
+                loadClasses();
+                break;
+            case 'teachers':
+                loadTeachers();
+                break;
+            case 'students':
+                loadStudents();
+                break;
+        }
 }
 async function viewProblemDetails(problemId) {
     const modal = document.getElementById('problemModal');
@@ -1284,5 +1287,102 @@ function createProblemTypeChart(stats) {
                 }
             }
         }
+    });
+}
+
+let allSharedProblems = [];
+
+async function loadSharedProblems() {
+    const sharedProblemsList = document.getElementById('sharedProblemsList');
+    if (!sharedProblemsList) return;
+    sharedProblemsList.innerHTML = '<div class="loading">กำลังโหลดข้อมูล...</div>';
+
+    try {
+        const snapshot = await db.collection('problems')
+            .where('isShared', '==', true)
+            .get();
+
+        allSharedProblems = [];
+
+        for (const doc of snapshot.docs) {
+            const problem = doc.data();
+            if (problem.teacherId) {
+                const teacherDoc = await db.collection('users').doc(problem.teacherId).get();
+                const teacher = teacherDoc.data();
+
+                // กรองไม่แสดงโจทย์ที่แชร์โดย Admin
+                if (teacher && teacher.role !== 'admin' && teacher.email !== 'kitti2@thawara.ac.th') {
+                    allSharedProblems.push({
+                        id: doc.id,
+                        ...problem,
+                        teacherName: teacher.displayName || 'ไม่ระบุ',
+                        teacherSchool: teacher.school || 'ไม่ระบุ',
+                        teacherSubject: teacher.subject || 'ไม่ระบุ'
+                    });
+                }
+            }
+        }
+
+        setupSharedProblemFilters();
+        filterAndRenderSharedProblems();
+    } catch (error) {
+        console.error('Error loading shared problems:', error);
+        sharedProblemsList.innerHTML = '<div class="error">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+    }
+}
+
+function setupSharedProblemFilters() {
+    const searchInput = document.getElementById('sharedProblemSearch');
+    const filterSelect = document.getElementById('sharedProblemTypeFilter');
+
+    if (searchInput && !searchInput.dataset.listener) {
+        searchInput.addEventListener('input', filterAndRenderSharedProblems);
+        searchInput.dataset.listener = 'true';
+    }
+    if (filterSelect && !filterSelect.dataset.listener) {
+        filterSelect.addEventListener('change', filterAndRenderSharedProblems);
+        filterSelect.dataset.listener = 'true';
+    }
+}
+
+function filterAndRenderSharedProblems() {
+    const searchVal = document.getElementById('sharedProblemSearch')?.value?.toLowerCase() || '';
+    const typeVal = document.getElementById('sharedProblemTypeFilter')?.value || '';
+    const sharedProblemsList = document.getElementById('sharedProblemsList');
+    if (!sharedProblemsList) return;
+
+    const filtered = allSharedProblems.filter(prob => {
+        const matchesSearch = prob.title?.toLowerCase().includes(searchVal) || 
+                              prob.description?.toLowerCase().includes(searchVal) ||
+                              prob.teacherName?.toLowerCase().includes(searchVal);
+        const matchesType = !typeVal || prob.type === typeVal;
+        return matchesSearch && matchesType;
+    });
+
+    if (filtered.length === 0) {
+        sharedProblemsList.innerHTML = '<div class="no-data" style="padding: 20px; text-align: center; color: #666;">ไม่พบโจทย์ที่แชร์ที่ตรงตามเงื่อนไข</div>';
+        return;
+    }
+
+    sharedProblemsList.innerHTML = '';
+    filtered.forEach(prob => {
+        const div = document.createElement('div');
+        div.className = 'problem-card';
+        div.innerHTML = `
+            <div class="problem-info">
+                <h3>${prob.title}</h3>
+                <p style="margin-top: 5px; margin-bottom: 5px; color: #7f8c8d;">
+                    <strong>ประเภท:</strong> ${getProblemTypeThai(prob.type)} | <strong>ระดับความยาก:</strong> ${getProblemDifficultyThai(prob.difficulty)}
+                </p>
+                <p style="margin-top: 0; margin-bottom: 5px; color: #2980b9;">
+                    <strong>ผู้สร้าง:</strong> ${prob.teacherName} (${prob.teacherSchool})
+                </p>
+                <p class="description" style="color: #555;">${prob.description || 'ไม่มีคำอธิบาย'}</p>
+            </div>
+            <div class="problem-actions" style="display: flex; gap: 10px;">
+                <button onclick="window.adminDashboard.viewProblemDetails('${prob.id}')" class="primary-btn">ดูรายละเอียด</button>
+            </div>
+        `;
+        sharedProblemsList.appendChild(div);
     });
 }

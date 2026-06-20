@@ -438,3 +438,61 @@ textarea:focus {
         justify-content: center;
     }
 }
+
+/* Score Animation Overlay */
+#scoreAnimationOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    display: none; /* hidden by default */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+    color: #fff;
+    font-family: 'Arial', sans-serif;
+}
+
+.score-animation-content {
+    text-align: center;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.score-animation-title {
+    font-size: 2rem;
+    color: #bb86fc;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(187, 134, 252, 0.5);
+}
+
+.score-animation-number {
+    font-size: 6rem;
+    font-weight: bold;
+    color: #03dac6;
+    text-shadow: 0 0 20px rgba(3, 218, 198, 0.6), 0 0 40px rgba(3, 218, 198, 0.4);
+    font-variant-numeric: tabular-nums;
+}
+
+.score-animation-label {
+    font-size: 1.5rem;
+    color: #ccc;
+    margin-top: 10px;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+    0% { text-shadow: 0 0 20px rgba(3, 218, 198, 0.6); transform: scale(1); }
+    50% { text-shadow: 0 0 40px rgba(3, 218, 198, 0.9), 0 0 60px rgba(3, 218, 198, 0.6); transform: scale(1.05); }
+    100% { text-shadow: 0 0 20px rgba(3, 218, 198, 0.6); transform: scale(1); }
+}
+.score-animation-number.done {
+    animation: pulseGlow 1s infinite alternate;
+}

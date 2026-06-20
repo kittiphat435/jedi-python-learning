@@ -64,6 +64,29 @@ async function checkEnrollment(classId, userId) {
             return;
         }
 
+        // แสดงรูปภาพและชื่อของตนเองดึงจาก Firebase
+        const user = auth.currentUser;
+        if (user) {
+            db.collection('users').doc(userId).get().then(doc => {
+                if (doc.exists) {
+                    const userData = doc.data();
+                    const displayName = userData.displayName || user.displayName || user.email;
+                    const photoURL = userData.photoURL || user.photoURL || defaultAvatar;
+                    
+                    const nameEl = document.getElementById('studentName');
+                    if (nameEl) nameEl.textContent = displayName;
+                    
+                    const picEl = document.getElementById('studentProfilePic');
+                    if (picEl) {
+                        picEl.src = photoURL;
+                        picEl.onerror = function() {
+                            this.src = defaultAvatar;
+                        };
+                    }
+                }
+            }).catch(err => console.error("Error loading profile details:", err));
+        }
+
         await Promise.all([
             loadClassDetails(classId),
             loadProblems(classId, userId),
@@ -243,21 +266,23 @@ async function loadClassDetails(classId) {
         console.log('Teacher data:', teacherData); // เพิ่ม log ดูข้อมูลครู
 
         // อัพเดท UI
-        const classInfoContainer = document.querySelector('.class-info');
+        const classInfoContainer = document.getElementById('classInfoContainer');
         if (classInfoContainer) {
             classInfoContainer.innerHTML = `
-                <div class="class-header">
-                    <h2 id="className">${classData.name}</h2>
-                    <div class="class-code">รหัสห้องเรียน: ${classData.code}</div>
-                    <div class="teacher-profile">
+                <div class="class-header" style="display: flex; flex-direction: column; gap: 6px;">
+                    <h2 id="className" style="font-size: 22px; font-weight: 700; margin: 0; color: #1e293b;">${classData.name}</h2>
+                    <div style="font-size: 13px; color: #64748b;">รหัสห้องเรียน: <span style="font-weight: 600; color: #3b82f6;">${classData.code}</span></div>
+                    
+                    <div class="teacher-profile" style="display: flex; align-items: center; gap: 12px; padding: 8px 0; margin-top: 5px; border-top: 1px dashed #e2e8f0;">
                         <img src="${teacherData.photoURL || defaultAvatar}" 
                              alt="อาจารย์ผู้สอน"
-                             class="teacher-image">
-                        <div class="teacher-info">
-                            <div class="teacher-name">
-                                อาจารย์ ${teacherData.displayName || 'ไม่ระบุชื่อ'}
+                             class="teacher-image"
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid #e2e8f0; display: block;">
+                        <div class="teacher-info" style="display: flex; flex-direction: column;">
+                            <div class="teacher-name" style="font-size: 14px; font-weight: 600; color: #334155;">
+                                อาจารย์ผู้สอน: ${teacherData.displayName || 'ไม่ระบุชื่อ'}
                             </div>
-                            <div class="teacher-email">${teacherData.email}</div>
+                            <div class="teacher-email" style="font-size: 12px; color: #64748b;">${teacherData.email}</div>
                         </div>
                     </div>
                 </div>
@@ -443,6 +468,10 @@ function displayProblems(problems) {
                 typeIcon = '🪟';
                 typeText = 'โจทย์สร้าง GUI';
                 break;
+            case 'summary':
+                typeIcon = '📋';
+                typeText = 'สรุปผลการเรียน';
+                break;
             default:
                 typeIcon = '❓';
                 typeText = 'ไม่ระบุประเภท';
@@ -450,7 +479,7 @@ function displayProblems(problems) {
 
         // แก้ไขส่วนเลือกเนื้อหาที่จะแสดง
         let contentToShow;
-        if (problem.type === 'python' || problem.type === 'gui') {
+        if (problem.type === 'python' || problem.type === 'gui' || problem.type === 'summary') {
             contentToShow = problem.description || 'ไม่มีคำอธิบาย';
         } else if (problem.type === 'comprehension') {
             contentToShow = problem.content || problem.passage || 'ไม่มีคำอธิบาย';
@@ -605,9 +634,83 @@ async function loadStats(classId, userId) {
         document.getElementById('totalScore').textContent = `${totalScore}/${totalMaxScore}`;
         document.getElementById('scorePercentage').textContent = `(${scorePercentage}%)`;
 
+        // อัปเดต Rank ยศของนักเรียนตามเปอร์เซ็นต์ความคืบหน้าการส่งงาน
+        updateStudentRank(progress);
+
     } catch (error) {
         console.error("Error loading stats:", error);
     }
+}
+
+// ฟังก์ชันอัปเดตยศความคืบหน้าการส่งงาน (RANK) พร้อมเปลี่ยนสไตล์แบบกรอบใส (Outlined Style)
+function updateStudentRank(progress) {
+    const badge = document.getElementById('studentRankBadge');
+    const card = document.getElementById('studentProfileCard');
+    const pic = document.getElementById('studentProfilePic');
+    if (!badge || !card || !pic) return;
+
+    let rankName = "คนจรจัด";
+    
+    // โทนสีตามยศ
+    let rankColor = "#dc2626"; // แดง (คนจรจัด)
+    let cardShadow = "0 4px 6px rgba(0, 0, 0, 0.02)"; // เงาแบบเดียวกับฝั่งครู
+    let cardBorder = "1px solid #e2e8f0"; // กรอบแบบเดียวกับฝั่งครู
+    let picBorder = "1.5px solid #e2e8f0"; // กรอบรูปโปรไฟล์แบบเดียวกับฝั่งครู
+
+    // สไตล์ของ Badge
+    let badgeBg = "transparent";
+    let badgeColor = rankColor;
+    let badgeBorderColor = rankColor;
+
+    if (progress >= 100) {
+        rankName = "เจไดโปรแกรมมิ่ง 🏆";
+        rankColor = "#d97706"; // สีทอง/ส้มเข้ม
+        cardShadow = "0 0 15px rgba(245, 158, 11, 0.35), 0 4px 6px rgba(0, 0, 0, 0.02)"; // เรืองแสงสีทองและเงาปกติ
+        cardBorder = "1px solid rgba(245, 158, 11, 0.3)";
+        picBorder = "1.5px solid #d97706"; // กรอบรูปสีทองสำหรับเจได
+        badgeColor = rankColor;
+        badgeBorderColor = rankColor;
+    } else if (progress >= 80) {
+        rankName = "จอมเวทโปรแกรม";
+        rankColor = "#059669"; // เขียว
+        badgeColor = rankColor;
+        badgeBorderColor = rankColor;
+    } else if (progress >= 60) {
+        rankName = "อัศวินโค้ดดิ้ง";
+        rankColor = "#7c3aed"; // ม่วง
+        badgeColor = rankColor;
+        badgeBorderColor = rankColor;
+    } else if (progress >= 40) {
+        rankName = "นักผจญภัย";
+        rankColor = "#0284c7"; // ฟ้า
+        badgeColor = rankColor;
+        badgeBorderColor = rankColor;
+    } else if (progress >= 20) {
+        rankName = "เด็กฝึกหัด";
+        rankColor = "#d97706"; // ส้มทองแดง
+        badgeColor = rankColor;
+        badgeBorderColor = rankColor;
+    } else {
+        rankName = "คนจรจัด";
+        rankColor = "#dc2626"; // แดง
+        badgeBg = "#dc2626"; // พื้นแดง
+        badgeColor = "#ffffff"; // ตัวหนังสือขาว
+        badgeBorderColor = "#dc2626"; // กรอบแดง
+    }
+
+    // อัปเดตสไตล์การ์ด (ให้คงสีขาวไว้ ไม่มีกรอบสีเข้ม ใช้เงาแบบเดียวกับฝั่งครูเพื่อความพรีเมียม)
+    card.style.background = "#ffffff";
+    card.style.border = cardBorder;
+    card.style.boxShadow = cardShadow;
+    
+    // อัปเดตสไตล์รูปโปรไฟล์
+    pic.style.border = picBorder;
+    
+    // อัปเดตสไตล์ Badge (กรอบใส มีขอบและสีตัวหนังสือตามยศ)
+    badge.textContent = `ยศ: ${rankName}`;
+    badge.style.background = badgeBg;
+    badge.style.borderColor = badgeBorderColor;
+    badge.style.color = badgeColor;
 }
 
 // สร้างกราฟแสดงความคืบหน้า
@@ -640,20 +743,28 @@ async function initProgressChart(classId, userId) {
             .filter(data => data.timestamp) // กรองเอาเฉพาะที่มีเวลา
             .sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate()); // เรียงตามเวลา
 
-        // สร้างข้อมูลสำหรับกราฟ
+        // 1. จัดกลุ่มและสะสมจำนวนข้อที่สำเร็จรายวัน เพื่อไม่ให้จุดข้อมูลทับซ้อนกันหนาแน่นเกินไป
+        const dailyProgress = new Map();
         let completedCount = 0;
-        const data = filteredSubmissions.map(sub => {
+
+        filteredSubmissions.forEach(sub => {
             if (sub.status === 'completed') {
                 completedCount++;
             }
             const date = sub.timestamp.toDate();
-            return {
-                x: date.toLocaleDateString('th-TH', {
-                    day: 'numeric',
-                    month: 'short'
-                }),
-                y: completedCount
-            };
+            // จัดรูปแบบคีย์วันที่ เช่น "22 พ.ค."
+            const dateStr = date.toLocaleDateString('th-TH', {
+                day: 'numeric',
+                month: 'short'
+            });
+            // อัพเดต/บันทึกยอดสะสมของวันนั้นๆ (ทับค่าเดิมในวันเดียวกันด้วยค่าที่ล่าสุดกว่า)
+            dailyProgress.set(dateStr, completedCount);
+        });
+
+        // แปลง Map กลับเป็น Array
+        const data = [];
+        dailyProgress.forEach((count, dateStr) => {
+            data.push({ x: dateStr, y: count });
         });
 
         if (data.length === 0) {
@@ -674,21 +785,51 @@ async function initProgressChart(classId, userId) {
                     borderColor: '#1a73e8',
                     backgroundColor: 'rgba(26, 115, 232, 0.1)',
                     fill: true,
-                    tension: 0.1,
-                    pointRadius: 9,
-                    pointHoverRadius: 12,
-                    pointBackgroundColor: '#ffffff',
-                    pointBorderColor: '#1a73e8',
-                    pointBorderWidth: 3,
+                    tension: 0.3, // ทำให้เส้นโค้งมนนุ่มนวลขึ้น
+                    pointRadius: 4, // ลดขนาดจุดจาก 9 เหลือ 4 ให้ดูสะอาดตา
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#1a73e8',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.5,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
+                    x: {
+                        grid: {
+                            display: false // ซ่อนเส้นตารางแนวตั้งเพื่อลดความรก
+                        },
+                        ticks: {
+                            autoSkip: true, // ข้ามป้ายชื่ออัตโนมัติหากพื้นที่ไม่พอ
+                            maxTicksLimit: 7, // จำกัดจำนวนป้ายชื่อบนแกน X สูงสุดไม่เกิน 7 จุด
+                            maxRotation: 0, // ไม่เอียงข้อความหากไม่จำเป็น
+                            minRotation: 0,
+                            font: {
+                                family: 'Sarabun',
+                                size: 11
+                            }
+                        }
+                    },
                     y: {
                         beginAtZero: true,
-                        ticks: { stepSize: 1 }
+                        grid: {
+                            color: '#f1f5f9' // เปลี่ยนสีตารางแนวนอนให้อ่อนลง
+                        },
+                        ticks: { 
+                            stepSize: 1,
+                            precision: 0,
+                            font: {
+                                family: 'Sarabun',
+                                size: 11
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        display: false // ซ่อนแถบอธิบายเนื่องจากมีข้อมูลเพียงชุดเดียวและมีหัวข้อชัดเจนแล้ว
                     }
                 }
             }
@@ -724,6 +865,9 @@ function viewProblem(problemId, type, isViewMode = false) {
         case 'gui':
             url = `student-gui.html?id=${problemId}&classId=${classId}${viewModeParam}`;
             break;
+        case 'summary':
+            url = `student-summary-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            break;
         default:
             url = `student-quiz-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
     }
@@ -754,3 +898,316 @@ window.addEventListener('beforeunload', () => {
 // Export functions
 window.viewProblem = viewProblem;
 window.searchProblems = searchProblems;
+
+
+// ==========================================
+// Diagnostic Skill Analysis (Self-Analysis Tab)
+// ==========================================
+
+const TAGS_LIST = [
+    { value: 'GUI', label: 'รูปแบบ GUI' },
+    { value: 'Function', label: 'ฟังก์ชัน (Function)' },
+    { value: 'Condition', label: 'เงื่อนไข (Condition)' },
+    { value: 'Analysis', label: 'การวิเคราะห์ปัญหา' },
+    { value: 'DataFlow', label: 'flow ข้อมูล (Data Flow)' },
+    { value: 'DataScience', label: 'Data Science' },
+    { value: 'IoT', label: 'IoT' },
+    { value: 'Loop', label: 'วนซ้ำ (Loop)' },
+    { value: 'Input', label: 'การรับค่าข้อมูล (Input)' }
+];
+
+function switchClassTab(tabName) {
+    const tabs = ['problems', 'analysis'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`tabBtn-${t}`);
+        const content = document.getElementById(`${t}TabContent`);
+        if (!btn || !content) return;
+        
+        if (t === tabName) {
+            btn.classList.add('active');
+            btn.style.color = '#3b82f6';
+            btn.style.borderBottom = '3px solid #3b82f6';
+            content.style.display = 'block';
+        } else {
+            btn.classList.remove('active');
+            btn.style.color = '#64748b';
+            btn.style.borderBottom = '3px solid transparent';
+            content.style.display = 'none';
+        }
+    });
+
+    if (tabName === 'analysis') {
+        renderSelfAnalysis();
+    }
+}
+window.switchClassTab = switchClassTab;
+
+async function renderSelfAnalysis() {
+    const recommendationsList = document.getElementById('recommendationsList');
+    if (!recommendationsList) return;
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const classId = urlParams.get('id');
+        const userId = auth.currentUser ? auth.currentUser.uid : null;
+
+        if (!classId || !userId) return;
+
+        // 1. ดึงโจทย์ทั้งหมดในคลาสความสัมพันธ์
+        const classProblemsSnap = await db.collection('class_problems')
+            .where('classId', '==', classId)
+            .get();
+
+        if (classProblemsSnap.empty) {
+            recommendationsList.innerHTML = `
+                <div style="text-align: center; color: #64748b; padding: 20px;">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                    <p style="margin-top: 10px;">ยังไม่มีแบบฝึกหัดมอบหมายในห้องเรียนนี้</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 2. ดึงรายละเอียดโจทย์ทั้งหมดแบบคู่ขนาน (Parallel Fetch)
+        const problemPromises = classProblemsSnap.docs.map(doc => 
+            db.collection('problems').doc(doc.data().problemId).get()
+        );
+        const problemDocs = await Promise.all(problemPromises);
+
+        // คัดกรองเฉพาะประเภท MCQ และ Matching
+        const problems = problemDocs
+            .filter(doc => doc.exists)
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(p => p.type === 'comprehension' || p.type === 'matching');
+
+        if (problems.length === 0) {
+            recommendationsList.innerHTML = `
+                <div style="text-align: center; color: #64748b; padding: 20px;">
+                    <i class="fas fa-info-circle fa-2x" style="color: #3b82f6;"></i>
+                    <p style="margin-top: 10px;">ห้องเรียนนี้ยังไม่มีโจทย์วิเคราะห์หลักการ (คำถามความเข้าใจ หรือจับคู่) มอบหมาย</p>
+                </div>
+            `;
+            // ล้างกราฟใยแมงมุมถ้ามี
+            const radarCtx = document.getElementById('analysisRadarChart');
+            if (radarCtx) {
+                const existing = Chart.getChart(radarCtx);
+                if (existing) existing.destroy();
+            }
+            return;
+        }
+
+        // 3. ดึงประวัติการส่งงานทั้งหมดของนักเรียนในห้องเรียนนี้
+        const submissionsSnap = await db.collection('submissions')
+            .where('studentId', '==', userId)
+            .where('classId', '==', classId)
+            .get();
+
+        // นับจำนวนครั้งที่กดส่ง (attempts) และเก็บการส่งล่าสุด
+        const problemAttempts = new Map();
+        const latestSubmissions = new Map();
+
+        submissionsSnap.forEach(doc => {
+            const data = doc.data();
+            const probId = data.problemId;
+            problemAttempts.set(probId, (problemAttempts.get(probId) || 0) + 1);
+
+            const existing = latestSubmissions.get(probId);
+            const subTime = data.timestamp || data.submittedAt;
+            const timeVal = subTime ? subTime.toDate().getTime() : 0;
+            const existingTime = existing && (existing.timestamp || existing.submittedAt) ? 
+                (existing.timestamp || existing.submittedAt).toDate().getTime() : 0;
+
+            if (!existing || timeVal > existingTime) {
+                latestSubmissions.set(probId, data);
+            }
+        });
+
+        // 4. คำนวณคะแนนตามแท็กย่อย
+        const tagStats = {};
+        TAGS_LIST.forEach(tag => {
+            tagStats[tag.value] = {
+                totalQuestions: 0,
+                correctQuestions: 0,
+                scoresList: []
+            };
+        });
+
+        problems.forEach(problem => {
+            const submission = latestSubmissions.get(problem.id);
+            const attempts = problemAttempts.get(problem.id) || 0;
+
+            if (problem.type === 'comprehension' && problem.questions) {
+                problem.questions.forEach((q, idx) => {
+                    const tag = q.tag;
+                    if (!tag || !tagStats[tag]) return;
+
+                    tagStats[tag].totalQuestions++;
+
+                    let isCorrect = false;
+                    if (submission && submission.results && submission.results[idx]) {
+                        isCorrect = submission.results[idx].isCorrect === true;
+                    }
+
+                    if (isCorrect) {
+                        tagStats[tag].correctQuestions++;
+                        // สูตรลดคะแนนความเชื่อมั่นตามจำนวนครั้งตรวจ
+                        let confidence = 20;
+                        if (attempts <= 1) confidence = 100;
+                        else if (attempts === 2) confidence = 80;
+                        else if (attempts === 3) confidence = 50;
+                        tagStats[tag].scoresList.push(confidence);
+                    } else {
+                        tagStats[tag].scoresList.push(0);
+                    }
+                });
+            } else if (problem.type === 'matching' && problem.pairs) {
+                const answers = submission ? (submission.answers || {}) : {};
+                problem.pairs.forEach((pair, idx) => {
+                    const tag = pair.tag;
+                    if (!tag || !tagStats[tag]) return;
+
+                    tagStats[tag].totalQuestions++;
+
+                    const studentAnswer = answers[idx] || answers[String(idx)] || '';
+                    const isCorrect = studentAnswer && studentAnswer === pair.answer;
+
+                    if (isCorrect) {
+                        tagStats[tag].correctQuestions++;
+                        let confidence = 20;
+                        if (attempts <= 1) confidence = 100;
+                        else if (attempts === 2) confidence = 80;
+                        else if (attempts === 3) confidence = 50;
+                        tagStats[tag].scoresList.push(confidence);
+                    } else {
+                        tagStats[tag].scoresList.push(0);
+                    }
+                });
+            }
+        });
+
+        // 5. จัดเตรียมข้อมูลแสดงผลกราฟ Radar
+        const activeLabels = [];
+        const activeScores = [];
+        const recommendations = [];
+
+        TAGS_LIST.forEach(tag => {
+            const stats = tagStats[tag.value];
+            if (stats.totalQuestions > 0) {
+                // คำนวณความเข้าของหัวข้อเฉลี่ย
+                const masteryScore = stats.scoresList.reduce((sum, s) => sum + s, 0) / stats.totalQuestions;
+                activeLabels.push(tag.label);
+                activeScores.push(Math.round(masteryScore));
+
+                // จัดเก็บข้อเสนอแนะ
+                if (masteryScore >= 75) {
+                    recommendations.push({
+                        type: 'strength',
+                        tagLabel: tag.label,
+                        score: Math.round(masteryScore),
+                        title: `จุดแข็งยอดเยี่ยม: ด้าน ${tag.label}`,
+                        desc: `คุณเรียนรู้เรื่อง ${tag.label} ได้เป็นอย่างดี ทำแบบฝึกหัดถูกต้องได้รวดเร็วและใช้จำนวนการตรวจคำตอบน้อยมาก สะท้อนถึงการเข้าใจ Concept ที่มั่นคงครับ`
+                    });
+                } else if (masteryScore < 60) {
+                    recommendations.push({
+                        type: 'weakness',
+                        tagLabel: tag.label,
+                        score: Math.round(masteryScore),
+                        title: `เรื่องที่ต้องปรับปรุง: ด้าน ${tag.label}`,
+                        desc: `คุณยังมีข้อสงสัยในส่วนของ ${tag.label} คะแนนความเชี่ยวชาญอยู่ในระดับปานกลาง/ต่ำ (${Math.round(masteryScore)}%) แนะนำให้ทบทวนบทเรียน หรือทำแบบฝึกหัดความเข้าใจส่วนนี้ซ้ำเพื่อปรับปรุงความถูกต้องครับ`
+                    });
+                }
+            }
+        });
+
+        // 6. เรนเดอร์กราฟ Radar
+        const radarCtx = document.getElementById('analysisRadarChart');
+        const radarPlaceholder = document.getElementById('radarPlaceholder');
+        if (radarCtx) {
+            if (activeScores.length === 0) {
+                // แสดงสถานะเริ่มต้น หากมีคำถามแต่ยังไม่เคยทำส่งเลย
+                radarCtx.style.display = 'none';
+                if (radarPlaceholder) radarPlaceholder.style.display = 'block';
+            } else {
+                // แสดง canvas และซ่อน placeholder
+                radarCtx.style.display = 'block';
+                if (radarPlaceholder) radarPlaceholder.style.display = 'none';
+
+                const existingChart = Chart.getChart(radarCtx);
+                if (existingChart) existingChart.destroy();
+
+                new Chart(radarCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: activeLabels,
+                        datasets: [{
+                            label: 'ความเชี่ยวชาญ (%)',
+                            data: activeScores,
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderColor: 'rgba(59, 130, 246, 0.8)',
+                            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                            pointBorderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                suggestedMin: 0,
+                                suggestedMax: 100,
+                                ticks: { stepSize: 20 },
+                                pointLabels: {
+                                    font: {
+                                        family: 'Sarabun',
+                                        size: 13,
+                                        weight: 'bold'
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        }
+
+        // 7. แสดงรายการคำแนะนำ
+        if (recommendations.length === 0) {
+            recommendationsList.innerHTML = `
+                <div style="text-align: center; color: #64748b; padding: 15px;">
+                    <i class="far fa-smile fa-2x" style="color: #10b981; margin-bottom: 8px;"></i>
+                    <p>ระบบกำลังรวบรวมทักษะเพื่อระบุจุดเด่น-จุดปรับปรุง แนะนำให้ส่งคำตอบแบบฝึกหัดเพิ่มเพื่อเริ่มการประเมินทักษะที่ชัดเจนครับ!</p>
+                </div>
+            `;
+        } else {
+            // เรียงลำดับเอาเรื่องที่ควรปรับปรุง (weakness) ขึ้นก่อนเพื่อส่งเสริมให้เด็กกลับไปทบทวน
+            const sortedRecs = recommendations.sort((a, b) => {
+                if (a.type === 'weakness' && b.type === 'strength') return -1;
+                if (a.type === 'strength' && b.type === 'weakness') return 1;
+                return a.score - b.score;
+            });
+
+            recommendationsList.innerHTML = sortedRecs.map(rec => `
+                <div class="recommendation-item ${rec.type}">
+                    <div class="rec-icon">${rec.type === 'strength' ? '🏆' : '💡'}</div>
+                    <div>
+                        <div class="rec-title" style="color: inherit;">${rec.title} (${rec.score}%)</div>
+                        <div class="rec-desc">${rec.desc}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+    } catch (error) {
+        console.error('Error rendering self analysis:', error);
+        recommendationsList.innerHTML = `
+            <div style="text-align: center; color: #ef4444; padding: 20px;">
+                <i class="fas fa-times-circle fa-2x"></i>
+                <p style="margin-top: 10px;">เกิดข้อผิดพลาดในการคำนวณและประมวลผลทักษะของคุณ</p>
+            </div>
+        `;
+    }
+}

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตรวจงาน: สรุปผลการเรียน - JediCode</title>
+    <link rel="stylesheet" href="teacher-summary-detail.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Main Header -->
+        <div class="header dark-theme">
+            <div class="logo-section">
+                <img src="logo.png" alt="JediCode Logo" class="main-logo">
+                <div class="brand-text">
+                    <h1>JediCode</h1>
+                    <p class="tagline">coding interactive (ฝั่งคุณครู)</p>
+                </div>
+            </div>
+            <div class="platform-logos">
+                <img src="https://www.python.org/static/community_logos/python-logo-generic.svg" alt="Python Logo" class="python-logo">
+                <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28dp.png" alt="Firebase Logo" class="firebase-logo">
+            </div>
+        </div>
+
+        <!-- Sub Header -->
+        <div class="sub-header">
+            <button onclick="goBack()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> กลับไปยังห้องเรียน
+            </button>
+            <div class="header-info">
+                <h1 id="problemTitle">กำลังโหลดหัวข้อ...</h1>
+                <span class="max-score-badge" id="maxScoreDisplay">คะแนนเต็ม: - คะแนน</span>
+            </div>
+        </div>
+
+        <!-- Problem Instructions & Class Stats -->
+        <div class="workspace-layout stats-row">
+            <!-- Left Card: Instructions -->
+            <div class="problem-card instructions-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-info-circle"></i> คำชี้แจงกิจกรรม</h3>
+                </div>
+                <div class="card-body">
+                    <p id="problemDescription">กำลังโหลดคำอธิบาย...</p>
+                </div>
+            </div>
+
+            <!-- Right Card: Stats -->
+            <div class="problem-card stats-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> ภาพรวมของห้องเรียน</h3>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="statSubmitted">0/0</span>
+                            <span class="stat-label">ส่งงานแล้ว</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="statGraded">0</span>
+                            <span class="stat-label">ตรวจแล้ว</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="statPendingGrade">0</span>
+                            <span class="stat-label text-warning">รอตรวจ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collaborative Board Section -->
+        <div class="board-section">
+            <div class="board-header">
+                <h2><i class="fas fa-chalkboard-teacher"></i> กระดานสรุปความรู้ของนักเรียน (คลิกที่การ์ดเพื่อตรวจให้คะแนน)</h2>
+                <span class="online-indicator"><i class="fas fa-circle text-success"></i> อัพเดตแบบเรียลไทม์</span>
+            </div>
+            <div class="summary-board" id="summaryBoard">
+                <div class="board-loading">
+                    <i class="fas fa-spinner fa-spin"></i> กำลังดึงข้อมูลกระดานสรุปผลของนักเรียน...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grading Modal -->
+    <div class="modal" id="gradingModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-star-half-alt"></i> ประเมินผลการเรียนรู้ของนักเรียน</h2>
+                <button class="close-btn" onclick="closeGradingModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Card content preview -->
+                <div class="student-post-it-preview" id="gradingPostItPreview">
+                    <!-- Dynamic preview loaded here -->
+                </div>
+
+                <!-- Grading Form -->
+                <form id="gradingForm" onsubmit="handleGradeSubmit(event)">
+                    <input type="hidden" id="gradingSubmissionId">
+                    <input type="hidden" id="gradingStudentId">
+                    
+                    <div class="form-group">
+                        <label for="gradeScore">คะแนนที่ได้ <span class="required">*</span> (คะแนนเต็ม <span id="modalMaxScore">10</span>)</label>
+                        <input type="number" id="gradeScore" min="0" max="10" step="0.5" class="input-field" required placeholder="ใส่คะแนน">
+                    </div>
+                    <div class="form-group">
+                        <label for="gradeFeedback">คำแนะนำ / ความคิดเห็นของครู</label>
+                        <textarea id="gradeFeedback" class="input-field" placeholder="ข้อความแนะนำเพิ่มเติมสำหรับนักเรียน เช่น ยอดเยี่ยมมาก, อธิบายเนื้อหาได้ครอบคลุม" rows="4"></textarea>
+                    </div>
+                    <div class="modal-buttons">
+                        <button type="button" class="cancel-btn" onclick="closeGradingModal()">ยกเลิก</button>
+                        <button type="submit" class="submit-btn" id="saveGradeBtn">
+                            <i class="fas fa-save"></i> บันทึกผลคะแนน
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="teacher-summary-detail.js"></script>
+</body>
+</html>

@@ -1672,30 +1672,64 @@ async function editProblem(problemId) {
                     problemData.questions.forEach(q => {
                         const questionItem = document.createElement('div');
                         questionItem.className = 'question-item';
-                        questionItem.innerHTML = `
-                            <div class="question-header">
-                                <h4>คำถามที่ ${q.number || 1}</h4>
-                                <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn">
-                                    ลบคำถาม
-                                </button>
+                        questionItem.style.display = 'flex';
+                        questionItem.style.gap = '20px';
+                        questionItem.style.border = '1px solid #404040';
+                        questionItem.style.padding = '15px';
+                        questionItem.style.marginBottom = '15px';
+                        questionItem.style.borderRadius = '8px';
+                        questionItem.style.background = '#333';
+                        
+                        const tagsStr = q.tags ? q.tags.join(', ') : '';
+                        
+                        questionItem.innerHTML = \`
+                            <div class="left-panel" style="flex: 1; border-right: 1px solid #555; padding-right: 20px;">
+                                <div class="question-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h4 style="margin: 0; color: #fff;">คำถามที่ \${q.number || 1}</h4>
+                                    <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">
+                                        ลบคำถาม
+                                    </button>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>คำถาม *</label>
+                                    <textarea class="question-text input-field" required style="height: 80px;">\${q.question || ''}</textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>รูปภาพประกอบคำถาม (ถ้ามี)</label>
+                                    <input type="file" class="question-image-upload input-field" accept="image/*" onchange="handleQuestionImageUpload(this)">
+                                    <input type="hidden" class="question-image-url" value="\${q.imageUrl || ''}">
+                                    <div class="question-image-preview" style="margin-top: 10px; \${q.imageUrl ? 'display: block;' : 'display: none;'} text-align: center;">
+                                        <img src="\${q.imageUrl || ''}" style="max-width: 100%; max-height: 150px; border-radius: 4px; border: 1px solid #555;">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Tag (ป้ายกำกับ) คั่นด้วยลูกน้ำ</label>
+                                    <input type="text" class="question-tags input-field" placeholder="เช่น logic, loop, variable" value="\${tagsStr}">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>คำถาม *</label>
-                                <textarea class="question-text input-field" required>${q.question}</textarea>
+
+                            <div class="right-panel" style="flex: 1; padding-left: 20px;">
+                                <h4 style="margin-top: 0; margin-bottom: 15px; color: #fff;">ส่วนของเฉลย (ซ่อนจากนักเรียน)</h4>
+                                
+                                <div class="form-group">
+                                    <label>คำตอบที่ถูกต้อง *</label>
+                                    <textarea class="correct-answer input-field" required style="height: 80px;">\${q.correctAnswer || ''}</textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>คะแนน</label>
+                                    <input type="number" class="question-score input-field" value="\${q.score || 1}" min="1" max="10">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>คำอธิบายเพิ่มเติม</label>
+                                    <textarea class="question-explanation input-field" style="height: 60px;">\${q.explanation || ''}</textarea>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>คำตอบที่ถูกต้อง *</label>
-                                <textarea class="correct-answer input-field" required>${q.correctAnswer}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>คะแนน</label>
-                                <input type="number" class="question-score input-field" value="${q.score || 1}" min="1">
-                            </div>
-                            <div class="form-group">
-                                <label>คำอธิบาย</label>
-                                <input type="text" class="question-explanation input-field" value="${q.explanation || ''}">
-                            </div>
-                        `;
+                        \`;
                         questionsList.appendChild(questionItem);
                     });
                 }
@@ -2098,40 +2132,104 @@ function addComprehensionQuestion() {
 
     const questionDiv = document.createElement('div');
     questionDiv.className = 'question-item';
+    questionDiv.style.display = 'flex';
+    questionDiv.style.gap = '20px';
+    questionDiv.style.border = '1px solid #404040';
+    questionDiv.style.padding = '15px';
+    questionDiv.style.marginBottom = '15px';
+    questionDiv.style.borderRadius = '8px';
+    questionDiv.style.background = '#333';
+
     questionDiv.innerHTML = `
-        <div class="question-header">
-            <h4>คำถามที่ ${questionNumber}</h4>
-            <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn">
-                ลบคำถาม
-            </button>
+        <div class="left-panel" style="flex: 1; border-right: 1px solid #555; padding-right: 20px;">
+            <div class="question-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="margin: 0; color: #fff;">คำถามที่ ${questionNumber}</h4>
+                <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">
+                    ลบคำถาม
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>คำถาม *</label>
+                <textarea class="question-text input-field" required 
+                    placeholder="พิมพ์คำถามที่ต้องการถามนักเรียน" style="height: 80px;"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>รูปภาพประกอบคำถาม (ถ้ามี)</label>
+                <input type="file" class="question-image-upload input-field" accept="image/*" onchange="handleQuestionImageUpload(this)">
+                <input type="hidden" class="question-image-url">
+                <div class="question-image-preview" style="margin-top: 10px; display: none; text-align: center;">
+                    <img src="" style="max-width: 100%; max-height: 150px; border-radius: 4px; border: 1px solid #555;">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Tag (ป้ายกำกับ) คั่นด้วยลูกน้ำ</label>
+                <input type="text" class="question-tags input-field" placeholder="เช่น logic, loop, variable">
+            </div>
         </div>
 
-        <div class="form-group">
-            <label>คำถาม *</label>
-            <textarea class="question-text input-field" required 
-                placeholder="พิมพ์คำถามที่ต้องการถามนักเรียน"></textarea>
-        </div>
+        <div class="right-panel" style="flex: 1; padding-left: 20px;">
+            <h4 style="margin-top: 0; margin-bottom: 15px; color: #fff;">ส่วนของเฉลย (ซ่อนจากนักเรียน)</h4>
+            
+            <div class="form-group">
+                <label>คำตอบที่ถูกต้อง *</label>
+                <textarea class="correct-answer input-field" required 
+                    placeholder="ใส่คำตอบที่ถูกต้อง" style="height: 80px;"></textarea>
+            </div>
 
-        <div class="form-group">
-            <label>คำตอบที่ถูกต้อง *</label>
-            <textarea class="correct-answer input-field" required 
-                placeholder="ใส่คำตอบที่ถูกต้อง"></textarea>
-        </div>
+            <div class="form-group">
+                <label>คะแนน</label>
+                <input type="number" class="question-score input-field" 
+                    value="1" min="1" max="10">
+            </div>
 
-        <div class="form-group">
-            <label>คะแนน</label>
-            <input type="number" class="question-score input-field" 
-                value="1" min="1" max="10">
-        </div>
-
-        <div class="form-group">
-            <label>คำอธิบาย</label>
-            <input type="text" class="question-explanation input-field" 
-                placeholder="คำอธิบายเพิ่มเติมเกี่ยวกับคำถามนี้">
+            <div class="form-group">
+                <label>คำอธิบายเพิ่มเติม</label>
+                <textarea class="question-explanation input-field" 
+                    placeholder="คำอธิบายเพิ่มเติมเกี่ยวกับคำตอบนี้" style="height: 60px;"></textarea>
+            </div>
         </div>
     `;
 
     questionsList.appendChild(questionDiv);
+}
+
+// อัปโหลดรูปภาพย่อยของแต่ละคำถาม
+async function handleQuestionImageUpload(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+        return;
+    }
+
+    const questionItem = inputElement.closest('.question-item');
+    const previewDiv = questionItem.querySelector('.question-image-preview');
+    const imgElement = previewDiv.querySelector('img');
+    const urlInput = questionItem.querySelector('.question-image-url');
+
+    try {
+        const compressedFile = await compressImage(file, 800, 800, 0.7);
+        const fileName = \`problem_images/q_\${Date.now()}_\${Math.random().toString(36).substring(7)}.jpg\`;
+        const storageRef = firebase.storage().ref();
+        const imageRef = storageRef.child(fileName);
+
+        const snapshot = await imageRef.put(compressedFile);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+        
+        urlInput.value = downloadURL;
+        imgElement.src = downloadURL;
+        previewDiv.style.display = 'block';
+        
+        window.pendingImageUploads = window.pendingImageUploads || [];
+        window.pendingImageUploads.push(downloadURL);
+    } catch (error) {
+        console.error('Error uploading question image:', error);
+        alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพคำถาม');
+    }
 }
 
 function removeComprehensionQuestion(button) {
@@ -2672,9 +2770,14 @@ async function saveComprehensionProblem() {
         // รวบรวมคำถาม
         const questionElements = document.querySelectorAll('.question-item');
         questionElements.forEach((el, index) => {
+            const rawTags = el.querySelector('.question-tags') ? el.querySelector('.question-tags').value : '';
+            const tags = rawTags.split(',').map(t => t.trim()).filter(t => t);
+            
             problemData.questions.push({
                 number: index + 1,
                 question: el.querySelector('.question-text').value.trim(),
+                imageUrl: el.querySelector('.question-image-url') ? el.querySelector('.question-image-url').value : '',
+                tags: tags,
                 correctAnswer: el.querySelector('.correct-answer').value.trim(),
                 score: parseInt(el.querySelector('.question-score').value) || 1,
                 explanation: el.querySelector('.question-explanation').value.trim()
