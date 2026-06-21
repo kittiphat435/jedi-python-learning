@@ -164,6 +164,76 @@ sys.modules["tkinter"] = module
 sys.modules["tkinter.ttk"] = ttk_module
 `;
 
+const MOCK_MQTT_CODE = `
+import sys
+import json
+from js import Paho, console, window
+
+class Client:
+    def __init__(self, client_id=''):
+        self.js_client = None
+        self.client_id = client_id
+        self.on_connect = None
+        self.on_message = None
+
+    def connect(self, host, port=8000, keepalive=60):
+        # Force WebSocket port 8000
+        if port == 1883:
+            console.warn('Browser environment requires WebSocket port. Changing port 1883 to 8000 automatically.')
+            port = 8000
+        self.js_client = Paho.MQTT.Client(host, port, "/mqtt", self.client_id)
+
+        def on_connection_lost(responseObject):
+            if responseObject.errorCode != 0:
+                console.log('Connection Lost: ' + responseObject.errorMessage)
+        
+        def on_message_arrived(message):
+            if self.on_message:
+                # Mock a message object
+                class Msg:
+                    def __init__(self, topic, payload):
+                        self.topic = topic
+                        self.payload = payload.encode('utf-8')
+                self.on_message(self, None, Msg(message.destinationName, message.payloadString))
+
+        def on_success(*args):
+            console.log('MQTT Connected successfully')
+            if self.on_connect:
+                self.on_connect(self, None, None, 0)
+
+        self.js_client.onConnectionLost = on_connection_lost
+        self.js_client.onMessageArrived = on_message_arrived
+
+        options = {
+            'onSuccess': on_success,
+            'useSSL': host == 'broker.hivemq.com' and port == 8884 or False
+        }
+        self.js_client.connect(options)
+
+    def subscribe(self, topic):
+        if self.js_client:
+            self.js_client.subscribe(topic)
+
+    def publish(self, topic, payload):
+        if self.js_client:
+            message = Paho.MQTT.Message(str(payload))
+            message.destinationName = topic
+            self.js_client.send(message)
+
+    def loop_start(self):
+        pass # Handled by browser event loop
+
+    def loop_forever(self):
+        pass # Handled by browser event loop
+
+class mqtt:
+    Client = Client
+
+sys.modules['paho'] = type('paho', (), {})()
+sys.modules['paho.mqtt'] = type('mqtt', (), {})()
+sys.modules['paho.mqtt.client'] = mqtt
+`;
+
 // ฟังก์ชันเช็คอุปกรณ์
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
@@ -203,6 +273,7 @@ async function initPyodide() {
 
         pyodideInstance = await loadPyodide();
         await pyodideInstance.runPythonAsync(MOCK_TKINTER_CODE);
+        await pyodideInstance.runPythonAsync(MOCK_MQTT_CODE);
         
         updateStatusUI("✅ Ready (PC)", "pyodide");
         console.log("✅ Pyodide & Mock Tkinter Ready!");
@@ -778,7 +849,7 @@ async function testGUICode(code, problemTestCases, iframe) {
 
         // ตรวจสอบ Widgets (เน้น type และ text) จาก problemData.widgets
         const requiredWidgets = problemData.widgets || [];
-        maxScore += requiredWidgets.reduce((sum, w) => sum + (typeof w.score === 'number' ? w.score : 1), 0);
+        maxScore += requiredWidgets.reduce((sum, w) => sum + (w.score || 1), 0);
 
         // --- ส่วนที่แก้ไข: ปรับปรุงการตรวจสอบ Widget ให้แม่นยำขึ้น ---
         let orderScore = 0;
@@ -826,7 +897,7 @@ async function testGUICode(code, problemTestCases, iframe) {
         const foundWidgets = {};
         requiredWidgets.forEach((widget, idx) => {
             const found = widgetMapping[idx] !== -1;
-            const score = found ? (typeof widget.score === 'number' ? widget.score : 1) : 0;
+            const score = found ? (widget.score || 1) : 0;
             totalScore += score;
             foundWidgets[widget.name] = found;
             
@@ -2504,10 +2575,32 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         }
 
         
-        // Ensure the problem is of type 'gui'
-        if (problemData.type !== 'gui') {
-            showError('โจทย์นี้ไม่ใช่โจทย์ GUI');
+        // Ensure the problem is of type 'gui' or 'iot_gui'
+        if (problemData.type !== 'gui' && problemData.type !== 'iot_gui') {
+            showError('โจทย์นี้ไม่ใช่โจทย์ GUI หรือ IoT + GUI');
             return;
+        }
+
+        // Initialize Wokwi if it is an iot_gui problem
+        if (problemData.type === 'iot_gui' && problemData.iotWokwiId) {
+            let projectId = problemData.iotWokwiId;
+            // Handle full URL extraction if needed
+            if (projectId.includes('wokwi.com/projects/')) {
+                const match = projectId.match(/wokwi\.com\/projects\/(\d+)/);
+                if (match) {
+                    projectId = match[1];
+                }
+            }
+            const wokwiContainer = document.getElementById('wokwiContainer');
+            if (wokwiContainer) {
+                wokwiContainer.innerHTML = `<iframe 
+                    src="https://wokwi.com/projects/${projectId}?embed=1" 
+                    width="100%" 
+                    height="100%" 
+                    frameborder="0" 
+                    allowfullscreen>
+                </iframe>`;
+            }
         }
 
         // แสดงคะแนนเต็มทันทีหลังโหลดโจทย์
@@ -5782,3 +5875,4 @@ function playScoreAnimation(earnedScore, maxScore) {
         }, 1000 / fps);
     });
 }
+ 

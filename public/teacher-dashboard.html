@@ -82,6 +82,8 @@
                         <option value="comprehension">อ่านและทำความเข้าใจโค้ด</option>
                         <option value="matching">จับคู่</option>
                         <option value="quiz">ปรนัย (Multiple Choice)</option>
+                        <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
+                        <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
                     </select>
                     <button id="createProblemBtn" class="primary-btn" style="margin-top: 0;">สร้างโจทย์ใหม่</button>
                 </div>
@@ -124,6 +126,8 @@
                             <option value="flowchart">Flowchart</option>
                             <option value="gui">GUI (Graphical User Interface)</option>
                             <option value="summary">สรุปผลการเรียน (กระดานสรุปความรู้สไตล์ Padlet)</option>
+                            <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
+                            <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -448,6 +452,28 @@
                                 placeholder="คำแนะนำหรือหมายเหตุสำหรับผู้ตรวจในการพิจารณาให้คะแนน"></textarea>
                         </div>
                     </div>
+                    <!-- เพิ่ม Section สำหรับโจทย์ IoT -->
+                    <div id="iotSection" style="display: none;">
+                        <div class="form-group">
+                            <label>Wokwi Project ID *</label>
+                            <input type="text" id="iotWokwiId" class="input-field" placeholder="เช่น 322577683855704658" required>
+                            <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 5px;">สามารถก็อปปี้เฉพาะตัวเลข ID หรือลิงก์เต็มมาวางได้ แล้วกดปุ่มเช็คความถูกต้อง</p>
+                            <button type="button" class="secondary-btn" onclick="validateWokwiId()" style="margin-top: 10px; font-size: 0.9rem;">ตรวจสอบ Wokwi ID</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>โค้ดเฉลย (IoT)</label>
+                            <textarea id="iotSolution" class="code-editor input-field" rows="6" placeholder="import network\n..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <div class="test-cases-header">
+                                <h3>เงื่อนไขการตรวจโค้ด (IoT)</h3>
+                                <button type="button" class="primary-btn" onclick="addIotCodeCheck()">+ เพิ่มเงื่อนไข</button>
+                            </div>
+                            <div id="iotCodeChecksList"></div>
+                        </div>
+                    </div>
+
                     <!-- เพิ่ม Section สำหรับโจทย์ GUI -->
                     <div id="guiSection" style="display: none;">
                         <div class="form-group">

@@ -85,7 +85,7 @@
     margin: 20px;
     overflow-y: auto;
     max-height: 600px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Outfit', 'Sarabun', sans-serif;
 }
 
 .problem-row {
@@ -902,7 +902,7 @@ pre {
     background: white;
     color: black;
     border: 1px solid #ddd;
-    font-family: monospace;
+    font-family: 'Consolas', 'Courier New', monospace;
 }
 
 /* Modal Background */

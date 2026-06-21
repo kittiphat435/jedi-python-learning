@@ -1,0 +1,1 @@
+﻿const fs = require('fs'); let p = 'c:/python-learning-platform/public/admin-add-ploblem.js'; let c = fs.readFileSync(p, 'utf8'); c = c.replace(/\\\/g, '\').replace(/\\\$/g, '\$'); fs.writeFileSync(p, c);

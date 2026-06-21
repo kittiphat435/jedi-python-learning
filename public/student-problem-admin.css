@@ -501,3 +501,10 @@
         gap: 10px;
     }
 }
+
+/* รักษาการขึ้นบรรทัดใหม่ในคำอธิบายโจทย์ */
+.problem-card .description {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+

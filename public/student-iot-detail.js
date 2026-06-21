@@ -112,6 +112,11 @@ function updateProblemDisplay() {
         descriptionElement.innerHTML = descriptionHTML;
     }
 
+    const wokwiContainer = document.getElementById('wokwiContainer');
+    if (wokwiContainer && currentProblem.wokwiId) {
+        wokwiContainer.innerHTML = `<iframe src="https://wokwi.com/projects/${currentProblem.wokwiId}?embed=1" style="width: 100%; height: 100%; border: none;"></iframe>`;
+    }
+
     const exampleTestCases = document.getElementById('exampleTestCases');
     if (exampleTestCases && currentProblem.testCases?.length > 0) {
         exampleTestCases.style.marginTop = '8px';
@@ -535,8 +540,8 @@ function updateCodeHighlight() {
     }
 }
 async function testCode() {
-    if (!currentProblem?.testCases) {
-        alert('ไม่พบ Test Cases สำหรับโจทย์นี้');
+    if (!currentProblem?.codeChecks) {
+        alert('ไม่พบเกณฑ์การให้คะแนนสำหรับโจทย์นี้');
         return;
     }
 
@@ -548,226 +553,34 @@ async function testCode() {
         const code = document.getElementById('codeEditor').value;
         const analysisCode = stripPythonCommentsForAnalysis(code);
         
-        const results = await Promise.all(currentProblem.testCases.map(async (testCase) => {
-            try {
-                // --- ปรับปรุงการดึง Input ให้รองรับทั้ง 2 รูปแบบ ---
-                let inputs = [];
-                if (testCase.inputs && testCase.inputs.length > 0) {
-                    // รูปแบบใหม่: เป็น Array ของ Object {name, value}
-                    inputs = testCase.inputs.map(item => {
-                        if (typeof item === 'object' && item !== null) {
-                            return item.value !== undefined ? item.value.toString() : '';
-                        }
-                        return item.toString();
-                    });
-                } else if (testCase.input) {
-                    // รูปแบบเก่า: เป็น String ก้อนเดียวคั่นด้วย \n
-                    let inputStr = testCase.input.replace(/^["']|["']$/g, '');
-                    inputs = inputStr.split(/\r?\n|\\n/);
-                }
-                
-                console.log('--- Debug Input Preparation ---');
-                console.log('testCase.inputs (Array):', testCase.inputs);
-                console.log('testCase.input (String):', testCase.input);
-                console.log('Final inputs array to be used:', inputs);
-                console.log('Joined input string for API:', inputs.join('\n') + '\n');
-
-                // ... (Input Format Check remains same) ...
-                let hasInputFormatError = false;
-                let inputFormatErrors = [];
-                
-                if (testCase.inputs && testCase.inputs.length > 0) {
-                    const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                    if (testCase.inputs.length !== inputMatches.length) {
-                        inputFormatErrors.push(`จำนวนการรับค่าไม่ถูกต้อง (ต้องการ ${testCase.inputs.length} ค่า)`);
-                        hasInputFormatError = true;
-                    }
-                    testCase.inputs.forEach((expectedInput, index) => {
-                        if (index < inputMatches.length) {
-                            const inputCode = inputMatches[index][1];
-                            const promptMatch = inputCode.match(/["'](.*?)["']/) || [];
-                            const promptText = promptMatch[1] || '';
-                            if (!promptText.includes(expectedInput.name)) {
-                                inputFormatErrors.push(`ข้อความรับค่าที่ ${index + 1} ควรมี "${expectedInput.name}"`);
-                                hasInputFormatError = true;
-                            }
-                        }
-                    });
-                }
-
-                // รันโค้ดและเช็ค output
-                const btoaUtf8 = (str) => btoa(unescape(encodeURIComponent(str)));
-                const base64Code = btoaUtf8(code);
-                // ใช้ dict เปล่าครอบ exec เพื่อแยก scope แต่ละ test case และแก้ปัญหา name not defined
-                const wrapperCode = `import base64\nuser_code = base64.b64decode(b"${base64Code}").decode('utf-8')\ntry:\n    exec(user_code, {})\nexcept EOFError:\n    pass`;
-
-                const response = await fetch(config.API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code: wrapperCode,
-                        input: inputs.join('\n') + '\n'
-                    })
-                });
-
-                const data = await response.json();
-                console.log('--- Debug Test Case API Response ---');
-                console.log('Raw data from API:', data);
-
-                let actualOutputRaw = (data.output || '').replace(/\r\n/g, '\n');
-                const isError = data.status === 'error';
-                
-                // เก็บค่า original ไว้ก่อน trim
-                const actualOutputOriginal = actualOutputRaw;
-                actualOutputRaw = actualOutputRaw.trim();
-                
-                // --- ปรับปรุงการแสดงผล Actual Output ให้สวยงาม ---
-                if (!isError && testCase.inputs && testCase.inputs.length > 0) {
-                    const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                    let promptCounts = {};
-                    inputMatches.forEach((match, idx) => {
-                        const promptMatch = match[1].match(/["'](.*?)["']/) || [];
-                        const promptText = promptMatch[1] || '';
-                        if (promptText) {
-                            promptCounts[promptText] = (promptCounts[promptText] || 0) + 1;
-                            let occurrence = 0;
-                            const inputItem = testCase.inputs[idx];
-                            let val = '';
-                            if (typeof inputItem === 'object' && inputItem !== null) {
-                                val = inputItem.value !== undefined ? inputItem.value.toString() : '';
-                            } else {
-                                val = inputItem !== undefined ? inputItem.toString() : '';
-                            }
-                            if (!val && testCase.input) {
-                                const splitInputs = testCase.input.replace(/^["']|["']$/g, '').split(/\r?\n|\\n/);
-                                val = splitInputs[idx] || '';
-                            }
-                            actualOutputRaw = actualOutputRaw.replace(new RegExp(`(${escapeRegExp(promptText)})`, 'g'), (m) => {
-                                occurrence++;
-                                if (occurrence === promptCounts[promptText]) return `${m}${val}\n`;
-                                return m;
-                            });
-                        }
-                    });
-                }
-
-                const expectedOutput = testCase.expected.replace(/\r\n/g, '\n').trim();
-                const expectedLines = expectedOutput.split('\n');
-                const n = expectedLines.length;
-                
-                let actualOutput = actualOutputRaw;
-                const lines = actualOutputRaw.split('\n');
-                let slicedActual = actualOutputRaw;
-
-                // ไม่ต้อง slice ถ้าเป็น Error
-                if (!isError && lines.length >= n) {
-                    const lastNLines = lines.slice(-n);
-                    const firstExpected = expectedLines[0];
-                    const firstActual = lastNLines[0];
-                    
-                    if (firstActual !== firstExpected && firstActual.endsWith(firstExpected)) {
-                        const precedingChar = firstActual.charAt(firstActual.length - firstExpected.length - 1);
-                        if ([' ', ':', '>', '-'].includes(precedingChar)) {
-                            lastNLines[0] = firstExpected;
-                        } else if (n === 1 && firstActual.includes(':')) {
-                            // ป้องกันการ slice error message โดยเช็คว่าไม่ได้อยู่ในโหมด error
-                            lastNLines[0] = firstActual.split(':').slice(-1)[0].trimStart();
-                        }
-                    } else if (n === 1 && firstActual.includes(':') && firstActual !== firstExpected) {
-                        lastNLines[0] = firstActual.split(':').slice(-1)[0].trimStart();
-                    }
-                    slicedActual = lastNLines.join('\n').trim();
-                }
-
-                // ตรวจสอบความถูกต้อง
-                let outputCorrect = !isError && (compareText(slicedActual, expectedOutput) || compareText(actualOutputRaw, expectedOutput));
-
-                if (!outputCorrect && !isError) {
-                    console.log('--- DEBUG: Output Comparison Failed ---');
-                    console.log('Expected:', debugString(expectedOutput));
-                    console.log('Actual (Sliced):', debugString(slicedActual));
-                    console.log('Actual (Raw):', debugString(actualOutputRaw));
-                }
-
-                // จัดการค่าที่จะแสดงใน UI
-                if (isError) {
-                    actualOutput = actualOutputRaw || 'Error occurred';
-                } else if (!outputCorrect) {
-                    actualOutput = slicedActual || actualOutputRaw || '';
-                } else {
-                    actualOutput = slicedActual;
-                }
-
-                // --- Lenient Match: อนุโลมเรื่องช่องว่าง แต่ "บังคับ" เรื่องการขึ้นบรรทัดใหม่ ---
-                if (!outputCorrect) {
-                    const normExpected = expectedOutput.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normSlicedActual = slicedActual.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normActualRaw = actualOutputRaw.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    
-                    let adjustedExpected = normExpected;
-                    // ... (adjustedExpected logic remains) ...
-                    if (testCase.inputs && testCase.inputs.length > 0) {
-                        const inputMatches = Array.from(analysisCode.matchAll(/input\((.*?)\)/g));
-                        let promptCounts = {};
-                        inputMatches.forEach((match, idx) => {
-                            const pMatch = match[1].match(/["'](.*?)["']/) || [];
-                            const pText = pMatch[1] ? pMatch[1].replace(/\s+/g, '') : '';
-                            if (pText) {
-                                promptCounts[pText] = (promptCounts[pText] || 0) + 1;
-                                let occurrence = 0;
-                                let val = '';
-                                if (testCase.inputs && testCase.inputs[idx]) {
-                                    val = testCase.inputs[idx].value !== undefined 
-                                        ? testCase.inputs[idx].value.toString().replace(/\s+/g, '') 
-                                        : testCase.inputs[idx].toString().replace(/\s+/g, '');
-                                } else if (testCase.input) {
-                                    const splitInputs = testCase.input.replace(/^["']|["']$/g, '').split(/\r?\n|\\n/);
-                                    val = splitInputs[idx] ? splitInputs[idx].replace(/\s+/g, '') : '';
-                                }
-                                adjustedExpected = adjustedExpected.replace(new RegExp(`(${escapeRegExp(pText)})(?!${escapeRegExp(val)})`, 'g'), (m) => {
-                                    occurrence++;
-                                    if (occurrence === promptCounts[pText]) return `${m}${val}`;
-                                    return m;
-                                });
-                            }
-                        });
-                    }
-
-                    if (normSlicedActual === normExpected || normSlicedActual === adjustedExpected || normActualRaw.endsWith(normExpected)) {
-                        outputCorrect = true;
-                    }
-                }
-
-                // ถ้าไม่มี input ให้เช็คแค่ output
-                const passed = testCase.inputs && testCase.inputs.length > 0 ? 
-                    (outputCorrect && !hasInputFormatError) : 
-                    outputCorrect;
-
-                return {
-                    passed: passed,
-                    input: inputs.join(' และ '),
-                    expected: expectedOutput,
-                    actual: actualOutput,
-                    inputFormatErrors: inputFormatErrors,
-                    hasInputFormatError: hasInputFormatError,
-                    outputCorrect: outputCorrect,
-                    hasInputs: testCase.inputs && testCase.inputs.length > 0 // เพิ่มข้อมูลว่ามี input หรือไม่
-                };
-
-            } catch (error) {
-                return {
-                    passed: false,
-                    input: testCase.input,
-                    expected: testCase.expected,
-                    error: error.message
-                };
+        let totalScore = 0;
+        let maxScore = 0;
+        
+        const results = currentProblem.codeChecks.map((check) => {
+            const keyword = check.keyword.trim();
+            const score = check.score || 1;
+            maxScore += score;
+            
+            // Check if keyword exists in code (ignore spaces around parentheses if needed, but for now simple includes)
+            // To be more robust, we could strip all spaces from both keyword and code before comparing
+            const normCode = analysisCode.replace(/\s+/g, '');
+            const normKeyword = keyword.replace(/\s+/g, '');
+            const passed = normCode.includes(normKeyword);
+            
+            if (passed) {
+                totalScore += score;
             }
-        }));
+            
+            return {
+                keyword: keyword,
+                score: score,
+                passed: passed
+            };
+        });
 
-        displayTestResults(results);
+        displayTestResults(results, totalScore, maxScore);
 
-        const allPassed = results.every(r => r.passed);
-        if (allPassed) {
+        if (totalScore === maxScore && maxScore > 0) {
             updateStatusBadge('completed');
             showYarnReward();
         }
@@ -783,11 +596,6 @@ async function testCode() {
     }
 }
 
-// ฟังก์ชันช่วย Escape Regex เพื่อป้องกัน error หากใน prompt มีตัวอักษรพิเศษ
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 // ฟังก์ชันช่วยแสดงตัวอักษรพิเศษ (Hidden Characters) เพื่อการ Debug
 function debugString(str) {
     if (!str) return 'empty';
@@ -801,54 +609,50 @@ function debugString(str) {
     }).join('');
 }
 
-// อัพเดทฟังก์ชันแสดงผลให้เห็น debug info
-function displayTestResults(results) {
+function displayTestResults(results, totalScore, maxScore) {
     const container = document.getElementById('testResults');
-    const passedCount = results.filter(r => r.passed).length;
-    const allPassed = passedCount === results.length;
+    const allPassed = totalScore === maxScore && maxScore > 0;
 
     let html = `
         <div class="test-summary ${allPassed ? 'success' : 'failure'}">
-            <h3>ผลการทดสอบ: ผ่าน ${passedCount} จาก ${results.length} test cases ${allPassed ? '✅' : '❌'}</h3>
-        </div>`;
-
-    html += results.map((result, index) => `
-        <div class="test-case-result">
-            <h4>Test Case ${index + 1}: ${result.passed ? 'ผ่าน ✓' : 'ไม่ผ่าน ✗'}</h4>
-            <div class="test-details">
-                ${result.input ? `<p><strong>Input:</strong> ${result.input}</p>` : ''}
-                
-                ${result.hasInputs && result.hasInputFormatError ? `
-                    <div class="input-format-errors">
-                        <p><strong>ข้อผิดพลาดการรับค่า:</strong></p>
-                        <ul>
-                            ${result.inputFormatErrors.map(err => `<li>${err}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-                
-                <p><strong>Expected Output:</strong></p>
-                <pre class="test-output-pre">${result.expected}</pre>
-                
-                <p><strong>ผลลัพธ์ที่ได้:</strong></p>
-                <pre class="test-output-pre">${result.actual}</pre>
-                ${!result.outputCorrect ? '<p class="error">❌ ผลลัพธ์ไม่ถูกต้อง</p>' : ''}
-            </div>
+            <h3>ผลการตรวจคำตอบ: ได้ ${totalScore} จาก ${maxScore} คะแนน ${allPassed ? '✅' : '❌'}</h3>
         </div>
-    `).join('');
+        <div class="test-details" style="margin-top: 15px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: var(--card-bg, #f1f2f6); text-align: left;">
+                        <th style="padding: 10px; border: 1px solid var(--border-color, #ddd);">คำสั่งที่ต้องการ</th>
+                        <th style="padding: 10px; border: 1px solid var(--border-color, #ddd);">คะแนนเต็ม</th>
+                        <th style="padding: 10px; border: 1px solid var(--border-color, #ddd);">ผลลัพธ์</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    results.forEach(result => {
+        html += `
+            <tr>
+                <td style="padding: 10px; border: 1px solid var(--border-color, #ddd); font-family: monospace;">${result.keyword}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color, #ddd);">${result.score}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color, #ddd); color: ${result.passed ? '#2ecc71' : '#e74c3c'}; font-weight: bold;">
+                    ${result.passed ? 'พบ ✓' : 'ไม่พบ ✗'}
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
 
     container.innerHTML = html;
 
-    // จัดการแสดงปุ่มส่งงานที่ย้ายไปอยู่ข้างปุ่มตรวจ
     const submitBtn = document.getElementById('submitBtn');
     if (submitBtn) {
-        if (allPassed) {
-            if (currentProblem?.assignmentType === 'exam') {
-                submitBtn.style.display = 'none';
-                submitToTeacher();
-            } else {
-                submitBtn.style.display = 'inline-block';
-            }
+        if (allPassed || currentProblem?.assignmentType === 'exam') {
+            submitBtn.style.display = 'inline-block';
         } else {
             submitBtn.style.display = 'none';
         }
@@ -1169,13 +973,21 @@ async function submitToTeacher() {
         let totalScore = 0;
         let maxScore = 0;
 
-        if (currentProblem?.testCases) {
-            // คำนวณคะแนนจากแต่ละ test case
-            currentProblem.testCases.forEach(testCase => {
-                // ถ้าไม่ระบุคะแนน ใช้ค่า default = 1
-                const caseScore = testCase.score || 1;
-                maxScore += caseScore;
-                totalScore += caseScore; // ได้คะแนนเต็มเพราะผ่านทุก test case แล้ว
+        if (currentProblem?.codeChecks) {
+            // คำนวณคะแนนจากแต่ละ code checker
+            const code = document.getElementById('codeEditor').value;
+            const analysisCode = stripPythonCommentsForAnalysis(code);
+            const normCode = analysisCode.replace(/\s+/g, '');
+            
+            currentProblem.codeChecks.forEach(check => {
+                const keyword = check.keyword.trim();
+                const score = check.score || 1;
+                maxScore += score;
+                const normKeyword = keyword.replace(/\s+/g, '');
+                
+                if (normCode.includes(normKeyword)) {
+                    totalScore += score;
+                }
             });
         }
 

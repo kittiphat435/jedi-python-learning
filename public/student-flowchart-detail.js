@@ -1582,16 +1582,16 @@ function playScoreAnimation(earnedScore, maxScore) {
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = 'scoreAnimationOverlay';
-            overlay.innerHTML = \`
+            overlay.innerHTML = `
                 <div class="score-animation-content">
                     <div class="score-animation-title">คะแนนที่ได้</div>
                     <div class="score-animation-number" id="animScoreNumber">0</div>
-                    <div class="score-animation-label">จากคะแนนเต็ม \${maxScore}</div>
+                    <div class="score-animation-label">จากคะแนนเต็ม ${maxScore}</div>
                 </div>
-            \`;
+            `;
             document.body.appendChild(overlay);
         } else {
-            overlay.querySelector('.score-animation-label').innerText = \`จากคะแนนเต็ม \${maxScore}\`;
+            overlay.querySelector('.score-animation-label').innerText = `จากคะแนนเต็ม ${maxScore}`;
         }
         
         overlay.style.display = 'flex';

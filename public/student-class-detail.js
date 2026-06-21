@@ -868,6 +868,12 @@ function viewProblem(problemId, type, isViewMode = false) {
         case 'summary':
             url = `student-summary-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
             break;
+        case 'iot':
+            url = `student-iot-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            break;
+        case 'iot_gui':
+            url = `student-iot-gui.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            break;
         default:
             url = `student-quiz-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
     }

@@ -487,7 +487,7 @@ async function loadRecentProblems(userId) {
                         ส่งเมื่อ: ${problem.submittedAt.toDate().toLocaleString()}
                     </div>
                 </div>
-                <button onclick="viewProblem('${problem.id}')" class="secondary-btn">
+                <button onclick="viewProblem('${problem.id}', '${problem.problemType || 'python'}')" class="secondary-btn">
                     ดูโจทย์
                 </button>
             `;
@@ -675,8 +675,29 @@ function viewClass(classId) {
     window.location.href = `student-class-detail.html?id=${classId}`;
 }
 
-function viewProblem(problemId) {
-    window.location.href = `student-problem-detail.html?id=${problemId}`;
+function viewProblem(problemId, type = 'python') {
+    switch (type) {
+        case 'matching':
+            window.location.href = `student-matching-detail.html?id=${problemId}`;
+            break;
+        case 'flowchart':
+            window.location.href = `student-flowchart-detail.html?id=${problemId}`;
+            break;
+        case 'gui':
+            window.location.href = `student-gui.html?id=${problemId}`;
+            break;
+        case 'summary':
+            window.location.href = `student-summary-detail.html?id=${problemId}`;
+            break;
+        case 'iot':
+            window.location.href = `student-iot-detail.html?id=${problemId}`;
+            break;
+        case 'iot_gui':
+            window.location.href = `student-iot-gui.html?id=${problemId}`;
+            break;
+        default:
+            window.location.href = `student-problem-detail.html?id=${problemId}`;
+    }
 }
 
 // Export functions

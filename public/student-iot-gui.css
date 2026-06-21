@@ -2304,3 +2304,18 @@ body {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-6px); }
 }
+
+/* Split Screen Layout for IoT + GUI */
+.split-layout { display: flex; flex-direction: row; gap: 20px; padding: 20px; height: calc(100vh - 120px); overflow: hidden; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+.hardware-panel { flex: 1; min-width: 300px; overflow-y: auto; }
+.software-panel { flex: 1.5; min-width: 400px; display: flex; flex-direction: column; }
+.panel-header { background: #2c3e50; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+.panel-header h2 { margin: 0; font-size: 1.2rem; }
+.panel-content { padding: 15px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.software-split { display: flex; flex-direction: column; gap: 15px; }
+.editor-area { flex: 1; display: flex; flex-direction: column; min-height: 300px; }
+.preview-area { flex: 1; border: 1px solid #ddd; border-radius: 4px; display: flex; flex-direction: column; min-height: 300px; }
+.preview-header { background: #f8f9fa; padding: 10px; border-bottom: 1px solid #ddd; }
+.preview-header h3 { margin: 0; font-size: 1rem; }
+.result-frame { flex: 1; width: 100%; border: none; }

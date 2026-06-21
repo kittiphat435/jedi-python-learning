@@ -1,5 +1,5 @@
 body {
-    font-family: 'Sarabun', 'Outfit', Arial, sans-serif;
+    font-family: 'Outfit', 'Sarabun', sans-serif;
 }
 
 /* Container และ Header */
@@ -507,3 +507,11 @@ body {
         display: none !important;
     }
 }
+
+
+/* รักษาการขึ้นบรรทัดใหม่ในคำอธิบายโจทย์ */
+.problem-card .description {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+

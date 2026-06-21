@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Outfit', 'Sarabun', sans-serif;
     background: #121212;
     color: #ffffff;
     margin: 0;
@@ -330,7 +330,7 @@ textarea:focus {
     background: #404040;
     padding: 5px 10px;
     border-radius: 4px;
-    font-family: monospace;
+    font-family: 'Consolas', 'Courier New', monospace;
 }
 
 .class-actions {
@@ -454,7 +454,7 @@ textarea:focus {
     z-index: 9999;
     backdrop-filter: blur(5px);
     color: #fff;
-    font-family: 'Arial', sans-serif;
+    font-family: 'Outfit', 'Sarabun', sans-serif;
 }
 
 .score-animation-content {
@@ -496,3 +496,8 @@ textarea:focus {
 .score-animation-number.done {
     animation: pulseGlow 1s infinite alternate;
 }
+
+ # p r o b l e m D e s c r i p t i o n   { 
+         w h i t e - s p a c e :   p r e - w r a p ; 
+ }  
+ 

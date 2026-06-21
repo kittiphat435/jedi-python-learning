@@ -1842,20 +1842,6 @@ textarea.input-field {
 .question-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.question-header h3 {
-    margin: 0;
-    color: #333;
-}
-
-.question-actions {
-    display: flex;
-    gap: 10px;
-}
-
 .question-actions .add-question-btn {
     background: #28a745;
     color: white;
@@ -1910,3 +1896,10 @@ textarea.input-field {
  } 
   
  
+
+/* รักษาการขึ้นบรรทัดใหม่ในคำอธิบายโจทย์ */
+.problem-card .description {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+

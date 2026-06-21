@@ -31,7 +31,7 @@
     .converter-textarea {
       width: 100%;
       height: 100%;
-      font-family: monospace;
+      font-family: 'Consolas', 'Courier New', monospace;
       margin-bottom: 8px;
       resize: none;
     }
@@ -105,7 +105,7 @@
       height: 300px;
       border: 1px solid #ddd;
       border-top: none;
-      font-family: monospace;
+      font-family: 'Consolas', 'Courier New', monospace;
       font-size: 14px;
       resize: none;
       padding: 10px;
@@ -211,6 +211,7 @@
       height: 100%;
     }
   </style>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="header">
@@ -262,7 +263,7 @@
         <div id="css-tab" class="editor-content">
           <textarea id="css-editor" spellcheck="false">
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Outfit', 'Sarabun', sans-serif;
   margin: 20px;
   background-color: #f5f5f5;
 }
@@ -750,7 +751,7 @@ function convertTkinterToHtml(code) {
         margin: 0 auto !important;
         background-color: #ffffff !important;
         border-radius: 5px !important;
-        font-family: Arial, sans-serif !important;
+        font-family: 'Outfit', 'Sarabun', sans-serif !important;
         position: relative !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
     }
@@ -1455,7 +1456,7 @@ async function checkGUICode(code) {
     if (resultFrame) {
         resultFrame.srcdoc = `
             <html>
-                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                <body style="font-family: 'Outfit', 'Sarabun', sans-serif; padding: 20px;">
                     <div style="text-align: center;">
                         <div class="loading">กำลังตรวจสอบ Syntax...</div>
                     </div>
@@ -1605,7 +1606,7 @@ async function checkGUICode(code) {
         if (resultFrame) {
             resultFrame.srcdoc = `
                 <html>
-                    <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <body style="font-family: 'Outfit', 'Sarabun', sans-serif; padding: 20px;">
                         <div class="validation-success" style="color: green; background: #e6ffe6; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
                             ${successMsg}
                         </div>
@@ -1636,7 +1637,7 @@ async function checkGUICode(code) {
 function getErrorHtml(message, codeContext = '') {
     return `
         <html>
-            <body style="font-family: Arial, sans-serif; padding: 20px;">
+            <body style="font-family: 'Outfit', 'Sarabun', sans-serif; padding: 20px;">
                 <div class="validation-error" style="color: #721c24; background: #f8d7da; padding: 15px; border-radius: 5px; border: 1px solid #f5c6cb;">
                     ${message}
                     ${codeContext ? `<pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; margin-top: 10px; color: #333;">${codeContext}</pre>` : ''}
@@ -2110,7 +2111,7 @@ async function sendToSimulator(autoRun = false) {
       if (resultFrame) {
         resultFrame.srcdoc = `
           <html>
-            <body style="font-family: Arial, sans-serif; padding: 20px;">
+            <body style="font-family: 'Outfit', 'Sarabun', sans-serif; padding: 20px;">
               <div class="validation-error" style="color: red; background: #ffe6e6; padding: 15px; border-radius: 5px;">
                 ❌ โค้ดขาด "from tkinter import *" หรือ "import tkinter as tk"<br>กรุณาเพิ่มคำสั่งนำเข้า Tkinter ที่ต้นโค้ด
               </div>
@@ -2138,7 +2139,7 @@ async function sendToSimulator(autoRun = false) {
             <meta charset="UTF-8">
             <title>กำลังโหลด...</title>
           </head>
-          <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+          <body style="font-family: 'Outfit', 'Sarabun', sans-serif; padding: 20px; text-align: center;">
             <div>กำลังประมวลผล GUI...</div>
           </body>
         </html>
@@ -2189,7 +2190,7 @@ async function sendToSimulator(autoRun = false) {
             <meta charset="UTF-8">
             <title>เกิดข้อผิดพลาด</title>
           </head>
-          <body style="font-family: Arial, sans-serif; padding: 20px; color: red;">
+          <body style="font-family: 'Outfit', 'Sarabun', sans-serif; padding: 20px; color: red;">
             <h3>เกิดข้อผิดพลาด</h3>
             <p>${error.message}</p>
           </body>
@@ -2283,10 +2284,10 @@ function convertCode() {
 <head>
     <meta charset="UTF-8">
     <style>
-        body { background-color: #1e1e1e; color: #ff5555; font-family: Consolas, monospace; padding: 20px; margin: 0; height: 100%; box-sizing: border-box; }
+        body { background-color: #1e1e1e; color: #ff5555; font-family: 'Consolas', 'Courier New', monospace; padding: 20px; margin: 0; height: 100%; box-sizing: border-box; }
         h3 { margin-top: 0; color: #ff5555; }
         .error-box { background: #2d2d2d; border-left: 4px solid #ff5555; padding: 15px; margin-top: 15px; }
-        .code-line { color: #d4d4d4; background: #252526; padding: 10px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; font-family: Consolas, monospace; }
+        .code-line { color: #d4d4d4; background: #252526; padding: 10px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; font-family: 'Consolas', 'Courier New', monospace; }
         .line-num { color: #858585; user-select: none; margin-right: 10px; }
     </style>
 </head>
@@ -2924,7 +2925,7 @@ function convertCode() {
 <p id="demo"></p>`;
         document.getElementById("css-editor").value =
 `body {
-  font-family: Arial, sans-serif;
+  font-family: 'Outfit', 'Sarabun', sans-serif;
   margin: 20px;
 }
 h1 {

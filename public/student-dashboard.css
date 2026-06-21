@@ -414,3 +414,10 @@
 .admin-btn:active {
     transform: translateY(0);
 }
+
+/* รักษาการขึ้นบรรทัดใหม่ในคำอธิบายโจทย์ */
+.problem-card .description {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+

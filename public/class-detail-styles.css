@@ -122,7 +122,7 @@
 }
 
 .code-editor {
-    font-family: monospace;
+    font-family: 'Consolas', 'Courier New', monospace;
     background-color: #f8f9fa;
 }
 
@@ -195,3 +195,10 @@
     justify-content: flex-end;
     margin-top: 20px;
 }
+
+/* รักษาการขึ้นบรรทัดใหม่ในคำอธิบายโจทย์ */
+.problem-card .description {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+

@@ -456,6 +456,20 @@ window.toggleProblemTypeFields = function () {
         }, 100); // เพิ่ม delay เพื่อให้แน่ใจว่า DOM อัพเดตแล้ว
     } else if (problemType === 'summary') {
         document.getElementById('summarySection').style.display = 'block';
+    } else if (problemType === 'iot') {
+        document.getElementById('pythonSection').style.display = 'block';
+        const iotSection = document.getElementById('iotSection');
+        if (iotSection) iotSection.style.display = 'block';
+    } else if (problemType === 'iot_gui') {
+        const iotSection = document.getElementById('iotSection');
+        if (iotSection) iotSection.style.display = 'block';
+        const guiSection = document.getElementById('guiSection');
+        if (guiSection) {
+            guiSection.style.display = 'block';
+            setTimeout(() => {
+                addSaveWidgetButton();
+            }, 100);
+        }
     }
 };
 
@@ -1406,7 +1420,7 @@ async function editProblem(problemId) {
                                 <input type="text" class="requirement-text" value="${req.text || ''}" placeholder="ข้อความบน Widget เช่น คลิกฉัน" style="width: 150px;">
                                 <input type="text" class="requirement-props" value="${req.props || ''}" placeholder="Properties เช่น bg='red'" style="width: 150px;">
                                 <input type="text" class="requirement-action" value="${req.action || ''}" placeholder="การทำงาน เช่น แสดงผลรวมใน Label" style="width: 150px;">
-                                <input type="number" class="requirement-score" value="${req.score || 5}" min="1" max="10" style="width: 60px;">
+                                <input type="number" class="requirement-score" value="${req.score !== undefined ? req.score : 5}" style="width: 60px;">
                                 <button type="button" class="delete-requirement-btn" onclick="deleteRequirement(this)">ลบ</button>
                             </div>
                         `;
@@ -1567,6 +1581,7 @@ async function editProblem(problemId) {
                 }
                 break;
 
+            case 'iot':
             case 'python':
                 if (document.getElementById('problemDescription')) {
                     document.getElementById('problemDescription').value = problemData.description || '';
@@ -2159,7 +2174,29 @@ async function saveProblem(event) {
                 templateWidgetCount: countWidgets(templateCode),
                 solutionWidgetCount: countWidgets(solutionCode)
             });
-        } else if (problemType === 'python') {
+
+            if (problemType === 'iot_gui') {
+                const iotWokwiId = document.getElementById('iotWokwiId')?.value?.trim() || '';
+                const iotSolution = document.getElementById('iotSolution')?.value || '';
+                
+                if (!iotWokwiId) {
+                    alert('กรุณากรอก Wokwi Project ID สำหรับโจทย์ IoT');
+                    return;
+                }
+
+                const codeChecks = Array.from(document.querySelectorAll('#iotCodeChecksList .iot-code-check')).map(checkEntry => {
+                    const keyword = checkEntry.querySelector('.iot-keyword')?.value?.trim();
+                    const score = parseInt(checkEntry.querySelector('.iot-score')?.value) || 1;
+                    return keyword ? { keyword, score } : null;
+                }).filter(c => c);
+
+                Object.assign(problemData, {
+                    iotWokwiId,
+                    iotSolution,
+                    codeChecks
+                });
+            }
+        } else if (problemType === 'python' || problemType === 'iot') {
             const description = document.getElementById('problemDescription')?.value?.trim() || '';
             const templateCode = document.getElementById('templateCode')?.value || '';
             const solutionCode = ''; // teacher-dashboard.html ไม่มีฟิลด์สำหรับเฉลยใน python
@@ -2853,7 +2890,10 @@ function renderProblemList(problems) {
             'matching': 'จับคู่',
             'flowchart': 'ผังงาน',
             'gui': 'ส่วนต่อประสานกราฟิก',
-            'quiz': 'ปรนัย'
+            'quiz': 'ปรนัย',
+            'summary': 'กระดานสรุปผล',
+            'iot': 'โจทย์ IoT (ESP32/Wokwi)',
+            'iot_gui': 'IoT + GUI Dashboard'
         };
 
         const iconMapping = {
@@ -2862,7 +2902,10 @@ function renderProblemList(problems) {
             'matching': '🔄',
             'gui': '🪟',
             'flowchart': '📊',
-            'quiz': '✅'
+            'quiz': '✅',
+            'summary': '📝',
+            'iot': '🔌',
+            'iot_gui': '📱'
         };
 
         const typeIcon = iconMapping[problem.type] || '📄';
@@ -2892,6 +2935,18 @@ function renderProblemList(problems) {
             case 'gui':
                 contentPreview = problem.description || 'ไม่มีคำอธิบาย';
                 countText = `จำนวน Test Cases: ${problem.testCases?.length || 0}`;
+                break;
+            case 'summary':
+                contentPreview = problem.description || 'ไม่มีคำอธิบาย';
+                countText = 'โจทย์สรุปความรู้';
+                break;
+            case 'iot':
+                contentPreview = problem.description || problem.iotDescription || 'ไม่มีคำอธิบาย';
+                countText = `จำนวน Code Checks: ${problem.codeChecks?.length || 0}`;
+                break;
+            case 'iot_gui':
+                contentPreview = problem.description || 'ไม่มีคำอธิบาย';
+                countText = `GUI Test Cases: ${problem.testCases?.length || 0}`;
                 break;
             default:
                 contentPreview = 'ไม่มีข้อมูล';
@@ -3819,7 +3874,7 @@ function addGUIRequirement() {
             <input type="text" class="requirement-text" placeholder="ข้อความบน Widget เช่น คลิกฉัน" style="width: 150px;">
             <input type="text" class="requirement-props" placeholder="Properties เช่น bg='red'" style="width: 150px;">
             <input type="text" class="requirement-action" placeholder="การทำงาน เช่น แสดงผลรวมใน Label" style="width: 150px;">
-            <input type="number" class="requirement-score" value="5" min="1" max="10" style="width: 60px;">
+            <input type="number" class="requirement-score" value="5" style="width: 60px;">
             <button type="button" class="delete-requirement-btn" onclick="deleteRequirement(this)">ลบ</button>
         </div>
     `;
@@ -3882,7 +3937,7 @@ function validateGUICode(code) {
                 text: item.querySelector('.requirement-text')?.value?.trim() || '',
                 props: item.querySelector('.requirement-props')?.value?.trim() || '',
                 action: item.querySelector('.requirement-action')?.value?.trim() || '',
-                score: parseInt(item.querySelector('.requirement-score')?.value) || 5
+                score: item.querySelector('.requirement-score')?.value !== '' && !isNaN(item.querySelector('.requirement-score')?.value) ? parseInt(item.querySelector('.requirement-score')?.value) : 5
             }))
             .filter(req => req.type && req.name);
 
@@ -4370,7 +4425,7 @@ function getWidgetsFromRequirements() {
             text: item.querySelector('.requirement-text')?.value?.trim() || '',
             props: item.querySelector('.requirement-props')?.value?.trim() || '',
             action: item.querySelector('.requirement-action')?.value?.trim() || '',
-            score: parseInt(item.querySelector('.requirement-score')?.value) || 5
+            score: item.querySelector('.requirement-score')?.value !== '' && !isNaN(item.querySelector('.requirement-score')?.value) ? parseInt(item.querySelector('.requirement-score')?.value) : 5
         };
 
         // ตรวจสอบว่า widget มี type และ name ครบถ้วนหรือไม่

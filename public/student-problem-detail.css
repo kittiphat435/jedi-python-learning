@@ -55,7 +55,7 @@
 body {
    background-color: var(--theme-bg);
    color: var(--theme-text);
-   font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+   font-family: 'Outfit', 'Sarabun', sans-serif;
    line-height: 1.5;
    margin: 0;
 }
@@ -252,7 +252,7 @@ body {
    width: 50px;
    background: #252525;
    color: #606060;
-   font-family: 'Consolas', 'Sarabun', monospace;
+   font-family: 'Consolas', 'Courier New', monospace;
    font-size: 14px;
    line-height: 21px;
    text-align: right;
@@ -273,7 +273,7 @@ body {
    background: transparent;
    color: transparent;
    caret-color: #d4d4d4;
-   font-family: 'Consolas', 'Sarabun', monospace;
+   font-family: 'Consolas', 'Courier New', monospace;
    font-size: 14px;
    line-height: 21px;
    border: none;
@@ -297,7 +297,7 @@ body {
    margin: 0;
    padding: 10px;
    background: transparent;
-   font-family: 'Consolas', 'Sarabun', monospace;
+   font-family: 'Consolas', 'Courier New', monospace;
    font-size: 14px;
    line-height: 21px;
    white-space: pre;
@@ -311,7 +311,7 @@ body {
    margin: 0 !important;
    padding: 0 !important;
    background: transparent !important;
-   font-family: 'Consolas', 'Sarabun', monospace !important;
+   font-family: 'Consolas', 'Courier New', monospace !important;
    font-size: 14px !important;
    line-height: 21px !important;
    white-space: pre !important;
@@ -651,7 +651,7 @@ body {
    padding: 1rem;
    border: 1px solid var(--theme-border);
    border-radius: 0.5rem;
-   font-family: 'Consolas', 'Sarabun', monospace;
+   font-family: 'Consolas', 'Courier New', monospace;
    font-size: 0.9rem;
    line-height: 1.5;
    margin: 0.5rem 0;
@@ -687,7 +687,7 @@ body {
    background: var(--theme-bg);
    border-radius: 0.3rem;
    overflow-x: auto;
-   font-family: 'Consolas', 'Sarabun', monospace;
+   font-family: 'Consolas', 'Courier New', monospace;
 }
 
 .input-form button {
@@ -705,7 +705,7 @@ body {
    color: #d4d4d4;
    padding: 10px;
    border-radius: 4px;
-   font-family: monospace;
+   font-family: 'Consolas', 'Courier New', monospace;
    cursor: text;
 }
 
@@ -1180,3 +1180,59 @@ sub-header {
    display: inline-flex;
    align-items: center;
 }
+
+ # s c o r e A n i m a t i o n O v e r l a y   { 
+         p o s i t i o n :   f i x e d ; 
+         t o p :   0 ;   l e f t :   0 ;   w i d t h :   1 0 0 v w ;   h e i g h t :   1 0 0 v h ; 
+         b a c k g r o u n d :   r g b a ( 0 ,   0 ,   0 ,   0 . 8 5 ) ; 
+         z - i n d e x :   9 9 9 9 ; 
+         d i s p l a y :   n o n e ; 
+         a l i g n - i t e m s :   c e n t e r ; 
+         j u s t i f y - c o n t e n t :   c e n t e r ; 
+         f l e x - d i r e c t i o n :   c o l u m n ; 
+ } 
+ 
+ . s c o r e - a n i m a t i o n - c o n t e n t   { 
+         b a c k g r o u n d :   l i n e a r - g r a d i e n t ( 1 3 5 d e g ,   # 1 e 3 c 7 2 ,   # 2 a 5 2 9 8 ) ; 
+         p a d d i n g :   4 0 p x   6 0 p x ; 
+         b o r d e r - r a d i u s :   2 0 p x ; 
+         b o x - s h a d o w :   0   1 0 p x   3 0 p x   r g b a ( 0 , 0 , 0 , 0 . 5 ) ; 
+         t e x t - a l i g n :   c e n t e r ; 
+         c o l o r :   w h i t e ; 
+         b o r d e r :   4 p x   s o l i d   # f 1 c 4 0 f ; 
+         a n i m a t i o n :   p o p I n   0 . 5 s   c u b i c - b e z i e r ( 0 . 1 7 5 ,   0 . 8 8 5 ,   0 . 3 2 ,   1 . 2 7 5 ) ; 
+ } 
+ 
+ . s c o r e - a n i m a t i o n - t i t l e   { 
+         f o n t - s i z e :   2 4 p x ; 
+         m a r g i n - b o t t o m :   2 0 p x ; 
+         t e x t - t r a n s f o r m :   u p p e r c a s e ; 
+         l e t t e r - s p a c i n g :   2 p x ; 
+ } 
+ 
+ . s c o r e - a n i m a t i o n - n u m b e r   { 
+         f o n t - s i z e :   8 0 p x ; 
+         f o n t - w e i g h t :   b o l d ; 
+         c o l o r :   # f 1 c 4 0 f ; 
+         t e x t - s h a d o w :   0   0   2 0 p x   r g b a ( 2 4 1 ,   1 9 6 ,   1 5 ,   0 . 5 ) ; 
+         m a r g i n :   2 0 p x   0 ; 
+         t r a n s i t i o n :   t r a n s f o r m   0 . 2 s ; 
+ } 
+ 
+ . s c o r e - a n i m a t i o n - n u m b e r . d o n e   { 
+         t r a n s f o r m :   s c a l e ( 1 . 2 ) ; 
+         c o l o r :   # 2 e c c 7 1 ; 
+         t e x t - s h a d o w :   0   0   2 0 p x   r g b a ( 4 6 ,   2 0 4 ,   1 1 3 ,   0 . 5 ) ; 
+ } 
+ 
+ . s c o r e - a n i m a t i o n - l a b e l   { 
+         f o n t - s i z e :   1 8 p x ; 
+         o p a c i t y :   0 . 8 ; 
+ } 
+ 
+ @ k e y f r a m e s   p o p I n   { 
+         0 %   {   t r a n s f o r m :   s c a l e ( 0 . 5 ) ;   o p a c i t y :   0 ;   } 
+         1 0 0 %   {   t r a n s f o r m :   s c a l e ( 1 ) ;   o p a c i t y :   1 ;   } 
+ } 
+  
+ 

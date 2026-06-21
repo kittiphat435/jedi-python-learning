@@ -134,7 +134,7 @@
 .code-preview {
     font-size: 1.3rem;
     line-height: 1.5;
-    font-family: monospace;
+    font-family: 'Consolas', 'Courier New', monospace;
     padding: 20px;
     background: #1e1e1e;
     color: #d4d4d4;
@@ -424,7 +424,7 @@
 }
 
 .code-editor {
-    font-family: monospace;
+    font-family: 'Consolas', 'Courier New', monospace;
     background-color: #f8f9fa;
     padding: 12px;
     font-size: 14px;
