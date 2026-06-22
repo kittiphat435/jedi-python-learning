@@ -494,11 +494,12 @@ function displayProblems(problems) {
                 <div class="problem-header">
                     <span class="problem-type">${typeIcon} ${typeText}</span>
                     <span class="status-badge status-${problem.status}">${statusText}</span>
+                    ${problem.isClosed ? '<span style="color: #e74c3c; font-weight: bold; font-size: 0.9em; margin-left: 10px;">(ปิดรับคำตอบ)</span>' : ''}
                 </div>
                 <h3>${problem.title}</h3>
                 <p>${contentToShow}</p>
             </div>
-            <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode})" class="primary-btn">
+            <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn">
                 ${buttonText}
             </button>
         `;
@@ -839,7 +840,7 @@ async function initProgressChart(classId, userId) {
         console.error("Error initializing chart:", error);
     }
 }
-function viewProblem(problemId, type, isViewMode = false) {
+function viewProblem(problemId, type, isViewMode = false, isClosed = false) {
     const urlParams = new URLSearchParams(window.location.search);
     const classId = urlParams.get('id');
 
@@ -851,31 +852,33 @@ function viewProblem(problemId, type, isViewMode = false) {
     let url;
     // เพิ่มพารามิเตอร์ mode=view เมื่อ isViewMode เป็น true
     const viewModeParam = isViewMode ? '&mode=view' : '';
+    const closedParam = isClosed ? '&closed=true' : '';
+    const extraParams = viewModeParam + closedParam;
 
     switch (type) {
         case 'python':
-            url = `student-problem-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-problem-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'matching':
-            url = `student-matching-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-matching-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'flowchart':
-            url = `student-flowchart-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-flowchart-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'gui':
-            url = `student-gui.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-gui.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'summary':
-            url = `student-summary-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-summary-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'iot':
-            url = `student-iot-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-iot-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'iot_gui':
-            url = `student-iot-gui.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-iot-gui.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         default:
-            url = `student-quiz-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            url = `student-quiz-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
     }
 
     window.location.href = url;

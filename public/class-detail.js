@@ -284,6 +284,7 @@ async function loadProblems(classId) {
                     relationId: doc.id,             // ID ของความสัมพันธ์ (สำหรับอัพเดต orderIndex)
                     orderIndex: relationData.orderIndex || 0, // ค่าลำดับ
                     addedAt: relationData.addedAt,  // เผื่อใช้ sort fallback
+                    isClosed: relationData.isClosed || false,
                     ...problemDoc.data() 
                 };
             } catch (error) {
@@ -378,7 +379,16 @@ function renderProblemsPage() {
                 <h3>${problem.title}</h3>
                 <p>${problem.description || 'ไม่มีคำอธิบาย'}</p>
             </div>
-            <div class="problem-actions">
+            <div class="problem-actions" style="display: flex; align-items: center; gap: 10px;">
+                <label class="switch" style="position: relative; display: inline-block; width: 40px; height: 20px; margin-bottom: 0;">
+                    <input type="checkbox" onchange="toggleProblemStatus('${problem.relationId}', this.checked)" ${problem.isClosed ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
+                    <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${problem.isClosed ? '#e74c3c' : '#2ecc71'}; transition: .4s; border-radius: 20px;">
+                        <span style="position: absolute; content: ''; height: 16px; width: 16px; left: ${problem.isClosed ? '22px' : '2px'}; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                    </span>
+                </label>
+                <span style="font-size: 0.9em; margin-right: 10px; color: ${problem.isClosed ? '#e74c3c' : '#2ecc71'}; font-weight: bold;">
+                    ${problem.isClosed ? 'ปิดรับคำตอบ' : 'เปิดรับคำตอบ'}
+                </span>
                 <button onclick="viewProblem('${problem.id}')" class="primary-btn">ดูโจทย์</button>
                 <button onclick="deleteProblem('${problem.id}')" class="delete-btn">ลบ</button>
             </div>
@@ -396,6 +406,20 @@ function renderProblemsPage() {
 
     problemList.scrollTop = 0;
     renderProblemPagination();
+}
+
+window.toggleProblemStatus = async function(relationId, isClosed) {
+    try {
+        await db.collection('class_problems').doc(relationId).update({
+            isClosed: isClosed
+        });
+        const prob = allProblems.find(p => p.relationId === relationId);
+        if (prob) prob.isClosed = isClosed;
+        renderProblemsPage();
+    } catch (error) {
+        console.error("Error toggling problem status:", error);
+        alert("เกิดข้อผิดพลาดในการเปลี่ยนสถานะโจทย์");
+    }
 }
 
 function renderProblemPagination() {

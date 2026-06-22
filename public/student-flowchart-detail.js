@@ -113,6 +113,7 @@ async function loadProblem(problemId) {
         }
 
         const problemData = doc.data();
+        window.problemData = problemData;
         const studentProblemData = {
             title: problemData.title,
             description: problemData.description,
@@ -197,7 +198,7 @@ async function loadExistingSubmission(problemId, classId, userId) {
         if (!snapshot.empty && isViewMode) {
             const submission = snapshot.docs[0].data();
 
-            if (problemData?.assignmentType === 'exam') {
+            if (window.problemData?.assignmentType === 'exam') {
                 const canvas = document.getElementById('flowchartCanvas');
                 if (canvas) {
                     canvas.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 1.2em;">ข้อสอบถูกส่งแล้ว ไม่สามารถดู Flowchart ย้อนหลังได้</div>';
@@ -473,6 +474,11 @@ function showSubmissionResult(submission) {
 
 // ส่งคำตอบ
 async function submitAnswer() {
+    const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
+    if (isClosed) {
+        alert('ปิดรับคำตอบแล้ว ไม่สามารถส่งงานได้');
+        return;
+    }
     if (!flowchartEditor) return;
 
     try {

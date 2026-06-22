@@ -534,6 +534,7 @@ function updateCodeHighlight() {
         console.log('After Prism highlight');
     }
 }
+
 async function testCode() {
     if (!currentProblem?.testCases) {
         alert('ไม่พบ Test Cases สำหรับโจทย์นี้');
@@ -843,9 +844,14 @@ function displayTestResults(results) {
     const submitBtn = document.getElementById('submitBtn');
     if (submitBtn) {
         if (allPassed) {
-            if (currentProblem?.assignmentType === 'exam') {
-                submitBtn.style.display = 'none';
-                submitToTeacher();
+            } else if (problemData.assignmentType === 'exam') {
+                const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
+                if (!isClosed) {
+                    submitBtn.style.display = 'none';
+                    submitToTeacher();
+                } else {
+                    alert('ปิดรับคำตอบแล้ว ไม่สามารถส่งงานอัตโนมัติได้');
+                }
             } else {
                 submitBtn.style.display = 'inline-block';
             }
@@ -1142,6 +1148,11 @@ function showResults(results, totalScore, maxScore) {
 }
 
 async function submitToTeacher() {
+    const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
+    if (isClosed) {
+        alert('ปิดรับคำตอบแล้ว ไม่สามารถส่งงานได้');
+        return;
+    }
     try {
         // ดึง URL parameters
         const urlParams = new URLSearchParams(window.location.search);

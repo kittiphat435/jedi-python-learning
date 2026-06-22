@@ -1072,7 +1072,7 @@ async function testGUICode(code, problemTestCases, iframe) {
                                     ${r.expected.map((expected, idx) => {
                                         const actual = r.actual[idx];
                                         const widgetDef = window.widgetDefinitions.find(w => w.name === expected.widget);
-                                        const match = actual && actual.value.trim() === expected.value.trim();
+                                        const match = actual && normalizeText(actual.value) === normalizeText(expected.value);
                                         return `
                                             <li class="${match ? 'output-match' : 'output-mismatch'}">
                                                 ${expected.widget} (${widgetDef ? widgetDef.type : 'Unknown'}) "${widgetDef ? widgetDef.text : ''}":<br>
@@ -2755,16 +2755,19 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
                 updateScoreDisplay(currentScore, maxScore);
                 
                 if (problemData?.assignmentType === 'exam') {
-                    codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้';
+                    // ข้อสอบ: ซ่อนโค้ด
+                    codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้เพื่อป้องกันการคัดลอก';
                     if (codeEditor) {
                         codeEditor.readOnly = true;
                         codeEditor.placeholder = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้";
                     }
                 } else {
+                    // แบบฝึกหัด: ดูโค้ดย้อนหลังได้
                     codeEditor.value = submission.code || problemData.templateCode || '';
-                    if (viewMode) {
-                        checkGUICode(submission.code);
-                    }
+                }
+
+                if (viewMode) {
+                    checkGUICode(submission.code);
                 }
             } else {
                 updateScoreDisplay(0, maxScore);
@@ -3542,6 +3545,9 @@ async function checkSubmissionStatus(problemId, userId) {
             }
 
             if (codeEditor) {
+                if (problemData?.assignmentType === 'exam') {
+                    codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้เพื่อป้องกันการคัดลอก';
+                }
                 codeEditor.setAttribute('readonly', 'readonly');
                 codeEditor.classList.add('readonly-mode');
                 codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
@@ -3596,6 +3602,11 @@ async function checkSubmissionStatus(problemId, userId) {
     }
 }
 async function submitGUICode(code, problemId, userId, classId) {
+    const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
+    if (isClosed) {
+        alert('ปิดรับคำตอบแล้ว ไม่สามารถส่งงานได้');
+        return;
+    }
     try {
         console.log("🚀 กำลังส่งงาน...");
         
@@ -5488,6 +5499,7 @@ function saveTestResults(additionalScore, runMaxScore) {
         // ให้ส่งงานได้เฉพาะเมื่อได้คะแนนเต็ม (คะแนนเท่ากับคะแนนเต็ม) เท่านั้น
         if (displayMaxScore > 0 && displayScore === displayMaxScore) {
             if (problemData?.assignmentType === 'exam') {
+                // ข้อสอบ ส่ง Auto ทันทีที่ผ่าน
                 submitBtn.style.display = 'none';
                 
                 // ดึงข้อมูลเพิ่มเติมเพื่อส่ง
@@ -5505,6 +5517,7 @@ function saveTestResults(additionalScore, runMaxScore) {
                 
                 submitGUICode(codeEditor?.value || '', problemId, userId, classId);
             } else {
+                // แบบฝึกหัด ไม่ส่ง Auto ให้เปิดปุ่มส่งงานแทน
                 submitBtn.disabled = false;
                 submitBtn.style.opacity = "1";
                 submitBtn.style.cursor = "pointer";

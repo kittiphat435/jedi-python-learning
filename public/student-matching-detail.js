@@ -330,6 +330,11 @@ function getElementCenter(element) {
 }
 
 async function submitAnswer() {
+    const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
+    if (isClosed) {
+        alert('ปิดรับคำตอบแล้ว ไม่สามารถส่งงานได้');
+        return;
+    }
     try {
         // ตรวจสอบว่าจับคู่ครบหรือไม่
         if (matches.size !== currentProblem.pairs.length) {

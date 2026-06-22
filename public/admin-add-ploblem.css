@@ -503,7 +503,7 @@ textarea.input-field {
     width: 100%;
     min-height: 200px;
     padding: 15px;
-    font-family: 'Consolas', monospace;
+    font-family: 'Consolas', 'Sarabun', monospace;
     font-size: 14px;
     line-height: 1.5;
     background: #1e1e1e;
@@ -1450,7 +1450,7 @@ textarea.input-field {
     border-radius: 6px;
     font-size: 14px;
     transition: border-color 0.3s;
-    font-family: 'Consolas', monospace;
+    font-family: 'Consolas', 'Sarabun', monospace;
     background: #f8f9fa;
     min-height: 100px;
     resize: vertical;

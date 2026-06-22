@@ -464,7 +464,7 @@ body {
 .code-highlight code,
 .line-numbers,
 .line-numbers div {
-    font-family: 'Consolas', 'Courier New', monospace !important; /* ระบุชื่อฟอนต์ให้ชัดเจน */
+    font-family: 'Consolas', 'Courier New', 'Sarabun', monospace !important; /* ระบุชื่อฟอนต์ให้ชัดเจน */
     font-size: 14px !important;
     line-height: 21px !important;
     margin: 0 !important;
@@ -1028,7 +1028,7 @@ body {
     padding: 10px;
     border-radius: 4px;
     overflow-x: auto;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Consolas', 'Courier New', 'Sarabun', monospace;
     margin: 10px 0;
 }
 
@@ -1289,7 +1289,7 @@ body {
     padding: 10px;
     border-radius: 4px;
     overflow-x: auto;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Consolas', 'Courier New', 'Sarabun', monospace;
     margin: 10px 0;
 }
 
@@ -1799,7 +1799,7 @@ body {
     pointer-events: none; /* ✅ คลิกทะลุไปหา Textarea ได้ */
     
     /* ต้องเท่ากับ .code-input เป๊ะๆ */
-    font-family: 'Consolas', 'Courier New', monospace !important;
+    font-family: 'Consolas', 'Courier New', 'Sarabun', monospace !important;
     font-size: 14px !important;
     line-height: 21px !important;
 }
@@ -2078,7 +2078,7 @@ body {
     padding: 10px;
     border-radius: 4px;
     overflow-x: auto;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Consolas', 'Courier New', 'Sarabun', monospace;
     margin: 10px 0;
 }
 

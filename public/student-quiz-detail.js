@@ -254,6 +254,11 @@ async function loadLastSubmission(quizId, userId) {
 }
 // Submit Quiz
 async function submitQuiz() {
+    const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
+    if (isClosed) {
+        alert('ปิดรับคำตอบแล้ว ไม่สามารถส่งงานได้');
+        return;
+    }
     if (!currentQuiz || !currentQuiz.questions) {
         alert('กรุณาโหลดแบบทดสอบใหม่');
         return;
