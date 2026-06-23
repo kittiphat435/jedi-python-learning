@@ -1099,8 +1099,8 @@ async function testGUICode(code, problemTestCases, iframe) {
         `;
 
         showSuccess(`ตรวจคำตอบเสร็จสิ้น: ${totalScore}/${maxScore} คะแนน`);
-        const passedBase = baseMaxScore > 0 ? baseScore === baseMaxScore : false;
-        const passedAll = maxScore > 0 ? totalScore === maxScore : false;
+        const passedBase = baseMaxScore > 0 ? baseScore === baseMaxScore : true;
+        const passedAll = maxScore > 0 ? totalScore === maxScore : true;
         const passed = includeTestCases ? passedAll : passedBase;
         return { totalScore, maxScore, passed, baseScore, baseMaxScore, testCaseScore, testCaseMaxScore };
 
@@ -3471,14 +3471,33 @@ async function checkAnswer() {
                 showSuccess('โครงสร้างผ่านแล้ว! กรุณาทดสอบ TestCase ก่อนส่งงาน');
             } else {
                 // ไม่มี Test Case ก็ส่งงานได้เลย
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.style.opacity = "1";
-                    submitBtn.style.cursor = "pointer";
+                if (problemData?.assignmentType === 'exam') {
+                    // ข้อสอบ ส่ง Auto ทันทีที่ผ่าน
+                    if (submitBtn) submitBtn.style.display = 'none';
+                    
+                    const codeEditor = document.getElementById('codeEditorTextarea');
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const problemId = urlParams.get('id');
+                    const userId = auth.currentUser ? auth.currentUser.uid : '';
+                    let classId = urlParams.get('classId');
+                    if (!classId && document.referrer) {
+                        const refUrl = new URL(document.referrer);
+                        const refParams = new URLSearchParams(refUrl.search);
+                        classId = refParams.get('id');
+                    }
+                    if (!classId && problemData?.classId) classId = problemData.classId;
+                    
+                    submitGUICode(codeEditor?.value || '', problemId, userId, classId);
+                } else {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.style.opacity = "1";
+                        submitBtn.style.cursor = "pointer";
+                    }
+                    alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore}\nสามารถส่งงานได้เลย!`);
+                    showYarnReward();
+                    showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
                 }
-                alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore}\nสามารถส่งงานได้เลย!`);
-                showYarnReward();
-                showSuccess('ผ่านแล้ว! กดส่งงานได้เลย');
             }
         } else {
             // โครงสร้างถูก แต่คะแนนไม่เต็ม
@@ -3615,7 +3634,7 @@ async function submitGUICode(code, problemId, userId, classId) {
           const bonusScore = guiTestCaseBonus?.score || 0;
           const bonusMaxScore = guiTestCaseBonus?.maxScore || 0;
 
-          if (baseScore < baseMaxScore || baseMaxScore === 0) {
+          if (baseScore < baseMaxScore || (baseMaxScore === 0 && bonusMaxScore === 0)) {
               alert(`⚠️ คะแนนยังไม่ครบ (${baseScore}/${baseMaxScore + bonusMaxScore})\nกรุณาทำโจทย์ให้ครบถ้วนก่อนส่ง`);
               const submitBtn = document.getElementById('submitBtn');
               if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งงาน'; }
