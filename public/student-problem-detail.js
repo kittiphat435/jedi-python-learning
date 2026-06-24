@@ -844,7 +844,7 @@ function displayTestResults(results) {
     const submitBtn = document.getElementById('submitBtn');
     if (submitBtn) {
         if (allPassed) {
-            if (problemData.assignmentType === 'exam') {
+            if (currentProblem?.assignmentType === 'exam') {
                 const isClosed = new URLSearchParams(window.location.search).get('closed') === 'true';
                 if (!isClosed) {
                     submitBtn.style.display = 'none';
