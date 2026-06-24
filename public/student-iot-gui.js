@@ -5116,25 +5116,28 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
 
                         // 2) หาจากข้อความเดิม (output.text) - ค้นหาแบบกว้างขึ้น (contains)
                         if (!targetElement && output.text) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], .tk-entry'));
                             // ลองหาแบบตรงตัวก่อน (Exact Match)
-                            targetElement = allElements.find(el =>
-                                el.textContent && el.textContent.trim() === output.text.trim()
-                            );
+                            targetElement = allElements.find(el => {
+                                const elText = el.tagName === 'INPUT' ? el.value : el.textContent;
+                                return elText && elText.trim() === output.text.trim();
+                            });
                             // ถ้าไม่เจอ ลองหาแบบที่มีข้อความนั้นอยู่ข้างใน (Partial Match)
                             if (!targetElement) {
-                                targetElement = allElements.find(el =>
-                                    el.textContent && el.textContent.includes(output.text.trim())
-                                );
+                                targetElement = allElements.find(el => {
+                                    const elText = el.tagName === 'INPUT' ? el.value : el.textContent;
+                                    return elText && elText.includes(output.text.trim());
+                                });
                             }
                         }
 
                         // 3) หาจากค่าที่คาดหวัง (output.value) - กรณีที่ค่านี้ปรากฏตั้งแต่ต้น
                         if (!targetElement && output.value) {
-                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span'));
-                            targetElement = allElements.find(el =>
-                                el.textContent && el.textContent.trim() === output.value
-                            );
+                            const allElements = Array.from(iframeDoc.querySelectorAll('.tk-label, .tk-button, button, input[type="button"], div, span, input[type="text"], .tk-entry'));
+                            targetElement = allElements.find(el => {
+                                const elText = el.tagName === 'INPUT' ? el.value : el.textContent;
+                                return elText && elText.trim() === output.value;
+                            });
                         }
 
                         // 4) ค่อยลองจาก ID pattern ต่าง ๆ (Fallback สุดท้าย)
@@ -5152,12 +5155,30 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                             }
                         }
 
-                        // 5) Fallback สุดท้าย: ถ้ายังไม่เจออะไรเลย ให้เลือก Label ตัวที่ index (กรณี Label ชื่อเหมือนกันหมด)
+                        // 5) Fallback สุดท้าย: ถ้ายังไม่เจออะไรเลย ให้เลือกตัวตามลำดับของ type นั้นใน outputs
                         if (!targetElement) {
-                            const allLabels = Array.from(iframeDoc.querySelectorAll('.tk-label'));
-                            if (allLabels[index]) {
-                                targetElement = allLabels[index];
-                                console.log(`Step 0: Fallback เลือก Label ตัวที่ ${index} สำหรับ "${output.text || 'Output'}"`);
+                            const widgetDef = (window.widgetDefinitions || []).find(w => w.name === output.widget);
+                            const widgetType = widgetDef ? widgetDef.type : 'Label';
+                            let selector = '.tk-label';
+                            if (widgetType === 'Entry') selector = '.tk-entry, input[type="text"]';
+                            else if (widgetType === 'Button') selector = '.tk-button, button, input[type="button"]';
+                            else if (widgetType === 'Checkbutton') selector = '.tk-checkbox input, input[type="checkbox"]';
+                            
+                            // นับว่าใน outputs ก่อนหน้านี้ มี widget type เดียวกันกี่ตัว
+                            let typeIndex = 0;
+                            if (testCase.outputs) {
+                                for (let j = 0; j < index; j++) {
+                                    const prevDef = (window.widgetDefinitions || []).find(w => w.name === testCase.outputs[j].widget);
+                                    if ((prevDef ? prevDef.type : 'Label') === widgetType) {
+                                        typeIndex++;
+                                    }
+                                }
+                            }
+                            
+                            const allElementsOfType = Array.from(iframeDoc.querySelectorAll(selector));
+                            if (allElementsOfType[typeIndex]) {
+                                targetElement = allElementsOfType[typeIndex];
+                                console.log(`Step 0: Fallback เลือก ${widgetType} ตัวที่ ${typeIndex} สำหรับ "${output.text || 'Output'}"`);
                             }
                         }
                         
