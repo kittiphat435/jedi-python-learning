@@ -108,10 +108,36 @@ async function loadStudentSubmission() {
         if (!snapshot.empty) {
             studentSubmission = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
             populateEditor(studentSubmission);
+        } else if (currentProblem && currentProblem.isGroupWork) {
+            showGroupSelectionModal();
         }
     } catch (error) {
         console.error('Error loading student submission:', error);
     }
+}
+
+let selectedGroupId = null;
+
+function showGroupSelectionModal() {
+    const modal = document.getElementById('groupSelectionModal');
+    const container = document.getElementById('groupButtonsContainer');
+    container.innerHTML = '';
+    
+    const maxGroups = currentProblem.maxGroups || 5;
+    for (let i = 1; i <= maxGroups; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'primary-btn';
+        btn.style.padding = '10px 20px';
+        btn.style.fontSize = '1.1em';
+        btn.innerHTML = `<i class="fas fa-users"></i> กลุ่มที่ ${i}`;
+        btn.onclick = () => {
+            selectedGroupId = i;
+            modal.style.display = 'none';
+        };
+        container.appendChild(btn);
+    }
+    
+    modal.style.display = 'block';
 }
 
 function populateEditor(submission) {
@@ -187,6 +213,7 @@ async function handleFormSubmit(event) {
             },
             status: 'completed',
             type: 'summary',
+            groupId: studentSubmission?.groupId || selectedGroupId || null,
             // Preserve score if updating submission
             score: (studentSubmission && studentSubmission.score !== undefined) ? studentSubmission.score : 0,
             maxScore: currentProblem?.maxScore || 10,
@@ -260,43 +287,72 @@ function subscribeToBoard() {
 
             boardContainer.innerHTML = '';
 
-            for (const card of sortedCards) {
-                const note = card.note || {};
-                const isOwnCard = card.studentId === auth.currentUser.uid;
+            if (currentProblem && currentProblem.isGroupWork) {
+                // Render as Group Columns
+                boardContainer.className = 'summary-board group-columns-container';
+                const maxGroups = currentProblem.maxGroups || 5;
                 
-                // Get user photo and name (fallback to cached or stored data)
-                let photoURL = card.studentPhoto || defaultAvatar;
-                let displayName = card.studentName || 'นักเรียน';
-
-                const cardEl = document.createElement('div');
-                cardEl.className = `post-it-card ${isOwnCard ? 'own-card' : ''}`;
-                cardEl.style.backgroundColor = note.color || '#fff275';
-                
-                // Construct score badge HTML
-                let scoreBadge = '';
-                if (card.score !== undefined && card.score !== null && card.gradedAt) {
-                    scoreBadge = `<div class="card-score-badge"><i class="fas fa-star"></i> ${card.score}/${card.maxScore || 10}</div>`;
+                // Initialize columns
+                const columns = {};
+                for (let i = 1; i <= maxGroups; i++) {
+                    const col = document.createElement('div');
+                    col.className = 'group-column';
+                    col.innerHTML = `<div class="group-column-header">กลุ่มที่ ${i}</div>`;
+                    columns[i] = col;
+                    boardContainer.appendChild(col);
                 }
-
-                cardEl.innerHTML = `
-                    ${scoreBadge}
-                    <div class="card-pin">📌</div>
-                    <div class="card-author">
-                        <img src="${photoURL}" alt="${displayName}" class="author-avatar" onerror="this.src='${defaultAvatar}'">
-                        <span class="author-name">${displayName} ${isOwnCard ? '(ฉัน)' : ''}</span>
-                    </div>
-                    <h4 class="card-title">${escapeHTML(note.title || 'ไม่มีหัวข้อ')}</h4>
-                    <p class="card-content">${escapeHTML(note.content || '').replace(/\n/g, '<br>')}</p>
-                    <div class="card-footer">
-                        <span><i class="far fa-clock"></i> ${formatTime(card.submittedAt)}</span>
-                    </div>
-                `;
-
-                boardContainer.appendChild(cardEl);
+                
+                for (const card of sortedCards) {
+                    const groupId = card.groupId || 1;
+                    if (columns[groupId]) {
+                        columns[groupId].appendChild(createCardElement(card, defaultAvatar));
+                    }
+                }
+            } else {
+                // Normal Grid Render
+                boardContainer.className = 'summary-board';
+                for (const card of sortedCards) {
+                    boardContainer.appendChild(createCardElement(card, defaultAvatar));
+                }
             }
+            
         }, (error) => {
             console.error('Error listening to board updates:', error);
         });
+}
+
+function createCardElement(card, defaultAvatar) {
+    const note = card.note || {};
+    const isOwnCard = card.studentId === auth.currentUser.uid;
+    
+    // Get user photo and name (fallback to cached or stored data)
+    let photoURL = card.studentPhoto || defaultAvatar;
+    let displayName = card.studentName || 'นักเรียน';
+
+    const cardEl = document.createElement('div');
+    cardEl.className = `post-it-card ${isOwnCard ? 'own-card' : ''}`;
+    cardEl.style.backgroundColor = note.color || '#fff275';
+    
+    // Construct score badge HTML
+    let scoreBadge = '';
+    if (card.score !== undefined && card.score !== null && card.gradedAt) {
+        scoreBadge = `<div class="card-score-badge"><i class="fas fa-star"></i> ${card.score}/${card.maxScore || 10}</div>`;
+    }
+
+    cardEl.innerHTML = `
+        ${scoreBadge}
+        <div class="card-pin">📌</div>
+        <div class="card-author">
+            <img src="${photoURL}" alt="${displayName}" class="author-avatar" onerror="this.src='${defaultAvatar}'">
+            <span class="author-name">${displayName} ${isOwnCard ? '(ฉัน)' : ''}</span>
+        </div>
+        <h4 class="card-title">${escapeHTML(note.title || 'ไม่มีหัวข้อ')}</h4>
+        <p class="card-content">${escapeHTML(note.content || '').replace(/\n/g, '<br>')}</p>
+        <div class="card-footer">
+            <span><i class="far fa-clock"></i> ${formatTime(card.submittedAt)}</span>
+        </div>
+    `;
+    return cardEl;
 }
 
 function escapeHTML(str) {

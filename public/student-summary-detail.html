@@ -112,6 +112,17 @@
         </div>
     </div>
 
+    <!-- Group Selection Modal -->
+    <div id="groupSelectionModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 30px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px; text-align: center;">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;"><i class="fas fa-users"></i> เลือกกลุ่มของคุณ</h2>
+            <p style="margin-bottom: 25px; color: #64748b;">กิจกรรมนี้เป็นงานกลุ่ม กรุณาเลือกกลุ่มที่คุณต้องการเข้าร่วมก่อนเริ่มโพสต์ (เมื่อเลือกแล้วจะไม่สามารถเปลี่ยนได้)</p>
+            <div id="groupButtonsContainer" style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+                <!-- ปุ่มกลุ่มจะถูกสร้างด้วย JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>

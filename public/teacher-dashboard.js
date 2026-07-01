@@ -1332,8 +1332,19 @@ async function editProblem(problemId) {
             if (problemData.type === 'summary') {
                 const summaryDescription = document.getElementById('summaryDescription');
                 const summaryMaxScore = document.getElementById('summaryMaxScore');
+                const summaryIsGroupWork = document.getElementById('summaryIsGroupWork');
+                const summaryMaxGroups = document.getElementById('summaryMaxGroups');
+                
                 if (summaryDescription) summaryDescription.value = problemData.description || '';
                 if (summaryMaxScore) summaryMaxScore.value = problemData.maxScore || 10;
+                
+                if (summaryIsGroupWork) {
+                    summaryIsGroupWork.checked = !!problemData.isGroupWork;
+                    toggleSummaryGroupSettings();
+                }
+                if (summaryMaxGroups) {
+                    summaryMaxGroups.value = problemData.maxGroups || 5;
+                }
             }
             
             toggleProblemTypeFields(); // จะเรียก addSaveWidgetButton ถ้าเป็น gui
@@ -2393,10 +2404,14 @@ async function saveProblem(event) {
         } else if (problemType === 'summary') {
             const description = document.getElementById('summaryDescription')?.value?.trim() || '';
             const maxScore = parseInt(document.getElementById('summaryMaxScore')?.value) || 10;
+            const isGroupWork = document.getElementById('summaryIsGroupWork')?.checked || false;
+            const maxGroups = parseInt(document.getElementById('summaryMaxGroups')?.value) || 5;
             
             Object.assign(problemData, {
                 description,
-                maxScore
+                maxScore,
+                isGroupWork,
+                maxGroups
             });
         }
 

@@ -156,57 +156,44 @@ function subscribeToSubmissions() {
 
             boardContainer.innerHTML = '';
 
-            sortedCards.forEach((card) => {
-                const note = card.note || {};
-                const studentProfile = studentMap.get(card.studentId) || {};
-                const displayName = studentProfile.displayName || card.studentName || 'นักเรียน';
-                const photoURL = studentProfile.photoURL || card.studentPhoto || defaultAvatar;
-
-                const cardEl = document.createElement('div');
-                cardEl.className = 'post-it-card';
-                if (card.studentId === targetStudentId) {
-                    cardEl.className += ' highlight-card';
-                }
-                cardEl.style.backgroundColor = note.color || '#fff275';
+            if (currentProblem && currentProblem.isGroupWork) {
+                boardContainer.className = 'summary-board group-columns-container';
+                const maxGroups = currentProblem.maxGroups || 5;
+                const columns = {};
                 
-                // Click to grade
-                cardEl.addEventListener('click', () => {
-                    openGradingModal(
-                        card.id, 
-                        card.studentId, 
-                        displayName, 
-                        note.title || 'ไม่มีหัวข้อ', 
-                        note.content || '', 
-                        note.color || '#fff275',
-                        card.score,
-                        card.feedback
-                    );
-                });
-
-                // Construct grade status badge
-                let gradeBadge = '';
-                if (card.gradedAt) {
-                    gradeBadge = `<div class="card-score-badge graded"><i class="fas fa-check-circle"></i> ตรวจแล้ว (${card.score}/${card.maxScore || 10})</div>`;
-                } else {
-                    gradeBadge = `<div class="card-score-badge pending"><i class="fas fa-hourglass-start"></i> รอตรวจ</div>`;
+                for (let i = 1; i <= maxGroups; i++) {
+                    const col = document.createElement('div');
+                    col.className = 'group-column';
+                    
+                    // Create group header with scoring UI
+                    const groupScore = sortedCards.find(c => c.groupId == i && c.score !== undefined)?.score || '';
+                    const groupFeedback = sortedCards.find(c => c.groupId == i && c.feedback !== undefined)?.feedback || '';
+                    
+                    col.innerHTML = `
+                        <div class="group-column-header">กลุ่มที่ ${i}</div>
+                        <div class="group-scoring-card">
+                            <label style="font-size: 0.9em; font-weight: bold; color: #475569;">ให้คะแนนกลุ่มนี้:</label>
+                            <input type="number" id="groupScore_${i}" class="input-field" value="${groupScore}" min="0" max="${currentProblem.maxScore || 10}" placeholder="คะแนน">
+                            <textarea id="groupFeedback_${i}" class="input-field" placeholder="ข้อเสนอแนะเพิ่มเติม..." rows="2" style="font-size: 0.9em;">${groupFeedback}</textarea>
+                            <button class="primary-btn" onclick="saveGroupScore(${i})" id="btnSaveGroup_${i}" style="font-size: 0.9em; padding: 6px 12px;">บันทึกคะแนนกลุ่ม ${i}</button>
+                        </div>
+                    `;
+                    columns[i] = col;
+                    boardContainer.appendChild(col);
                 }
-
-                cardEl.innerHTML = `
-                    ${gradeBadge}
-                    <div class="card-pin">📌</div>
-                    <div class="card-author">
-                        <img src="${photoURL}" alt="${displayName}" class="author-avatar" onerror="this.src='${defaultAvatar}'">
-                        <span class="author-name">${displayName}</span>
-                    </div>
-                    <h4 class="card-title">${escapeHTML(note.title || 'ไม่มีหัวข้อ')}</h4>
-                    <p class="card-content">${escapeHTML(note.content || '').replace(/\n/g, '<br>')}</p>
-                    <div class="card-footer">
-                        <span><i class="far fa-clock"></i> ${formatTime(card.submittedAt)}</span>
-                    </div>
-                `;
-
-                boardContainer.appendChild(cardEl);
-            });
+                
+                sortedCards.forEach(card => {
+                    const groupId = card.groupId || 1;
+                    if (columns[groupId]) {
+                        columns[groupId].appendChild(createCardElement(card, defaultAvatar));
+                    }
+                });
+            } else {
+                boardContainer.className = 'summary-board';
+                sortedCards.forEach(card => {
+                    boardContainer.appendChild(createCardElement(card, defaultAvatar));
+                });
+            }
 
             // Smooth scroll to target student if specified
             if (targetStudentId) {
@@ -215,7 +202,6 @@ function subscribeToSubmissions() {
                     if (highlighted) {
                         highlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
-                    // Reset highlight parameter to prevent repeated scrolls on updates
                     targetStudentId = null;
                 }, 400);
             }
@@ -223,6 +209,103 @@ function subscribeToSubmissions() {
         }, (error) => {
             console.error('Error loading submissions:', error);
         });
+}
+
+function createCardElement(card, defaultAvatar) {
+    const note = card.note || {};
+    const studentProfile = studentMap.get(card.studentId) || {};
+    const displayName = studentProfile.displayName || card.studentName || 'นักเรียน';
+    const photoURL = studentProfile.photoURL || card.studentPhoto || defaultAvatar;
+
+    const cardEl = document.createElement('div');
+    cardEl.className = 'post-it-card';
+    if (card.studentId === targetStudentId) {
+        cardEl.className += ' highlight-card';
+    }
+    cardEl.style.backgroundColor = note.color || '#fff275';
+    
+    if (!currentProblem.isGroupWork) {
+        cardEl.addEventListener('click', () => {
+            openGradingModal(
+                card.id, 
+                card.studentId, 
+                displayName, 
+                note.title || 'ไม่มีหัวข้อ', 
+                note.content || '', 
+                note.color || '#fff275',
+                card.score,
+                card.feedback
+            );
+        });
+    } else {
+        cardEl.style.cursor = 'default';
+    }
+
+    let gradeBadge = '';
+    if (card.gradedAt) {
+        gradeBadge = `<div class="card-score-badge graded"><i class="fas fa-check-circle"></i> ตรวจแล้ว (${card.score}/${card.maxScore || 10})</div>`;
+    } else {
+        gradeBadge = `<div class="card-score-badge pending"><i class="fas fa-hourglass-start"></i> รอตรวจ</div>`;
+    }
+
+    cardEl.innerHTML = `
+        ${gradeBadge}
+        <div class="card-pin">📌</div>
+        <div class="card-author">
+            <img src="${photoURL}" alt="${displayName}" class="author-avatar" onerror="this.src='${defaultAvatar}'">
+            <span class="author-name">${displayName}</span>
+        </div>
+        <h4 class="card-title">${escapeHTML(note.title || 'ไม่มีหัวข้อ')}</h4>
+        <p class="card-content">${escapeHTML(note.content || '').replace(/\n/g, '<br>')}</p>
+        <div class="card-footer">
+            <span><i class="far fa-clock"></i> ${formatTime(card.submittedAt)}</span>
+        </div>
+    `;
+    
+    return cardEl;
+}
+
+async function saveGroupScore(groupId) {
+    const scoreVal = parseFloat(document.getElementById(`groupScore_${groupId}`).value);
+    const feedback = document.getElementById(`groupFeedback_${groupId}`).value.trim();
+    const maxScore = currentProblem?.maxScore || 10;
+
+    if (isNaN(scoreVal) || scoreVal < 0 || scoreVal > maxScore) {
+        alert(`กรุณากรอกคะแนนที่ถูกต้องระหว่าง 0 ถึง ${maxScore}`);
+        return;
+    }
+
+    const saveBtn = document.getElementById(`btnSaveGroup_${groupId}`);
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> บันทึก...';
+
+    try {
+        const batch = db.batch();
+        const submissionsRef = db.collection('submissions');
+        const snapshot = await submissionsRef
+            .where('classId', '==', currentClassId)
+            .where('problemId', '==', currentProblemId)
+            .where('groupId', '==', groupId)
+            .get();
+
+        snapshot.docs.forEach(doc => {
+            batch.update(doc.ref, {
+                score: scoreVal,
+                feedback: feedback,
+                teacherId: auth.currentUser.uid,
+                gradedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+
+        await batch.commit();
+        alert(`บันทึกคะแนนกลุ่มที่ ${groupId} เรียบร้อยแล้ว!`);
+    } catch (error) {
+        console.error('Error saving group grade:', error);
+        alert('เกิดข้อผิดพลาดในการบันทึกคะแนน กรุณาลองใหม่อีกครั้ง');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `บันทึกคะแนนกลุ่ม ${groupId}`;
+    }
 }
 
 function openGradingModal(submissionId, studentId, studentName, title, content, color, score, feedback) {
