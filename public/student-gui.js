@@ -1146,7 +1146,18 @@ function convertPythonToJs(pythonCode) {
         // แปลงการเรียกใช้ float()
         .replace(/\bfloat\s*\(/g, 'parseFloat(')
         // แปลงการเรียกใช้ str()
-        .replace(/\bstr\s*\(/g, 'String(');
+        .replace(/\bstr\s*\(/g, 'String(')
+        // แปลง boolean operators
+        .replace(/\band\b/g, '&&')
+        .replace(/\bor\b/g, '||')
+        .replace(/\bnot\b/g, '!')
+        // แปลง booleans
+        .replace(/\bTrue\b/g, 'true')
+        .replace(/\bFalse\b/g, 'false')
+        // แปลง elif
+        .replace(/\belif\b/g, 'else if')
+        // ลบ colon ท้ายบรรทัดสำหรับบล็อก if/else/for/while
+        .replace(/:\s*$/gm, '');
     
     return jsCode;
 }
