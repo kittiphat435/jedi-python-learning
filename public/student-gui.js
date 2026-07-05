@@ -4406,7 +4406,7 @@ async function sendToSimulator(autoRun = false) {
             .replace(/\bint\s*\(/g, 'parseInt(')
             .replace(/\bfloat\s*\(/g, 'parseFloat(')
             .replace(/\bstr\s*\(/g, 'String(')
-            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, '(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : "")');
           // Use let if it's a basic assignment without operator and hasn't been declared (simplified approach)
           functionBodyJs += `  ${prefix}${lhs} ${m[2] ? m[2] + '=' : '='} ${expr};\n`;
         }
@@ -4420,7 +4420,7 @@ async function sendToSimulator(autoRun = false) {
                .replace(/\bint\s*\(/g, 'parseInt(')
                .replace(/\bfloat\s*\(/g, 'parseFloat(')
                .replace(/\bstr\s*\(/g, 'String(')
-               .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+               .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, '(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : "")');
              functionBodyJs += `  document.getElementById("label_${targetLabel.name}").textContent = String(${expr});\n`;
            }
         }
@@ -4484,7 +4484,7 @@ async function sendToSimulator(autoRun = false) {
         if (branchArrayByName[fn.name]) {
             branchArrayByName[fn.name].forEach(b => {
                 const rawCond = (b.cond || '')
-                    .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)')
+                    .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, '(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : "")')
                     .replace(/\band\b/g, '&&')
                     .replace(/\bor\b/g, '||')
                     .replace(/\bnot\b/g, '!')
@@ -4502,7 +4502,7 @@ async function sendToSimulator(autoRun = false) {
                             .replace(/\bint\s*\(/g, 'parseInt(')
                             .replace(/\bfloat\s*\(/g, 'parseFloat(')
                             .replace(/\bstr\s*\(/g, 'String(')
-                            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+                            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, '(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : "")');
                         js += `    return ${expr};\n`;
                     }
                 });
@@ -4515,7 +4515,7 @@ async function sendToSimulator(autoRun = false) {
             .replace(/\bint\s*\(/g, 'parseInt(')
             .replace(/\bfloat\s*\(/g, 'parseFloat(')
             .replace(/\bstr\s*\(/g, 'String(')
-            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, 'parseFloat(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : 0)');
+            .replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, '(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : "")');
           
           // [UPDATE] ถ้ามีการ return หลายค่า (มีคอมมา) ให้ครอบด้วย [] เพื่อให้ JS unpack ได้
           if (expr.includes(',') && !expr.startsWith('[') && !expr.startsWith('(')) {
