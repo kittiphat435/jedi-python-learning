@@ -2318,7 +2318,7 @@ function convertTkinterToHtml(code) {
                         }
                     });
                 } else {
-                    console.error("ไม่พบปุ่ม ${buttonVar}");
+                    console.warn("ไม่พบปุ่ม ${buttonVar} (อาจถูกแทนที่ด้วยผลตรวจแล้ว)");
                 }
             }, 50);
             `;
