@@ -5359,26 +5359,6 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                         diagnostic = `✗ "${output.text || 'Label'}": คาดหวัง "${output.value}" แต่ได้ "${actualValue}"\n   💡 (ตรวจพบว่าโค้ดของคุณส่งค่าไปผิดที่! พบผลลัพธ์ที่ถูกต้องปรากฏใน "${misplacedText}" แทน)`;
                                     }
                                     
-                                    // [NEW DEBUG] Pull global variables from iframe to help diagnose
-                                    try {
-                                        const win = iframe.contentWindow;
-                                        if (win) {
-                                            const debugVars = ['A1', 'A2', 'A3', 'A5', '_ret'];
-                                            const foundVars = [];
-                                            debugVars.forEach(v => {
-                                                if (typeof win[v] !== 'undefined') {
-                                                    foundVars.push(`${v}=${win[v]}`);
-                                                }
-                                            });
-                                            if (foundVars.length > 0) {
-                                                diagnostic += `\n   🔍 (DEBUG JS: ${foundVars.join(', ')})`;
-                                            }
-                                            if (typeof win.cal2 === 'function') {
-                                                diagnostic += `\n   📜 (cal2 Code: ${win.cal2.toString().replace(/\\n/g, ' ')})`;
-                                            }
-                                        }
-                                    } catch(e) {}
-                                    
                                     details.push(diagnostic);
                                     passed = false;
                                 }
