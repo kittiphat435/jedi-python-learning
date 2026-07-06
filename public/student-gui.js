@@ -4165,12 +4165,12 @@ async function sendToSimulator(autoRun = false) {
         if (m = fl.match(/^\s*(if|elif)\s*\((.+?)\)\s*:/)) {
           currCond = m[2].trim();
           branchIndex++;
-          branchArray[branchIndex] = { cond: currCond, actions: [] };
+          branchArray[branchIndex] = { cond: currCond, actions: [], keyword: m[1] };
         }
         else if (/^\s*else\s*:/.test(fl)) {
           currCond = null;
           branchIndex++;
-          branchArray[branchIndex] = { cond: null, actions: [] };
+          branchArray[branchIndex] = { cond: null, actions: [], keyword: 'else' };
         }
         else if (m = fl.match(/^\s*(\w+)\.config\(\s*text\s*=\s*f?['"](.+?)['"]\s*\)/)) {
           if (branchIndex >= 0 && branchArray[branchIndex]) {
@@ -4500,7 +4500,14 @@ async function sendToSimulator(autoRun = false) {
                     .replace(/\bstr\s*\(/g, 'String(')
                     .trim() || 'true';
                 
-                js += `  if (${rawCond}) {\n`;
+                if (b.keyword === 'elif') {
+                    js += `  else if (${rawCond}) {\n`;
+                } else if (b.keyword === 'else') {
+                    js += `  else {\n`;
+                } else {
+                    js += `  if (${rawCond}) {\n`;
+                }
+                
                 (b.actions || []).forEach(action => {
                     if (action.type === 'config') {
                         js += `    document.getElementById("label_${action.varName}").textContent = \`${action.text}\`;\n`;
