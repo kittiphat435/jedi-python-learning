@@ -1136,11 +1136,11 @@ function convertPythonToJs(pythonCode) {
         .replace(/([\p{L}\p{N}_]+)\.config\s*\(\s*text\s*=\s*f['"]([^'"]+)['"]\s*\)/gu, (match, varName, textTemplate) => {
             // แปลง f-string เป็น JavaScript template literal
             const jsTemplate = textTemplate.replace(/{([^}]+)}/g, '${$1}');
-            return `document.querySelector('[data-var="${varName}"]').textContent = \`${jsTemplate}\``;
+            return `(console.log("DEBUG-BRANCH: Executing branch setting " + "${varName}" + " to \`" + \`${jsTemplate}\` + "\` (Current A5=" + (typeof window.A5 !== 'undefined' ? window.A5 : (typeof A5 !== 'undefined' ? A5 : 'undef')) + ")"), document.querySelector('[data-var="${varName}"]').textContent = \`${jsTemplate}\`)`;
         })
         // แปลงการเรียกใช้ .config(text=...) แบบไม่ใช่ f-string
         .replace(/([\p{L}\p{N}_]+)\.config\s*\(\s*text\s*=\s*['"]([^'"]+)['"]\s*\)/gu, 
-            'document.querySelector(\'[data-var="$1"]\').textContent = "$2"')
+            '(console.log("DEBUG-BRANCH: Executing branch setting $1 to \'$2\' (Current A5=" + (typeof window.A5 !== \'undefined\' ? window.A5 : (typeof A5 !== \'undefined\' ? A5 : \'undef\')) + ")"), document.querySelector(\'[data-var="$1"]\').textContent = "$2")')
         // แปลงการเรียกใช้ int()
         .replace(/\bint\s*\(/g, 'parseInt(')
         // แปลงการเรียกใช้ float()
