@@ -804,8 +804,8 @@ function convertTkinterToHtml(code) {
     
     // หาปุ่มและเชื่อมโยงกับฟังก์ชัน
     const buttonRegex = /([\p{L}\p{N}_]+)\s*=\s*(?:tk\.\s*)?Button\s*\((.*)\)/gu;
-    const commandRegex = /([\p{L}\p{N}_]+)\.(config|configure)\s*\(\s*.*?command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/gsu;
-    const directCommandRegex = /([\p{L}\p{N}_]+)\s*=\s*(?:tk\.\s*)?Button\s*\(.*?command\s*=\s*(lambda\s*:.*?\(.*?\)|lambda\s*:.*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*).*?\)/gsu;
+    const commandRegex = /([\p{L}\p{N}_]+)\.(config|configure)\s*\(\s*[^)]*?command\s*=\s*(lambda\s*:[^)]*?\(.*?\)|lambda\s*:[^)]*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)/gu;
+    const directCommandRegex = /([\p{L}\p{N}_]+)\s*=\s*(?:tk\.\s*)?Button\s*\([^)]*?command\s*=\s*(lambda\s*:[^)]*?\(.*?\)|lambda\s*:[^)]*?(?=[,)])|[\p{L}_][\p{L}\p{N}_]*)[^)]*?\)/gu;
     
     let buttonMatch;
     while ((buttonMatch = buttonRegex.exec(code)) !== null) {
