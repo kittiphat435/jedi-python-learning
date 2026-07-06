@@ -391,7 +391,8 @@ async function loadProblems(classId, userId) {
                 maxScore: maxScore,
                 // สำคัญ: เก็บ orderIndex ไว้ใช้ sort
                 orderIndex: relationData.orderIndex || 0,
-                addedAt: relationData.addedAt 
+                addedAt: relationData.addedAt,
+                isClosed: relationData.isClosed || false
             };
         });
 
