@@ -489,6 +489,10 @@ function displayProblems(problems) {
             contentToShow = problem.description || 'ไม่มีคำอธิบาย';
         }
 
+        // ถ้าโจทย์ปิดรับคำตอบแล้ว และยังไม่ได้ทำเสร็จ ให้ disable ปุ่ม
+        const isDisabled = problem.isClosed && !isViewMode;
+        const finalButtonText = isDisabled ? 'ปิดรับคำตอบแล้ว' : buttonText;
+
         div.innerHTML = `
             <div class="problem-info">
                 <div class="problem-header">
@@ -499,8 +503,8 @@ function displayProblems(problems) {
                 <h3>${problem.title}</h3>
                 <p>${contentToShow}</p>
             </div>
-            <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn">
-                ${buttonText}
+            <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn" ${isDisabled ? 'disabled style="background-color: #ccc; cursor: not-allowed;"' : ''}>
+                ${finalButtonText}
             </button>
         `;
 

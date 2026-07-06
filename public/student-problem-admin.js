@@ -456,15 +456,22 @@ function displayProblems(problems) {
                 contentToShow = problem.description || 'ไม่มีคำอธิบาย';
             }
 
+            // ถ้าโจทย์ปิดรับคำตอบแล้ว และยังไม่ได้ทำเสร็จ ให้ disable ปุ่ม
+            const isDisabled = problem.isClosed && !isViewMode;
+            const finalButtonText = isDisabled ? 'ปิดรับคำตอบแล้ว' : buttonText;
+
             div.innerHTML = `
                 <div class="problem-info" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="problem-header" style="display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px; gap: 8px;">
                         <span class="problem-type" style="background: #e3f2fd; color: #1565c0; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
                             ${typeIcon} <span>${typeText}</span>
                         </span>
-                        <span class="status-badge status-${problem.status}" style="font-size: 0.85em; white-space: nowrap;">
-                            ${statusText}
-                        </span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="status-badge status-${problem.status}" style="font-size: 0.85em; white-space: nowrap;">
+                                ${statusText}
+                            </span>
+                            ${problem.isClosed ? '<span style="color: #e74c3c; font-weight: bold; font-size: 0.85em;">(ปิดรับคำตอบ)</span>' : ''}
+                        </div>
                     </div>
                     <div style="flex-grow: 1;">
                         <h3 style="margin: 0 0 8px 0; font-size: 1.1em; line-height: 1.3;">${problem.title}</h3>
@@ -473,8 +480,8 @@ function displayProblems(problems) {
                         </p>
                     </div>
                     <div style="margin-top: auto; padding-top: 15px;">
-                        <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode})" class="primary-btn" style="width: 100%; padding: 8px; border-radius: 4px; font-weight: bold;">
-                            ${buttonText}
+                        <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn" style="width: 100%; padding: 8px; border-radius: 4px; font-weight: bold; ${isDisabled ? 'background-color: #ccc; cursor: not-allowed;' : ''}" ${isDisabled ? 'disabled' : ''}>
+                            ${finalButtonText}
                         </button>
                     </div>
                 </div>
