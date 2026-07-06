@@ -5366,6 +5366,9 @@ async function testSpecificTestCaseInternal(generatedHTML, testCase, testNumber)
                                             if (foundVars.length > 0) {
                                                 diagnostic += `\n   🔍 (DEBUG JS: ${foundVars.join(', ')})`;
                                             }
+                                            if (typeof win.cal2 === 'function') {
+                                                diagnostic += `\n   📜 (cal2 Code: ${win.cal2.toString().replace(/\\n/g, ' ')})`;
+                                            }
                                         }
                                     } catch(e) {}
                                     
