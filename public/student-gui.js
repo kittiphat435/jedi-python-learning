@@ -1158,7 +1158,13 @@ function convertPythonToJs(pythonCode) {
         .replace(/\belif\b/g, 'else if')
         // ลบ colon ท้ายบรรทัดสำหรับบล็อก if/else/for/while
         .replace(/:\s*$/gm, '');
-    
+
+    // Debug: Add logging to return statements
+    jsCode = jsCode.replace(/return\s+(.+)/g, (match, p1) => {
+        if (p1.trim() === '' || p1.includes('[')) return match; // Skip tuples which were already converted
+        return `const _ret = ${p1}; console.log("Return value: ", _ret); return _ret;`;
+    });
+
     return jsCode;
 }
 
@@ -2219,14 +2225,15 @@ function convertTkinterToHtml(code) {
         let jsFunction = `
         function ${functionName}(${functionArgs}) {
             console.log("เรียกใช้ฟังก์ชัน ${functionName}");
-            
-            // จำลองการทำงานของฟังก์ชัน
             try {
                 ${convertPythonToJs(functionBody)}
             } catch (error) {
                 console.error("เกิดข้อผิดพลาดในฟังก์ชัน ${functionName}:", error);
+                return 0; // Fallback for numeric operations
             }
         }
+        // Expose globally
+        window.${functionName} = ${functionName};
         `;
         
         jsCode += jsFunction;
