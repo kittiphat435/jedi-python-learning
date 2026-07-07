@@ -20,8 +20,8 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 if (typeof firebase !== 'undefined' && firebase.apps?.length) {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (isLocalhost) {
-        try {
-            firebase.firestore().useEmulator('localhost', 8080);
-        } catch (_) {}
+        // try {
+        //     firebase.firestore().useEmulator('localhost', 8080);
+        // } catch (_) {}
     }
 }
