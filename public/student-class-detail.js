@@ -641,11 +641,18 @@ async function loadStats(classId, userId) {
         document.getElementById('scorePercentage').textContent = `(${scorePercentage}%)`;
 
         // คำนวณตั๋วและคะแนน Arcade
-        // ดึงข้อมูล boughtTickets, usedTickets และคะแนนเกม จาก Firebase users
-        const userDoc = await db.collection('users').doc(userId).get();
-        const userData = userDoc.exists ? userDoc.data() : {};
-        const boughtTickets = userData.boughtTickets || 0;
-        const usedTickets = userData.usedTickets || 0;
+        // ดึงข้อมูล boughtTickets, usedTickets และคะแนนเกม จาก class_enrollments ของห้องนี้
+        const enrollSnapshot = await db.collection('class_enrollments')
+            .where('studentId', '==', userId)
+            .where('classId', '==', classId).get();
+            
+        let enrollmentData = {};
+        if (!enrollSnapshot.empty) {
+            enrollmentData = enrollSnapshot.docs[0].data();
+        }
+        
+        const boughtTickets = enrollmentData.boughtTickets || 0;
+        const usedTickets = enrollmentData.usedTickets || 0;
         
         // คะแนนวิถีเซียน = คะแนนห้องเรียนทั้งหมด - (ตั๋วที่แลกไปแล้ว * 10)
         const arcadePoints = Math.max(0, totalScore - (boughtTickets * 10));
@@ -659,8 +666,8 @@ async function loadStats(classId, userId) {
         const elArcadeTickets = document.getElementById('arcadeTickets');
         if (elArcadeTickets) elArcadeTickets.textContent = `${availableTickets}`;
         
-        // โหลด Highscore และรวมคะแนน
-        const arcadeHighscores = userData.arcadeHighscores || {};
+        // โหลด Highscore และรวมคะแนนประจำห้องนี้
+        const arcadeHighscores = enrollmentData.arcadeHighscores || {};
         const snakeScore = arcadeHighscores.snake || 0;
         const dinoScore = arcadeHighscores.dino || 0;
         const tetrisScore = arcadeHighscores.tetris || 0;
@@ -961,7 +968,14 @@ async function renderArcadeLeaderboard() {
             return;
         }
 
-        const studentIds = enrollmentsSnapshot.docs.map(doc => doc.data().studentId);
+        // สร้าง map ของนักเรียนและคะแนนที่เก็บใน enrollment
+        const enrollmentsData = {};
+        enrollmentsSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            enrollmentsData[data.studentId] = data.arcadeHighscores || {};
+        });
+
+        const studentIds = Object.keys(enrollmentsData);
         
         // Split into chunks of 10 if we use 'in' operator, but here we can just use Promise.all
         const studentPromises = studentIds.map(id => db.collection('users').doc(id).get());
@@ -972,7 +986,10 @@ async function renderArcadeLeaderboard() {
         studentDocs.forEach(doc => {
             if (!doc.exists) return;
             const data = doc.data();
-            const arcadeHighscores = data.arcadeHighscores || {};
+            const studentId = doc.id;
+            
+            // ดึงคะแนนเกมจาก enrollments แทนที่จะเป็น user profile
+            const arcadeHighscores = enrollmentsData[studentId] || {};
             
             const tetrisScore = arcadeHighscores.tetris || 0;
             const snakeScore = arcadeHighscores.snake || 0;
@@ -1378,15 +1395,23 @@ async function playGame(gameName) {
     
     if (availableTickets > 0) {
         try {
-            // ดึงข้อมูล user ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
-            const userRef = db.collection('users').doc(user.uid);
-            const userDoc = await userRef.get();
-            const usedTickets = userDoc.exists ? (userDoc.data().usedTickets || 0) : 0;
+            const urlParams = new URLSearchParams(window.location.search);
+            const classId = urlParams.get('id');
             
-            // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
-            await userRef.update({
-                usedTickets: usedTickets + 1
-            });
+            // ดึงข้อมูล class_enrollments ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
+            const enrollSnapshot = await db.collection('class_enrollments')
+                .where('studentId', '==', user.uid)
+                .where('classId', '==', classId).get();
+                
+            if (!enrollSnapshot.empty) {
+                const enrollDoc = enrollSnapshot.docs[0];
+                const usedTickets = enrollDoc.data().usedTickets || 0;
+                
+                // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
+                await enrollDoc.ref.update({
+                    usedTickets: usedTickets + 1
+                });
+            }
             
             // อัปเดต UI แบบ Real-time
             const newAvailable = availableTickets - 1;
@@ -1394,8 +1419,8 @@ async function playGame(gameName) {
             
             alert(`หัก 1 ตั๋วสำเร็จ!\nตั๋วคงเหลือ: ${newAvailable} ใบ\n\nกำลังเข้าสู่เกม ${gameName}...`);
             
-            // เปิดเกมในหน้าเดียวกันเลย
-            window.location.href = `game-${gameName}.html`;
+            // เปิดเกมในหน้าเดียวกันเลย พร้อมแนบ classId
+            window.location.href = `game-${gameName}.html?classId=${classId}`;
             
         } catch (error) {
             console.error('Error updating tickets:', error);
@@ -1429,11 +1454,18 @@ window.exchangeTicket = async function() {
             return;
         }
         
-        // อัปเดตใน Firebase
-        const userRef = db.collection('users').doc(user.uid);
-        await userRef.update({
-            boughtTickets: firebase.firestore.FieldValue.increment(1)
-        });
+        // อัปเดตใน Firebase สำหรับห้องเรียนนี้
+        const urlParams = new URLSearchParams(window.location.search);
+        const classId = urlParams.get('id');
+        const enrollSnapshot = await db.collection('class_enrollments')
+            .where('studentId', '==', user.uid)
+            .where('classId', '==', classId).get();
+            
+        if (!enrollSnapshot.empty) {
+            await enrollSnapshot.docs[0].ref.update({
+                boughtTickets: firebase.firestore.FieldValue.increment(1)
+            });
+        }
         
         // แอนิเมชันตัวเลขลด-เพิ่ม
         let tickets = parseInt(elArcadeTickets.textContent) || 0;

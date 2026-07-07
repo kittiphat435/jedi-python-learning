@@ -561,11 +561,28 @@
         addTouchControl('btn-t-rotate', rotatePiece);
         addTouchControl('btn-t-down', () => drop(true));
 
+        let scoreDocRef = null;
+
         // 1. ตรวจสอบผู้ใช้และเริ่มเกม
         firebase.auth().onAuthStateChanged(async (user) => {
             if (user) {
                 try {
-                    const doc = await db.collection('users').doc(user.uid).get();
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const classId = urlParams.get('classId');
+                    
+                    if (classId) {
+                        const snapshot = await db.collection('class_enrollments')
+                            .where('studentId', '==', user.uid)
+                            .where('classId', '==', classId).get();
+                        if (!snapshot.empty) {
+                            scoreDocRef = snapshot.docs[0].ref;
+                        }
+                    }
+                    if (!scoreDocRef) {
+                        scoreDocRef = db.collection('users').doc(user.uid);
+                    }
+
+                    const doc = await scoreDocRef.get();
                     if (doc.exists && doc.data().arcadeHighscores && doc.data().arcadeHighscores.tetris) {
                         userHighScore = doc.data().arcadeHighscores.tetris;
                         document.getElementById('highScore').textContent = userHighScore;
@@ -598,9 +615,9 @@
             if (score > userHighScore) {
                 document.getElementById('newRecordMsg').style.display = 'block';
                 const user = firebase.auth().currentUser;
-                if (user) {
+                if (user && scoreDocRef) {
                     try {
-                        await db.collection('users').doc(user.uid).set({
+                        await scoreDocRef.set({
                             arcadeHighscores: { tetris: score }
                         }, { merge: true });
                     } catch (e) {
