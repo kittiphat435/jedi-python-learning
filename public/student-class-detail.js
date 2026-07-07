@@ -408,7 +408,48 @@ async function loadProblems(classId, userId) {
             // Fallback
             const timeA = a.addedAt ? a.addedAt.seconds : 0;
             const timeB = b.addedAt ? b.addedAt.seconds : 0;
-            return timeA - timeB;
+            return Math.max(0, 100 - totalPenalty);
+}
+
+// ฟังก์ชันควบคุม Arcade Room (ไม่ใช้ Modal แล้ว)
+async function playGame(gameName) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    
+    // ดึงจำนวนตั๋วปัจจุบันที่แสดงอยู่บนหน้าเว็บ
+    const ticketText = document.getElementById('arcadeTickets').textContent;
+    const availableTickets = parseInt(ticketText) || 0;
+    
+    if (availableTickets > 0) {
+        try {
+            // ดึงข้อมูล user ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
+            const userRef = db.collection('users').doc(user.uid);
+            const userDoc = await userRef.get();
+            const usedTickets = userDoc.exists ? (userDoc.data().usedTickets || 0) : 0;
+            
+            // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
+            await userRef.update({
+                usedTickets: usedTickets + 1
+            });
+            
+            // อัปเดต UI แบบ Real-time
+            const newAvailable = availableTickets - 1;
+            document.getElementById('arcadeTickets').textContent = `${newAvailable}`;
+            
+            alert(`หัก 1 ตั๋วสำเร็จ!\nตั๋วคงเหลือ: ${newAvailable} ใบ\n\nกำลังเข้าสู่เกม ${gameName}...`);
+            
+            // เปิดเกมในหน้าเดียวกันเลย
+            window.location.href = `game-${gameName}.html`;
+            
+        } catch (error) {
+            console.error('Error updating tickets:', error);
+            alert('เกิดข้อผิดพลาดในการหักตั๋ว กรุณาลองใหม่');
+        }
+    } else {
+        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (5 คะแนน = 1 ตั๋ว)');
+    }
+}
+window.playGame = playGame;
         });
         
         allProblems = problemsData;
@@ -640,11 +681,64 @@ async function loadStats(classId, userId) {
         document.getElementById('totalScore').textContent = `${totalScore}/${totalMaxScore}`;
         document.getElementById('scorePercentage').textContent = `(${scorePercentage}%)`;
 
+        // คำนวณและแสดงตั๋ว Arcade (ทุกๆ 5 คะแนน = 1 ตั๋ว)
+        const totalEarnedTickets = Math.floor(totalScore / 5);
+        const unclaimedPoints = totalScore % 5;
+        
+        // ดึงข้อมูล usedTickets และคะแนนเกม จาก Firebase users
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const usedTickets = userData.usedTickets || 0;
+        
+        // ตั๋วที่เหลือใช้ได้จริงๆ = ตั๋วที่ได้ทั้งหมด - ตั๋วที่ใช้ไปแล้ว
+        const availableTickets = Math.max(0, totalEarnedTickets - usedTickets);
+        
+        const elArcadeTickets = document.getElementById('arcadeTickets');
+        if (elArcadeTickets) elArcadeTickets.textContent = `${availableTickets}`;
+        
+        const elUnclaimedPoints = document.getElementById('unclaimedPoints');
+        if (elUnclaimedPoints) elUnclaimedPoints.textContent = `(เศษ ${unclaimedPoints}/5)`;
+        
+        // โหลด Highscore และรวมคะแนน
+        const arcadeHighscores = userData.arcadeHighscores || {};
+        const snakeScore = arcadeHighscores.snake || 0;
+        const dinoScore = arcadeHighscores.dino || 0;
+        const tetrisScore = arcadeHighscores.tetris || 0;
+        
+        const totalArcadeScore = snakeScore + dinoScore + tetrisScore;
+        
+        // อัปเดต UI คะแนนเกมรวม (การ์ดด้านบน)
+        const elTotalArcade = document.getElementById('totalArcadeScore');
+        if (elTotalArcade) elTotalArcade.textContent = totalArcadeScore;
+        
+        const elTopSnake = document.getElementById('topSnakeScore');
+        if (elTopSnake) elTopSnake.textContent = snakeScore;
+        
+        const elTopDino = document.getElementById('topDinoScore');
+        if (elTopDino) elTopDino.textContent = dinoScore;
+        
+        const elTopTetris = document.getElementById('topTetrisScore');
+        if (elTopTetris) elTopTetris.textContent = tetrisScore;
+
+        // อัปเดต Highscore ในการ์ดเกมแต่ละอัน (ด้านล่าง)
+        const elSnakeCard = document.getElementById('snakeHighscore');
+        if (elSnakeCard) elSnakeCard.textContent = snakeScore;
+        
+        const elDinoCard = document.getElementById('dinoHighscore');
+        if (elDinoCard) elDinoCard.textContent = dinoScore;
+        
+        const elTetrisCard = document.getElementById('tetrisHighscore');
+        if (elTetrisCard) elTetrisCard.textContent = tetrisScore;
+
         // อัปเดต Rank ยศของนักเรียนตามเปอร์เซ็นต์ความคืบหน้าการส่งงาน
         updateStudentRank(progress);
 
     } catch (error) {
         console.error("Error loading stats:", error);
+        const elArcadeTickets = document.getElementById('arcadeTickets');
+        if (elArcadeTickets) elArcadeTickets.textContent = '0';
+        const elUnclaimedPoints = document.getElementById('unclaimedPoints');
+        if (elUnclaimedPoints) elUnclaimedPoints.textContent = '(เศษ 0/5)';
     }
 }
 
@@ -931,7 +1025,7 @@ const TAGS_LIST = [
 ];
 
 function switchClassTab(tabName) {
-    const tabs = ['problems', 'analysis'];
+    const tabs = ['problems', 'analysis', 'arcade'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tabBtn-${t}`);
         const content = document.getElementById(`${t}TabContent`);

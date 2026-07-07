@@ -624,7 +624,6 @@ async function loadStats(adminId, userId) {
 
             // ตรวจสอบ submission 
             const submission = latestSubmissions.get(problemId);
-            console.log('Checking problem:', { problemId, type: problemData.type, submission });
 
             if (submission) {
                 // ใช้ maxScore จาก submission สำหรับโจทย์ GUI เพื่อป้องกันคะแนนเต็มไม่ตรงกัน
@@ -638,16 +637,6 @@ async function loadStats(adminId, userId) {
                         completedProblems++;
                         // ถ้า score เป็น 0 ให้ใช้ maxScore แทน
                         totalScore += (submission.score > 0 ? submission.score : submission.maxScore);
-                        console.log('Added score:', {
-                            problemId,
-                            type: problemData.type,
-                            status: submission.status,
-                            score: submission.score,
-                            maxScore: submission.maxScore,
-                            addedScore: (submission.score > 0 ? submission.score : submission.maxScore),
-                            newTotal: totalScore,
-                            completedProblems
-                        });
                     }
                 } else if (submission.status === 'completed') {
                     completedProblems++;
@@ -661,65 +650,11 @@ async function loadStats(adminId, userId) {
         const progress = totalProblems > 0 ? Math.round((completedProblems / totalProblems) * 100) : 0;
         const scorePercentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
 
-        console.log('Score Details:', {
-            totalScore,
-            totalMaxScore,
-            completedProblems,
-            progress,
-            scorePercentage
-        });
-
         document.getElementById('totalProblems').textContent = totalProblems;
         document.getElementById('completedProblems').textContent = completedProblems;
         document.getElementById('problemProgress').textContent = `${progress}%`;
         document.getElementById('totalScore').textContent = `${totalScore}/${totalMaxScore}`;
         document.getElementById('scorePercentage').textContent = `(${scorePercentage}%)`;
-
-        // คำนวณและแสดงตั๋ว Arcade (ทุกๆ 5 คะแนน = 1 ตั๋ว)
-        const totalEarnedTickets = Math.floor(totalScore / 5);
-        const unclaimedPoints = totalScore % 5;
-        
-        // ดึงข้อมูล usedTickets จาก Firebase users
-        const userDoc = await db.collection('users').doc(userId).get();
-        const userData = userDoc.exists ? userDoc.data() : {};
-        const usedTickets = userData.usedTickets || 0;
-        
-        // ตั๋วที่เหลือใช้ได้จริงๆ = ตั๋วที่ได้ทั้งหมด - ตั๋วที่ใช้ไปแล้ว
-        const availableTickets = Math.max(0, totalEarnedTickets - usedTickets);
-        
-        document.getElementById('arcadeTickets').textContent = `${availableTickets}`;
-        document.getElementById('unclaimedPoints').textContent = `(เศษ ${unclaimedPoints}/5)`;
-        
-        // โหลด Highscore และรวมคะแนน
-        const arcadeHighscores = userData.arcadeHighscores || {};
-        const snakeScore = arcadeHighscores.snake || 0;
-        const dinoScore = arcadeHighscores.dino || 0;
-        const tetrisScore = arcadeHighscores.tetris || 0;
-        
-        const totalArcadeScore = snakeScore + dinoScore + tetrisScore;
-        
-        // อัปเดต UI คะแนนเกมรวม (การ์ดด้านบน)
-        const elTotalArcade = document.getElementById('totalArcadeScore');
-        if (elTotalArcade) elTotalArcade.textContent = totalArcadeScore;
-        
-        const elTopSnake = document.getElementById('topSnakeScore');
-        if (elTopSnake) elTopSnake.textContent = snakeScore;
-        
-        const elTopDino = document.getElementById('topDinoScore');
-        if (elTopDino) elTopDino.textContent = dinoScore;
-        
-        const elTopTetris = document.getElementById('topTetrisScore');
-        if (elTopTetris) elTopTetris.textContent = tetrisScore;
-
-        // อัปเดต Highscore ในการ์ดเกมแต่ละอัน (ด้านล่าง)
-        const elSnakeCard = document.getElementById('snakeHighscore');
-        if (elSnakeCard) elSnakeCard.textContent = snakeScore;
-        
-        const elDinoCard = document.getElementById('dinoHighscore');
-        if (elDinoCard) elDinoCard.textContent = dinoScore;
-        
-        const elTetrisCard = document.getElementById('tetrisHighscore');
-        if (elTetrisCard) elTetrisCard.textContent = tetrisScore;
 
     } catch (error) {
         console.error("Error loading stats:", error);
@@ -728,48 +663,6 @@ async function loadStats(adminId, userId) {
         document.getElementById('problemProgress').textContent = '0%';
         document.getElementById('totalScore').textContent = '0/0';
         document.getElementById('scorePercentage').textContent = '(0%)';
-        
-        document.getElementById('arcadeTickets').textContent = '0 🎟️';
-        document.getElementById('unclaimedPoints').textContent = '(เศษ 0/5)';
-    }
-}
-
-// ฟังก์ชันควบคุม Arcade Room (ไม่ใช้ Modal แล้ว)
-async function playGame(gameName) {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-    
-    // ดึงจำนวนตั๋วปัจจุบันที่แสดงอยู่บนหน้าเว็บ
-    const ticketText = document.getElementById('arcadeTickets').textContent;
-    const availableTickets = parseInt(ticketText) || 0;
-    
-    if (availableTickets > 0) {
-        try {
-            // ดึงข้อมูล user ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
-            const userRef = db.collection('users').doc(user.uid);
-            const userDoc = await userRef.get();
-            const usedTickets = userDoc.exists ? (userDoc.data().usedTickets || 0) : 0;
-            
-            // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
-            await userRef.update({
-                usedTickets: usedTickets + 1
-            }, { merge: true });
-            
-            // อัปเดต UI แบบ Real-time
-            const newAvailable = availableTickets - 1;
-            document.getElementById('arcadeTickets').textContent = `${newAvailable}`;
-            
-            alert(`หัก 1 ตั๋วสำเร็จ!\nตั๋วคงเหลือ: ${newAvailable} ใบ\n\nกำลังเข้าสู่เกม ${gameName}...`);
-            
-            // เปิดเกมในหน้าเดียวกันเลย
-            window.location.href = `game-${gameName}.html`;
-            
-        } catch (error) {
-            console.error('Error updating tickets:', error);
-            alert('เกิดข้อผิดพลาดในการหักตั๋ว กรุณาลองใหม่');
-        }
-    } else {
-        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (5 คะแนน = 1 ตั๋ว)');
     }
 }
 

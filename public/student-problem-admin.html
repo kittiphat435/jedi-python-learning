@@ -74,83 +74,9 @@
                 </div>
             </div>
 
-            <!-- Arcade Tickets Stat Card -->
-            <div class="stat-card" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #333; border: none; position: relative;" title="ทุกๆ 5 คะแนนแลกตั๋วได้ 1 ใบ">
-                <div style="position: absolute; top: 5px; right: 10px; font-size: 1.5em;">🎟️</div>
-                <div id="arcadeTickets" class="stat-number" style="color: #d35400;">0</div>
-                <div style="font-weight: bold; color: #b33900;">
-                    ตั๋วเล่นเกม 
-                    <span id="unclaimedPoints" style="font-size: 0.8em; font-weight: normal; color: #fff;">(เศษ 0/5)</span>
-                </div>
-            </div>
-
-            <!-- Arcade Total Score Stat Card -->
-            <div class="stat-card" style="background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); color: #333; border: none; position: relative;" title="คะแนนรวมจากการเล่นเกม">
-                <div style="position: absolute; top: 5px; right: 10px; font-size: 1.5em;">🏆</div>
-                <div id="totalArcadeScore" class="stat-number" style="color: #5f27cd;">0</div>
-                <div style="font-weight: bold; color: #341f97; margin-bottom: 5px;">คะแนนเกมรวม</div>
-                <div style="font-size: 0.8em; display: flex; gap: 8px; justify-content: center; background: rgba(255,255,255,0.4); padding: 4px; border-radius: 4px;">
-                    <span title="Python Snake">🐍 <span id="topSnakeScore">0</span></span>
-                    <span title="Dino Jump">🦖 <span id="topDinoScore">0</span></span>
-                    <span title="Tetris">🧱 <span id="topTetrisScore">0</span></span>
-                </div>
-            </div>
         </div>
 
-        <!-- JediCode Arcade Section -->
-        <div class="section" id="arcadeSection" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0; color: #d35400; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-gamepad"></i> JediCode Arcade 
-                </h2>
-                <div style="background: rgba(255,255,255,0.7); padding: 5px 15px; border-radius: 20px; font-weight: bold; color: #b33900; font-size: 0.9em;">
-                    ใช้ตั๋วเพื่อเข้าเล่นเกม!
-                </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
-                
-                <!-- Game 1: Snake -->
-                <div style="background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <div style="height: 100px; background: #4CAF50; display: flex; justify-content: center; align-items: center; font-size: 3em;">🐍</div>
-                    <div style="padding: 15px;">
-                        <h3 style="margin: 0 0 5px 0; font-size: 1.1em;">Python Snake</h3>
-                        <p style="margin: 0 0 15px 0; color: #666; font-size: 0.85em;">บังคับงูไปกินบั๊กให้ยาวที่สุด!</p>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.8em; color: #888; background: #f1f2f6; padding: 3px 8px; border-radius: 4px;">🏆 <span id="snakeHighscore">0</span></span>
-                            <button onclick="playGame('snake')" style="background: #ff7675; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.9em;">เล่น (-1 🎟️)</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Game 2: Dino Jump -->
-                <div style="background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <div style="height: 100px; background: #0984e3; display: flex; justify-content: center; align-items: center; font-size: 3em;">🦖</div>
-                    <div style="padding: 15px;">
-                        <h3 style="margin: 0 0 5px 0; font-size: 1.1em;">Dino Jump</h3>
-                        <p style="margin: 0 0 15px 0; color: #666; font-size: 0.85em;">กระโดดหลบสิ่งกีดขวาง!</p>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.8em; color: #888; background: #f1f2f6; padding: 3px 8px; border-radius: 4px;">🏆 <span id="dinoHighscore">0</span></span>
-                            <button onclick="playGame('dino')" style="background: #ff7675; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.9em;">เล่น (-1 🎟️)</button>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Game 3: Tetris -->
-                <div style="background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <div style="height: 100px; background: #e17055; display: flex; justify-content: center; align-items: center; font-size: 3em;">🧱</div>
-                    <div style="padding: 15px;">
-                        <h3 style="margin: 0 0 5px 0; font-size: 1.1em;">Tetris</h3>
-                        <p style="margin: 0 0 15px 0; color: #666; font-size: 0.85em;">เรียงบล็อกตัวต่อให้สมบูรณ์!</p>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.8em; color: #888; background: #f1f2f6; padding: 3px 8px; border-radius: 4px;">🏆 <span id="tetrisHighscore">0</span></span>
-                            <button onclick="playGame('tetris')" style="background: #ff7675; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.9em;">เล่น (-1 🎟️)</button>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-        </div>
 
         <!-- Problems Section -->
         <div class="section">
