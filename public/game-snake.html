@@ -138,7 +138,7 @@
             <p style="font-size: 1.5em; margin-bottom: 5px;">คะแนนของคุณ: <span id="finalScore" style="color: #2ecc71; font-weight: bold;">0</span></p>
             <p id="newRecordMsg">🎉 ทำลายสถิติใหม่! 🎉</p>
             <div style="margin-top: 30px; display: flex; gap: 15px;">
-                <a href="student-problem-admin.html" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> กลับโซน Arcade</a>
+                <a href="student-class-detail.html" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> กลับโซน Arcade</a>
             </div>
         </div>
     </div>
@@ -260,7 +260,7 @@
 
                     if (availableTickets <= 0) {
                         alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (5 คะแนน = 1 ตั๋ว)');
-                        window.location.href = 'student-problem-admin.html';
+                        window.location.href = 'student-class-detail.html';
                         isCheckingTicket = false;
                         return;
                     }
