@@ -16,9 +16,24 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // เช็คการล็อกอิน
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(async (user) => {
     if (user) {
         console.log('User is logged in:', user.email);
+        
+        // Auto-patch email if missing
+        try {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            const userData = userDoc.exists ? userDoc.data() : null;
+            if (userData && !userData.email && user.email) {
+                await db.collection('users').doc(user.uid).update({
+                    email: user.email,
+                    photoURL: user.photoURL || null
+                });
+            }
+        } catch (e) {
+            console.error('Error auto-patching user:', e);
+        }
+        
         const urlParams = new URLSearchParams(window.location.search);
         const classId = urlParams.get('id');
         if (classId) {

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reset Tickets Script</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
+            authDomain: "python-learning-platform-596e1.firebaseapp.com",
+            projectId: "python-learning-platform-596e1",
+            storageBucket: "python-learning-platform-596e1.firebasestorage.app",
+            messagingSenderId: "5262153531",
+            appId: "1:5262153531:web:55f6246093e1780003491e"
+        };
+        firebase.initializeApp(firebaseConfig);
+    </script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        button { padding: 10px 20px; background: #e74c3c; color: white; border: none; cursor: pointer; border-radius: 5px; font-size: 16px; }
+        button:hover { background: #c0392b; }
+        #log { margin-top: 20px; background: #eee; padding: 10px; height: 300px; overflow-y: scroll; white-space: pre-wrap; font-family: monospace;}
+    </style>
+</head>
+<body>
+    <h1>Reset All User Tickets</h1>
+    <p>สคริปต์นี้จะลบตั๋วที่เคยมีอยู่ (ทั้งใน Profile และในแต่ละห้องเรียน) ของทุกคนให้เหลือ 0 ใบ<br>ยกเว้น zaddam.ranger@gmail.com</p>
+    <button id="btnReset">ลบตั๋วทุกคน (ยกเว้นครู)</button>
+    
+    <div id="log"></div>
+
+    <script>
+        function logMsg(msg) {
+            const div = document.getElementById('log');
+            div.textContent += msg + '\n';
+            div.scrollTop = div.scrollHeight;
+        }
+
+        document.getElementById('btnReset').addEventListener('click', async () => {
+            document.getElementById('btnReset').disabled = true;
+            logMsg("กำลังดึงข้อมูล Users...");
+            try {
+                const db = firebase.firestore();
+                const usersSnapshot = await db.collection('users').get();
+                
+                const userMap = {};
+                let userCount = 0;
+
+                for (let doc of usersSnapshot.docs) {
+                    const data = doc.data();
+                    const email = data.email || '';
+                    userMap[doc.id] = email;
+                    
+                    if (email !== 'zaddam.ranger@gmail.com') {
+                        logMsg(`กำลังรีเซ็ต user: ${email || doc.id}`);
+                        await doc.ref.update({
+                            boughtTickets: 0,
+                            usedTickets: 0
+                        });
+                        userCount++;
+                    }
+                }
+                logMsg(`รีเซ็ตใน Users เสร็จสิ้น (จำนวน ${userCount} รายการ)`);
+
+                logMsg("กำลังดึงข้อมูล Class Enrollments...");
+                const enrollSnapshot = await db.collection('class_enrollments').get();
+                let enrollCount = 0;
+
+                for (let doc of enrollSnapshot.docs) {
+                    const data = doc.data();
+                    const studentId = data.studentId;
+                    const email = userMap[studentId] || '';
+
+                    if (email !== 'zaddam.ranger@gmail.com') {
+                        logMsg(`กำลังรีเซ็ต enrollment: ${doc.id} (ของ ${email || studentId})`);
+                        await doc.ref.update({
+                            boughtTickets: 0,
+                            usedTickets: 0
+                        });
+                        enrollCount++;
+                    }
+                }
+                logMsg(`รีเซ็ตใน Class Enrollments เสร็จสิ้น (จำนวน ${enrollCount} รายการ)`);
+                logMsg("===== ดำเนินการเสร็จสิ้นสมบูรณ์ =====");
+
+            } catch (error) {
+                logMsg(`ERROR: ${error.message}`);
+                console.error(error);
+            }
+            document.getElementById('btnReset').disabled = false;
+        });
+    </script>
+</body>
+</html>

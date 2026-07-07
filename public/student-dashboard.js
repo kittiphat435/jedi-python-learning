@@ -72,6 +72,16 @@ async function loadUserInfo(user, userRole) {
     try {
         const userDoc = await db.collection('users').doc(user.uid).get();
         const userData = userDoc.data();
+        
+        // Auto-patch email if missing (สำหรับคนที่ล็อกอินค้างไว้โดยไม่ได้ผ่านหน้า index.html)
+        if (!userData.email && user.email) {
+            await db.collection('users').doc(user.uid).update({
+                email: user.email,
+                photoURL: user.photoURL || null
+            });
+            userData.email = user.email; // อัปเดตใน memory ด้วย
+        }
+        
         const userInfo = document.querySelector('.user-info');
 
         // ปรับปรุงการแสดงผลข้อมูลสำหรับครู
