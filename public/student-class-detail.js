@@ -946,6 +946,91 @@ function viewProblem(problemId, type, isViewMode = false, isClosed = false) {
 
 let statsInterval;
 
+async function renderArcadeLeaderboard() {
+    const leaderboardContainer = document.getElementById('arcadeLeaderboardList');
+    if (!leaderboardContainer) return;
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const classId = urlParams.get('id');
+        if (!classId) return;
+
+        const enrollmentsSnapshot = await db.collection('class_enrollments').where('classId', '==', classId).get();
+        if (enrollmentsSnapshot.empty) {
+            leaderboardContainer.innerHTML = `<div style="text-align: center; color: #64748b; padding: 20px;">ยังไม่มีนักเรียนในห้องนี้</div>`;
+            return;
+        }
+
+        const studentIds = enrollmentsSnapshot.docs.map(doc => doc.data().studentId);
+        
+        // Split into chunks of 10 if we use 'in' operator, but here we can just use Promise.all
+        const studentPromises = studentIds.map(id => db.collection('users').doc(id).get());
+        const studentDocs = await Promise.all(studentPromises);
+
+        let leaderboardData = [];
+
+        studentDocs.forEach(doc => {
+            if (!doc.exists) return;
+            const data = doc.data();
+            const arcadeHighscores = data.arcadeHighscores || {};
+            
+            const tetrisScore = arcadeHighscores.tetris || 0;
+            const snakeScore = arcadeHighscores.snake || 0;
+            const dinoScore = arcadeHighscores.dino || 0;
+            const jumpScore = arcadeHighscores.jump || 0;
+            const totalScore = tetrisScore + snakeScore + dinoScore + jumpScore;
+
+            if (totalScore > 0) {
+                leaderboardData.push({
+                    name: data.name || 'นักเรียนลึกลับ',
+                    totalScore: totalScore,
+                    photoURL: data.photoURL || defaultAvatar
+                });
+            }
+        });
+
+        leaderboardData.sort((a, b) => b.totalScore - a.totalScore);
+
+        if (leaderboardData.length === 0) {
+            leaderboardContainer.innerHTML = `<div style="text-align: center; color: #64748b; padding: 20px;">ยังไม่มีใครเล่นเกมเพื่อสะสมคะแนนในห้องนี้</div>`;
+            return;
+        }
+
+        let html = `<div class="leaderboard-list">`;
+        
+        leaderboardData.forEach((student, index) => {
+            const rank = index + 1;
+            let rankClass = '';
+            let rankIcon = rank;
+            
+            if (rank === 1) {
+                rankClass = 'rank-1';
+                rankIcon = '👑';
+            } else if (rank === 2) {
+                rankClass = 'rank-2';
+            } else if (rank === 3) {
+                rankClass = 'rank-3';
+            }
+
+            html += `
+                <div class="leaderboard-item ${rankClass}">
+                    <div class="leaderboard-rank">${rankIcon}</div>
+                    <img src="${student.photoURL}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #fff;" onerror="this.src='${defaultAvatar}'">
+                    <div class="leaderboard-name">${student.name}</div>
+                    <div class="leaderboard-score">${student.totalScore} 🏆</div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        leaderboardContainer.innerHTML = html;
+
+    } catch (error) {
+        console.error("Error rendering arcade leaderboard:", error);
+        leaderboardContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">เกิดข้อผิดพลาดในการโหลดทำเนียบเซียน</div>`;
+    }
+}
+
 function startStatsUpdate(classId, userId) {
     // เคลียร์ interval เดิมถ้ามี
     if (statsInterval) {
@@ -1006,6 +1091,8 @@ function switchClassTab(tabName) {
 
     if (tabName === 'analysis') {
         renderSelfAnalysis();
+    } else if (tabName === 'arcade') {
+        renderArcadeLeaderboard();
     }
 }
 window.switchClassTab = switchClassTab;

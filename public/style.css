@@ -1,0 +1,78 @@
+
+/* Leaderboard Arcade Styles */
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    background: #f8fafc;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+
+.leaderboard-item:hover {
+    transform: translateY(-2px);
+}
+
+.leaderboard-rank {
+    font-size: 1.5em;
+    font-weight: bold;
+    width: 40px;
+    text-align: center;
+    color: #94a3b8;
+}
+
+.leaderboard-name {
+    flex-grow: 1;
+    font-weight: 600;
+    margin-left: 15px;
+    color: #334155;
+    font-size: 1.1em;
+}
+
+.leaderboard-score {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #0f172a;
+    background: #e2e8f0;
+    padding: 5px 12px;
+    border-radius: 20px;
+}
+
+/* Rank 1: Gold God Tier */
+.rank-1 {
+    background: linear-gradient(135deg, #fff9c4 0%, #ffeb3b 100%);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+    border: 2px solid #fbc531;
+    animation: goldGlow 2s infinite alternate;
+}
+.rank-1 .leaderboard-rank { color: #d4af37; font-size: 2em; text-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+.rank-1 .leaderboard-score { background: #fbc531; color: #fff; }
+
+/* Rank 2: Silver */
+.rank-2 {
+    background: linear-gradient(135deg, #f1f2f6 0%, #dfe4ea 100%);
+    border: 1px solid #ced6e0;
+}
+.rank-2 .leaderboard-rank { color: #747d8c; font-size: 1.8em; }
+.rank-2 .leaderboard-score { background: #a4b0be; color: #fff; }
+
+/* Rank 3: Bronze */
+.rank-3 {
+    background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+    border: 1px solid #e17055;
+}
+.rank-3 .leaderboard-rank { color: #d35400; font-size: 1.7em; }
+.rank-3 .leaderboard-score { background: #e17055; color: #fff; }
+
+@keyframes goldGlow {
+    0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.4); }
+}
+
