@@ -223,6 +223,7 @@
         let dropCounter = 0;
         let dropInterval = 1000; // Time in ms before piece drops automatically
         let lastTime = 0;
+        let lastSpeedUpTime = 0;
         let isPlaying = false;
         let isCheckingTicket = false; // ตัวแปรป้องกันการกดรัวๆ
 
@@ -290,7 +291,9 @@
                 if (!currentPiece) {
                     currentPiece = randomPiece();
                 }
-                update();
+                lastTime = performance.now();
+                lastSpeedUpTime = performance.now();
+                update(lastTime);
             } catch (error) {
                 console.error("Error checking tickets:", error);
                 alert("เกิดข้อผิดพลาดในการตรวจสอบตั๋ว");
@@ -494,6 +497,14 @@
             const deltaTime = time - lastTime;
             lastTime = time;
             dropCounter += deltaTime;
+
+            // เพิ่มความเร็วทุกๆ 30 วินาที
+            if (time - lastSpeedUpTime > 30000) {
+                if (dropInterval > 150) {
+                    dropInterval *= 0.85; // เร็วขึ้นประมาณ 15%
+                }
+                lastSpeedUpTime = time;
+            }
 
             if (dropCounter > dropInterval) {
                 drop();
