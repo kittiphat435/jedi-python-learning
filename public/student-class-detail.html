@@ -172,14 +172,26 @@
         <!-- Arcade Tab Content -->
         <div id="arcadeTabContent" class="tab-content" style="display: none;">
             <!-- Stats -->
-            <div class="stats" style="margin-bottom: 25px;">
+            <div class="stats" style="margin-bottom: 25px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                
+                <!-- Arcade Points Stat Card -->
+                <div class="stat-card" style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); color: #333; border: none; position: relative;">
+                    <div style="position: absolute; top: 5px; right: 10px; font-size: 1.5em;">🪙</div>
+                    <div id="arcadePoints" class="stat-number" style="color: #009432;">0</div>
+                    <div style="font-weight: bold; color: #006266; margin-bottom: 10px;">
+                        คะแนนวิถีเซียน
+                    </div>
+                    <button onclick="exchangeTicket()" id="exchangeBtn" style="background: #009432; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; transition: all 0.2s;">
+                        แลกตั๋ว (-10 คะแนน)
+                    </button>
+                </div>
+
                 <!-- Arcade Tickets Stat Card -->
-                <div class="stat-card" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #333; border: none; position: relative;" title="ทุกๆ 10 คะแนนแลกตั๋วได้ 1 ใบ">
+                <div class="stat-card" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #333; border: none; position: relative;" title="กดปุ่มแลกตั๋วเพื่อเพิ่มจำนวนตั๋ว">
                     <div style="position: absolute; top: 5px; right: 10px; font-size: 1.5em;">🎟️</div>
                     <div id="arcadeTickets" class="stat-number" style="color: #d35400;">0</div>
                     <div style="font-weight: bold; color: #b33900;">
-                        ตั๋วเล่นเกม 
-                        <span id="unclaimedPoints" style="font-size: 0.8em; font-weight: normal; color: #fff;">(เศษ 0/10)</span>
+                        ตั๋วเล่นเกมพร้อมใช้ 
                     </div>
                 </div>
 

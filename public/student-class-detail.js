@@ -449,7 +449,68 @@ async function playGame(gameName) {
         alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (10 คะแนน = 1 ตั๋ว)');
     }
 }
-window.playGame = playGame;
+// ฟังก์ชันแลกตั๋ว
+window.exchangeTicket = async function() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    
+    const btn = document.getElementById('exchangeBtn');
+    btn.disabled = true;
+    btn.textContent = "กำลังแลก...";
+    
+    try {
+        const elArcadePoints = document.getElementById('arcadePoints');
+        const elArcadeTickets = document.getElementById('arcadeTickets');
+        
+        let currentPoints = parseInt(elArcadePoints.textContent) || 0;
+        
+        if (currentPoints < 10) {
+            alert('คะแนนวิถีเซียนไม่พอ! (ต้องการ 10 คะแนน ต่อ 1 ตั๋ว)');
+            btn.disabled = false;
+            btn.textContent = "แลกตั๋ว (-10 คะแนน)";
+            return;
+        }
+        
+        // อัปเดตใน Firebase
+        const userRef = db.collection('users').doc(user.uid);
+        await userRef.update({
+            boughtTickets: firebase.firestore.FieldValue.increment(1)
+        });
+        
+        // แอนิเมชันตัวเลขลด-เพิ่ม
+        let tickets = parseInt(elArcadeTickets.textContent) || 0;
+        
+        elArcadePoints.style.transition = "transform 0.3s";
+        elArcadePoints.style.transform = "scale(1.5)";
+        elArcadePoints.style.color = "#e74c3c"; // สีแดงตอนลด
+        
+        setTimeout(() => {
+            elArcadePoints.textContent = currentPoints - 10;
+            elArcadePoints.style.transform = "scale(1)";
+            elArcadePoints.style.color = "#009432";
+            
+            elArcadeTickets.style.transition = "transform 0.3s";
+            elArcadeTickets.style.transform = "scale(1.5)";
+            elArcadeTickets.style.color = "#2ecc71"; // สีเขียวตอนเพิ่ม
+            
+            setTimeout(() => {
+                elArcadeTickets.textContent = tickets + 1;
+                elArcadeTickets.style.transform = "scale(1)";
+                elArcadeTickets.style.color = "#d35400";
+                
+                btn.disabled = false;
+                btn.textContent = "แลกตั๋ว (-10 คะแนน)";
+            }, 300);
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error exchanging ticket:', error);
+        alert('เกิดข้อผิดพลาดในการแลกตั๋ว กรุณาลองใหม่');
+        btn.disabled = false;
+        btn.textContent = "แลกตั๋ว (-10 คะแนน)";
+    }
+}
+
         });
         
         allProblems = problemsData;
@@ -681,23 +742,24 @@ async function loadStats(classId, userId) {
         document.getElementById('totalScore').textContent = `${totalScore}/${totalMaxScore}`;
         document.getElementById('scorePercentage').textContent = `(${scorePercentage}%)`;
 
-        // คำนวณและแสดงตั๋ว Arcade (ทุกๆ 10 คะแนน = 1 ตั๋ว)
-        const totalEarnedTickets = Math.floor(totalScore / 10);
-        const unclaimedPoints = totalScore % 10;
-        
-        // ดึงข้อมูล usedTickets และคะแนนเกม จาก Firebase users
+        // คำนวณตั๋วและคะแนน Arcade
+        // ดึงข้อมูล boughtTickets, usedTickets และคะแนนเกม จาก Firebase users
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.exists ? userDoc.data() : {};
+        const boughtTickets = userData.boughtTickets || 0;
         const usedTickets = userData.usedTickets || 0;
         
-        // ตั๋วที่เหลือใช้ได้จริงๆ = ตั๋วที่ได้ทั้งหมด - ตั๋วที่ใช้ไปแล้ว
-        const availableTickets = Math.max(0, totalEarnedTickets - usedTickets);
+        // คะแนนวิถีเซียน = คะแนนห้องเรียนทั้งหมด - (ตั๋วที่แลกไปแล้ว * 10)
+        const arcadePoints = Math.max(0, totalScore - (boughtTickets * 10));
+        
+        // ตั๋วที่เหลือใช้ได้จริงๆ = ตั๋วที่แลกมา - ตั๋วที่ใช้ไปแล้ว
+        const availableTickets = Math.max(0, boughtTickets - usedTickets);
+        
+        const elArcadePoints = document.getElementById('arcadePoints');
+        if (elArcadePoints) elArcadePoints.textContent = `${arcadePoints}`;
         
         const elArcadeTickets = document.getElementById('arcadeTickets');
         if (elArcadeTickets) elArcadeTickets.textContent = `${availableTickets}`;
-        
-        const elUnclaimedPoints = document.getElementById('unclaimedPoints');
-        if (elUnclaimedPoints) elUnclaimedPoints.textContent = `(เศษ ${unclaimedPoints}/10)`;
         
         // โหลด Highscore และรวมคะแนน
         const arcadeHighscores = userData.arcadeHighscores || {};
@@ -735,10 +797,10 @@ async function loadStats(classId, userId) {
 
     } catch (error) {
         console.error("Error loading stats:", error);
+        const elArcadePoints = document.getElementById('arcadePoints');
+        if (elArcadePoints) elArcadePoints.textContent = '0';
         const elArcadeTickets = document.getElementById('arcadeTickets');
         if (elArcadeTickets) elArcadeTickets.textContent = '0';
-        const elUnclaimedPoints = document.getElementById('unclaimedPoints');
-        if (elUnclaimedPoints) elUnclaimedPoints.textContent = '(เศษ 0/10)';
     }
 }
 
