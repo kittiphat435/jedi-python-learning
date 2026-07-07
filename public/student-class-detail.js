@@ -982,7 +982,7 @@ async function renderArcadeLeaderboard() {
 
             if (totalScore > 0) {
                 leaderboardData.push({
-                    name: data.name || 'นักเรียนลึกลับ',
+                    name: data.displayName || data.email || 'นักเรียนลึกลับ',
                     totalScore: totalScore,
                     photoURL: data.photoURL || defaultAvatar
                 });
