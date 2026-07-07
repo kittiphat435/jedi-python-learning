@@ -87,6 +87,24 @@ def static_check(code):
         'sleep', 'time', 'now', 'today', 'timedelta',
         '__init__', '__str__', '__repr__', '__dict__', '__name__', '__doc__'
     }
+    
+    valid_kwargs = {
+        'text', 'textvariable', 'command', 'fg', 'bg', 'font', 'width', 'height',
+        'value', 'variable', 'onvalue', 'offvalue', 'show', 'state', 'relief', 'bd', 'borderwidth',
+        'justify', 'anchor', 'padx', 'pady', 'image', 'compound', 'cursor', 'activebackground',
+        'activeforeground', 'disabledforeground', 'highlightbackground', 'highlightcolor',
+        'highlightthickness', 'takefocus', 'selectcolor', 'orient', 'length', 'sliderlength',
+        'from_', 'to', 'resolution', 'tickinterval', 'digits', 'label', 'wrap', 'menu',
+        'tearoff', 'postcommand', 'side', 'fill', 'expand', 'row', 'column', 'rowspan',
+        'columnspan', 'sticky', 'ipadx', 'ipady', 'in_', 'x', 'y', 'relx', 'rely', 'relwidth',
+        'relheight', 'bordermode', 'title', 'geometry', 'resizable', 'minsize', 'maxsize',
+        'iconbitmap', 'top', 'bottom', 'left', 'right', 'center', 'nw', 'n', 'ne', 'w', 'e',
+        'sw', 's', 'se', 'flat', 'sunken', 'raised', 'groove', 'ridge', 'solid',
+        'end', 'insert', 'current', 'all', 'normal', 'disabled', 'active',
+        'color', 'size', 'family', 'weight', 'slant', 'underline', 'overstrike',
+        'master', 'class_', 'visual', 'colormap', 'use', 'name',
+        'sep', 'file', 'flush'
+    }
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
@@ -97,6 +115,11 @@ def static_check(code):
                 for body_node in node.body:
                     if isinstance(body_node, ast.FunctionDef):
                         valid_attributes.add(body_node.name)
+            elif isinstance(node, ast.FunctionDef):
+                for arg in node.args.args:
+                    valid_kwargs.add(arg.arg)
+                for arg in getattr(node.args, 'kwonlyargs', []):
+                    valid_kwargs.add(arg.arg)
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 defined_names.add(alias.asname or alias.name)
@@ -122,6 +145,11 @@ def static_check(code):
         elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
             if node.attr not in valid_attributes:
                 undefined.append({"error": True, "type": "AttributeError", "name": node.attr, "line": node.lineno})
+        elif isinstance(node, ast.Call):
+            for kw in node.keywords:
+                if kw.arg and kw.arg not in valid_kwargs:
+                    # kw.value.lineno is safe to use in Python 3.8+
+                    undefined.append({"error": True, "type": "KeywordError", "name": kw.arg, "line": kw.value.lineno})
                 
     if undefined:
         undefined.sort(key=lambda x: x["line"])
@@ -414,6 +442,10 @@ function translatePythonErrorToThai(errString, fullErrString = "", code = "") {
         let attrMatch = errString.match(/attribute '([^']+)'/);
         let attr = attrMatch ? `'${attrMatch[1]}'` : "ความสามารถ (method/attribute)";
         message = lineText + `มีการเรียกใช้ ${attr} ที่ไม่มีอยู่จริงในตัวแปรนี้ (อาจจะพิมพ์ผิด)`;
+    } else if (errString.includes("KeywordError")) {
+        let kwMatch = errString.match(/name '([^']+)'/);
+        let kw = kwMatch ? `'${kwMatch[1]}'` : "พารามิเตอร์ (keyword)";
+        message = lineText + `มีการกำหนดค่าให้ ${kw} ซึ่งไม่มีอยู่จริงในคำสั่งนี้ (อาจจะพิมพ์ผิด เช่น พิมพ์ textvar แทน textvariable)`;
     } else if (errString.includes("ModuleNotFoundError") || errString.includes("ImportError")) {
         message = lineText + "ไม่พบไลบรารีที่ต้องการ import โปรดตรวจสอบการสะกดชื่อไลบรารีอีกครั้ง";
     }
