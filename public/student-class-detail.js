@@ -408,109 +408,7 @@ async function loadProblems(classId, userId) {
             // Fallback
             const timeA = a.addedAt ? a.addedAt.seconds : 0;
             const timeB = b.addedAt ? b.addedAt.seconds : 0;
-            return Math.max(0, 100 - totalPenalty);
-}
-
-// ฟังก์ชันควบคุม Arcade Room (ไม่ใช้ Modal แล้ว)
-async function playGame(gameName) {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-    
-    // ดึงจำนวนตั๋วปัจจุบันที่แสดงอยู่บนหน้าเว็บ
-    const ticketText = document.getElementById('arcadeTickets').textContent;
-    const availableTickets = parseInt(ticketText) || 0;
-    
-    if (availableTickets > 0) {
-        try {
-            // ดึงข้อมูล user ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
-            const userRef = db.collection('users').doc(user.uid);
-            const userDoc = await userRef.get();
-            const usedTickets = userDoc.exists ? (userDoc.data().usedTickets || 0) : 0;
-            
-            // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
-            await userRef.update({
-                usedTickets: usedTickets + 1
-            });
-            
-            // อัปเดต UI แบบ Real-time
-            const newAvailable = availableTickets - 1;
-            document.getElementById('arcadeTickets').textContent = `${newAvailable}`;
-            
-            alert(`หัก 1 ตั๋วสำเร็จ!\nตั๋วคงเหลือ: ${newAvailable} ใบ\n\nกำลังเข้าสู่เกม ${gameName}...`);
-            
-            // เปิดเกมในหน้าเดียวกันเลย
-            window.location.href = `game-${gameName}.html`;
-            
-        } catch (error) {
-            console.error('Error updating tickets:', error);
-            alert('เกิดข้อผิดพลาดในการหักตั๋ว กรุณาลองใหม่');
-        }
-    } else {
-        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (10 คะแนน = 1 ตั๋ว)');
-    }
-}
-// ฟังก์ชันแลกตั๋ว
-window.exchangeTicket = async function() {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-    
-    const btn = document.getElementById('exchangeBtn');
-    btn.disabled = true;
-    btn.textContent = "กำลังแลก...";
-    
-    try {
-        const elArcadePoints = document.getElementById('arcadePoints');
-        const elArcadeTickets = document.getElementById('arcadeTickets');
-        
-        let currentPoints = parseInt(elArcadePoints.textContent) || 0;
-        
-        if (currentPoints < 10) {
-            alert('คะแนนวิถีเซียนไม่พอ! (ต้องการ 10 คะแนน ต่อ 1 ตั๋ว)');
-            btn.disabled = false;
-            btn.textContent = "แลกตั๋ว (-10 คะแนน)";
-            return;
-        }
-        
-        // อัปเดตใน Firebase
-        const userRef = db.collection('users').doc(user.uid);
-        await userRef.update({
-            boughtTickets: firebase.firestore.FieldValue.increment(1)
-        });
-        
-        // แอนิเมชันตัวเลขลด-เพิ่ม
-        let tickets = parseInt(elArcadeTickets.textContent) || 0;
-        
-        elArcadePoints.style.transition = "transform 0.3s";
-        elArcadePoints.style.transform = "scale(1.5)";
-        elArcadePoints.style.color = "#e74c3c"; // สีแดงตอนลด
-        
-        setTimeout(() => {
-            elArcadePoints.textContent = currentPoints - 10;
-            elArcadePoints.style.transform = "scale(1)";
-            elArcadePoints.style.color = "#009432";
-            
-            elArcadeTickets.style.transition = "transform 0.3s";
-            elArcadeTickets.style.transform = "scale(1.5)";
-            elArcadeTickets.style.color = "#2ecc71"; // สีเขียวตอนเพิ่ม
-            
-            setTimeout(() => {
-                elArcadeTickets.textContent = tickets + 1;
-                elArcadeTickets.style.transform = "scale(1)";
-                elArcadeTickets.style.color = "#d35400";
-                
-                btn.disabled = false;
-                btn.textContent = "แลกตั๋ว (-10 คะแนน)";
-            }, 300);
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error exchanging ticket:', error);
-        alert('เกิดข้อผิดพลาดในการแลกตั๋ว กรุณาลองใหม่');
-        btn.disabled = false;
-        btn.textContent = "แลกตั๋ว (-10 คะแนน)";
-    }
-}
-
+            return timeA - timeB;
         });
         
         allProblems = problemsData;
@@ -1381,3 +1279,105 @@ async function renderSelfAnalysis() {
         `;
     }
 }
+
+// ฟังก์ชันควบคุม Arcade Room (ไม่ใช้ Modal แล้ว)
+async function playGame(gameName) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    
+    // ดึงจำนวนตั๋วปัจจุบันที่แสดงอยู่บนหน้าเว็บ
+    const ticketText = document.getElementById('arcadeTickets').textContent;
+    const availableTickets = parseInt(ticketText) || 0;
+    
+    if (availableTickets > 0) {
+        try {
+            // ดึงข้อมูล user ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
+            const userRef = db.collection('users').doc(user.uid);
+            const userDoc = await userRef.get();
+            const usedTickets = userDoc.exists ? (userDoc.data().usedTickets || 0) : 0;
+            
+            // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
+            await userRef.update({
+                usedTickets: usedTickets + 1
+            });
+            
+            // อัปเดต UI แบบ Real-time
+            const newAvailable = availableTickets - 1;
+            document.getElementById('arcadeTickets').textContent = `${newAvailable}`;
+            
+            alert(`หัก 1 ตั๋วสำเร็จ!\nตั๋วคงเหลือ: ${newAvailable} ใบ\n\nกำลังเข้าสู่เกม ${gameName}...`);
+            
+            // เปิดเกมในหน้าเดียวกันเลย
+            window.location.href = `game-${gameName}.html`;
+            
+        } catch (error) {
+            console.error('Error updating tickets:', error);
+            alert('เกิดข้อผิดพลาดในการหักตั๋ว กรุณาลองใหม่');
+        }
+    } else {
+        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (10 คะแนน = 1 ตั๋ว)');
+    }
+}
+window.playGame = playGame;
+
+// ฟังก์ชันแลกตั๋ว
+window.exchangeTicket = async function() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    
+    const btn = document.getElementById('exchangeBtn');
+    btn.disabled = true;
+    btn.textContent = "กำลังแลก...";
+    
+    try {
+        const elArcadePoints = document.getElementById('arcadePoints');
+        const elArcadeTickets = document.getElementById('arcadeTickets');
+        
+        let currentPoints = parseInt(elArcadePoints.textContent) || 0;
+        
+        if (currentPoints < 10) {
+            alert('คะแนนวิถีเซียนไม่พอ! (ต้องการ 10 คะแนน ต่อ 1 ตั๋ว)');
+            btn.disabled = false;
+            btn.textContent = "แลกตั๋ว (-10 คะแนน)";
+            return;
+        }
+        
+        // อัปเดตใน Firebase
+        const userRef = db.collection('users').doc(user.uid);
+        await userRef.update({
+            boughtTickets: firebase.firestore.FieldValue.increment(1)
+        });
+        
+        // แอนิเมชันตัวเลขลด-เพิ่ม
+        let tickets = parseInt(elArcadeTickets.textContent) || 0;
+        
+        elArcadePoints.style.transition = "transform 0.3s";
+        elArcadePoints.style.transform = "scale(1.5)";
+        elArcadePoints.style.color = "#e74c3c"; // สีแดงตอนลด
+        
+        setTimeout(() => {
+            elArcadePoints.textContent = currentPoints - 10;
+            elArcadePoints.style.transform = "scale(1)";
+            elArcadePoints.style.color = "#009432";
+            
+            elArcadeTickets.style.transition = "transform 0.3s";
+            elArcadeTickets.style.transform = "scale(1.5)";
+            elArcadeTickets.style.color = "#2ecc71"; // สีเขียวตอนเพิ่ม
+            
+            setTimeout(() => {
+                elArcadeTickets.textContent = tickets + 1;
+                elArcadeTickets.style.transform = "scale(1)";
+                elArcadeTickets.style.color = "#d35400";
+                
+                btn.disabled = false;
+                btn.textContent = "แลกตั๋ว (-10 คะแนน)";
+            }, 300);
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error exchanging ticket:', error);
+        alert('เกิดข้อผิดพลาดในการแลกตั๋ว กรุณาลองใหม่');
+        btn.disabled = false;
+        btn.textContent = "แลกตั๋ว (-10 คะแนน)";
+    }
+}
