@@ -20,6 +20,80 @@ function compareText(actual, expected) {
     return normalizeText(actual) === normalizeText(expected);
 }
 
+function translatePythonErrorToThai(errString, code = "") {
+    let message = errString;
+    let textToMatch = errString;
+    
+    // Extract line number specifically from the user's executed code
+    let lineMatch = textToMatch.match(/File\s+"(?:<exec>|<string>|<module>)",\s+line\s+(\d+)/i);
+    if (!lineMatch) {
+        // Fallback: search for the last occurrence of line \d+ in case it's formatted differently
+        let allLineMatches = [...textToMatch.matchAll(/line\s+(\d+)/gi)];
+        if (allLineMatches.length > 0) {
+            lineMatch = allLineMatches[allLineMatches.length - 1];
+        }
+    }
+    
+    let lineNum = lineMatch ? parseInt(lineMatch[1]) : 0;
+    
+    // ชดเชยบรรทัดที่เพิ่มมาจาก wrapperCode
+    // ใน runCode() และ testCode() เราใช้:
+    // import base64
+    // user_code = base64.b64decode...
+    // try:
+    //     exec(user_code, {})
+    // เราสั่ง exec ในบรรทัดเดียวกันกับโค้ดนักเรียน หรือมันรันผ่าน exec จะนับบรรทัดของโค้ดใหม่เริ่มที่ 1
+    // ดังนั้นบรรทัดน่าจะตรงอยู่แล้ว
+    let lineText = lineNum > 0 ? `บรรทัดที่ ${lineNum} ` : "ในโค้ด ";
+    
+    let codeSnippet = "";
+    if (lineNum > 0 && code) {
+        let lines = code.split('\n');
+        if (lineNum <= lines.length) {
+            let errorLine = lines[lineNum - 1].trim();
+            if (errorLine) {
+                codeSnippet = `\n[ คำสั่งที่พบปัญหา: "${errorLine}" ]\n`;
+            }
+        }
+    }
+
+    if (errString.includes("SyntaxError")) {
+        message = lineText + "มีการเขียนโค้ดผิดไวยากรณ์ (เช่น ลืมใส่เครื่องหมาย : ลืมวงเล็บ หรือพิมพ์คำสั่งผิด)";
+    } else if (errString.includes("IndentationError") || errString.includes("TabError")) {
+        message = lineText + "มีการเยื้อง/ย่อหน้า (Space/Tab) ไม่ถูกต้อง โปรดตรวจสอบการเคาะเว้นวรรค";
+    } else if (errString.includes("NameError")) {
+        let nameMatch = errString.match(/name '([^']+)' is not defined/);
+        let name = nameMatch ? `'${nameMatch[1]}'` : "ตัวแปร";
+        message = lineText + `มีการเรียกใช้ ${name} ซึ่งยังไม่ได้กำหนดค่า (อาจจะพิมพ์ผิด หรือลืมสร้างตัวแปรก่อนเรียกใช้)`;
+    } else if (errString.includes("invalid literal for int()") || (errString.includes("TypeError") && errString.includes("can only concatenate str"))) {
+        message = lineText + "ไม่สามารถแปลงข้อความเป็นตัวเลขได้ หรือมีการนำข้อความ (str) ไปคำนวณร่วมกับตัวเลข (int)";
+    } else if (errString.includes("TypeError")) {
+        message = lineText + "มีการใช้งานชนิดข้อมูลผิดประเภท (เช่น เอาตัวเลขไปบวกกับข้อความ)";
+    } else if (errString.includes("ValueError")) {
+        message = lineText + "มีการใส่ค่าข้อมูลที่ไม่ถูกต้อง (เช่น พยายามแปลงข้อความภาษาอังกฤษเป็นตัวเลข)";
+    } else if (errString.includes("IndexError")) {
+        message = lineText + "มีการอ้างอิงตำแหน่งใน List เกินจำนวนข้อมูลที่มีอยู่จริง";
+    } else if (errString.includes("KeyError")) {
+        let keyMatch = errString.match(/KeyError:\s*'([^']+)'/);
+        let key = keyMatch ? `'${keyMatch[1]}'` : "Key";
+        message = lineText + `มีการเรียกใช้ ${key} ใน Dictionary ที่ไม่มีอยู่จริง`;
+    } else if (errString.includes("ZeroDivisionError")) {
+        message = lineText + "มีการหารด้วย 0 ซึ่งไม่สามารถทำได้ในทางคณิตศาสตร์";
+    } else if (errString.includes("AttributeError")) {
+        let attrMatch = errString.match(/attribute '([^']+)'/);
+        let attr = attrMatch ? `'${attrMatch[1]}'` : "ความสามารถ (method/attribute)";
+        message = lineText + `มีการเรียกใช้ ${attr} ที่ไม่มีอยู่จริงในตัวแปรนี้ (อาจจะพิมพ์ผิด)`;
+    } else if (errString.includes("ModuleNotFoundError") || errString.includes("ImportError")) {
+        message = lineText + "ไม่พบไลบรารีที่ต้องการ import โปรดตรวจสอบการสะกดชื่อไลบรารีอีกครั้ง";
+    }
+
+    if (codeSnippet && message !== errString) {
+        message += codeSnippet;
+    }
+
+    return message;
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyDWiPuk0WP9z5_mjDe1FkqeVZ-vcYClyLs",
     authDomain: "python-learning-platform-596e1.firebaseapp.com",
@@ -451,6 +525,10 @@ async function runCode() {
                         const data = await response.json();
                         let rawOutput = data.output ? data.output.replace(/\r\n/g, '\n') : '';
                         
+                        if (data.status === 'error') {
+                            rawOutput = translatePythonErrorToThai(rawOutput, code);
+                        }
+                        
                         renderOutput(rawOutput, inputs);
 
                         if (currentInputIndex < inputCount) {
@@ -484,11 +562,17 @@ async function runCode() {
             });
 
             const data = await response.json();
+            
+            let finalOutput = data.output ? data.output.trim() : '';
+            if (data.status === 'error') {
+                finalOutput = translatePythonErrorToThai(finalOutput, code);
+            }
+            
             // แสดงผลลัพธ์
             testResults.innerHTML = `
                 <div class="python-console">
                     <div class="console-output">
-                        <div class="output-line">${data.output.trim()}</div>
+                        <div class="output-line" style="white-space: pre-wrap;">${finalOutput}</div>
                     </div>
                 </div>
             `;
@@ -692,7 +776,7 @@ async function testCode() {
 
                 // จัดการค่าที่จะแสดงใน UI
                 if (isError) {
-                    actualOutput = actualOutputRaw || 'Error occurred';
+                    actualOutput = translatePythonErrorToThai(actualOutputRaw || 'Error occurred', code);
                 } else if (!outputCorrect) {
                     actualOutput = slicedActual || actualOutputRaw || '';
                 } else {

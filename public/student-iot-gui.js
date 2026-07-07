@@ -58,6 +58,77 @@ const config = {
     GUI_API: 'https://ipo4d7d76xyk2he5llc4ym22nq0yosht.lambda-url.ap-southeast-2.on.aws/'
 };
 
+const STATIC_CHECK_PYTHON_CODE = `
+import ast
+
+def static_check(code):
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return [{"error": True, "type": "SyntaxError", "line": e.lineno}]
+
+    defined_names = set(['print', 'len', 'range', 'int', 'float', 'str', 'bool', 'list', 'dict', 'set', 'tuple', 'abs', 'round', 'min', 'max', 'sum', 'sorted', 'reversed', 'map', 'filter', 'zip', 'enumerate', 'input', 'open', 'math', 'time', 'random', 'tkinter', 'ttk', 'mqtt', 'StringVar', 'IntVar'])
+    valid_attributes = {
+        'pack', 'grid', 'place', 'config', 'configure', 'cget', 'destroy', 'bind', 'mainloop', 
+        'title', 'geometry', 'get', 'set', 'insert', 'delete', 'invoke', 'select', 'deselect',
+        'update', 'update_idletasks', 'focus', 'focus_set', 'grab_set', 'quit', 'wm_title', 'wm_geometry',
+        'resizable', 'minsize', 'maxsize', 'withdraw', 'deiconify', 'state', 'attributes', 'iconbitmap',
+        'pack_forget', 'grid_forget', 'place_forget', 'pack_propagate', 'grid_propagate',
+        'after', 'after_cancel', 'bell', 'clipboard_get', 'clipboard_clear', 'clipboard_append',
+        'winfo_width', 'winfo_height', 'winfo_reqwidth', 'winfo_reqheight', 'winfo_x', 'winfo_y',
+        'winfo_rootx', 'winfo_rooty', 'winfo_exists', 'winfo_children', 'winfo_parent', 'winfo_toplevel',
+        'upper', 'lower', 'strip', 'lstrip', 'rstrip', 'split', 'rsplit', 'replace', 'format', 
+        'join', 'startswith', 'endswith', 'find', 'rfind', 'index', 'rindex', 'count', 
+        'isdigit', 'isalpha', 'isalnum', 'islower', 'isupper', 'isspace', 'capitalize', 'zfill',
+        'append', 'extend', 'pop', 'remove', 'clear', 'copy', 'sort', 'reverse',
+        'keys', 'values', 'items',
+        'pi', 'e', 'sin', 'cos', 'tan', 'sqrt', 'pow', 'log', 'log10', 'ceil', 'floor', 'trunc', 'radians', 'degrees',
+        'randint', 'choice', 'shuffle', 'random', 'uniform', 'randrange',
+        'sleep', 'time', 'now', 'today', 'timedelta',
+        '__init__', '__str__', '__repr__', '__dict__', '__name__', '__doc__'
+    }
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            defined_names.add(node.id)
+        elif isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)):
+            defined_names.add(node.name)
+            if isinstance(node, ast.ClassDef):
+                for body_node in node.body:
+                    if isinstance(body_node, ast.FunctionDef):
+                        valid_attributes.add(body_node.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                defined_names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != '*':
+                    defined_names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.arg):
+            defined_names.add(node.arg)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            defined_names.add(node.name)
+        elif isinstance(node, ast.Global):
+            for name in node.names:
+                defined_names.add(name)
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+            valid_attributes.add(node.attr)
+
+    undefined = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            if node.id not in defined_names:
+                undefined.append({"error": True, "type": "NameError", "name": node.id, "line": node.lineno})
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+            if node.attr not in valid_attributes:
+                undefined.append({"error": True, "type": "AttributeError", "name": node.attr, "line": node.lineno})
+                
+    if undefined:
+        undefined.sort(key=lambda x: x["line"])
+        return [undefined[0]]
+    return []
+`;
+
 // Add link to external CSS file
 function loadCSS() {
     const link = document.createElement('link');
@@ -98,6 +169,10 @@ class WidgetBase:
     def config(self, **kwargs):
         self.props.update(kwargs)
         gui_elements[self.id]["props"].update(kwargs)
+    configure = config
+    def cget(self, key): return self.props.get(key)
+    def destroy(self): pass
+    def bind(self, sequence=None, func=None, add=None): pass
     def invoke(self):
         if callable(self.command_func): self.command_func()
     def get(self): return self.props.get('value', '')
@@ -285,8 +360,75 @@ async function initPyodide() {
     }
 }
 
+function translatePythonErrorToThai(errString, fullErrString = "", code = "") {
+    let message = errString;
+    let textToMatch = fullErrString || errString;
+    
+    // Extract line number specifically from the user's executed code
+    let lineMatch = textToMatch.match(/File\s+"(?:<exec>|<string>|<module>)",\s+line\s+(\d+)/i);
+    if (!lineMatch) {
+        // Fallback: search for the last occurrence of line \d+ in case it's formatted differently
+        let allLineMatches = [...textToMatch.matchAll(/line\s+(\d+)/gi)];
+        if (allLineMatches.length > 0) {
+            lineMatch = allLineMatches[allLineMatches.length - 1];
+        }
+    }
+    
+    let lineNum = lineMatch ? parseInt(lineMatch[1]) : 0;
+    let lineText = lineNum > 0 ? `บรรทัดที่ ${lineNum} ` : "ในโค้ด ";
+    
+    let codeSnippet = "";
+    if (lineNum > 0 && code) {
+        let lines = code.split('\n');
+        if (lineNum <= lines.length) {
+            let errorLine = lines[lineNum - 1].trim();
+            if (errorLine) {
+                codeSnippet = `\n[ คำสั่งที่พบปัญหา: "${errorLine}" ]\n`;
+            }
+        }
+    }
+
+    if (errString.includes("SyntaxError")) {
+        message = lineText + "มีการเขียนโค้ดผิดไวยากรณ์ (เช่น ลืมใส่เครื่องหมาย : ลืมวงเล็บ หรือพิมพ์คำสั่งผิด)";
+    } else if (errString.includes("IndentationError") || errString.includes("TabError")) {
+        message = lineText + "มีการเยื้อง/ย่อหน้า (Space/Tab) ไม่ถูกต้อง โปรดตรวจสอบการเคาะเว้นวรรค";
+    } else if (errString.includes("NameError")) {
+        let nameMatch = errString.match(/name '([^']+)' is not defined/);
+        let name = nameMatch ? `'${nameMatch[1]}'` : "ตัวแปร";
+        message = lineText + `มีการเรียกใช้ ${name} ซึ่งยังไม่ได้กำหนดค่า (อาจจะพิมพ์ผิด หรือลืมสร้างตัวแปรก่อนเรียกใช้)`;
+    } else if (errString.includes("invalid literal for int()") || (errString.includes("TypeError") && errString.includes("can only concatenate str"))) {
+        message = lineText + "ไม่สามารถแปลงข้อความเป็นตัวเลขได้ หรือมีการนำข้อความ (str) ไปคำนวณร่วมกับตัวเลข (int)";
+    } else if (errString.includes("TypeError")) {
+        message = lineText + "มีการใช้งานชนิดข้อมูลผิดประเภท (เช่น เอาตัวเลขไปบวกกับข้อความ)";
+    } else if (errString.includes("ValueError")) {
+        message = lineText + "มีการใส่ค่าข้อมูลที่ไม่ถูกต้อง (เช่น พยายามแปลงข้อความภาษาอังกฤษเป็นตัวเลข)";
+    } else if (errString.includes("IndexError")) {
+        message = lineText + "มีการอ้างอิงตำแหน่งใน List เกินจำนวนข้อมูลที่มีอยู่จริง";
+    } else if (errString.includes("KeyError")) {
+        let keyMatch = errString.match(/KeyError:\s*'([^']+)'/);
+        let key = keyMatch ? `'${keyMatch[1]}'` : "Key";
+        message = lineText + `มีการเรียกใช้ ${key} ใน Dictionary ที่ไม่มีอยู่จริง`;
+    } else if (errString.includes("ZeroDivisionError")) {
+        message = lineText + "มีการหารด้วย 0 ซึ่งไม่สามารถทำได้ในทางคณิตศาสตร์";
+    } else if (errString.includes("AttributeError")) {
+        let attrMatch = errString.match(/attribute '([^']+)'/);
+        let attr = attrMatch ? `'${attrMatch[1]}'` : "ความสามารถ (method/attribute)";
+        message = lineText + `มีการเรียกใช้ ${attr} ที่ไม่มีอยู่จริงในตัวแปรนี้ (อาจจะพิมพ์ผิด)`;
+    } else if (errString.includes("ModuleNotFoundError") || errString.includes("ImportError")) {
+        message = lineText + "ไม่พบไลบรารีที่ต้องการ import โปรดตรวจสอบการสะกดชื่อไลบรารีอีกครั้ง";
+    }
+
+    if (codeSnippet && message !== errString) {
+        message += codeSnippet;
+    }
+
+    // ถ้าแปลแล้ว ให้แนบ Original Error ไปด้านหลังด้วย เพื่อให้คุณครูหรือนักเรียนดูประกอบได้ (ถ้าต้องการ)
+    // แต่ถ้าอยากให้สั้นๆ ก็ส่งแค่ข้อความที่แปลแล้ว
+    return message;
+}
+
 // ฟังก์ชันช่วยกรอง Error ของ Pyodide
-function formatPyodideError(err) {
+function formatPyodideError(err, code = "") {
     const errString = String(err);
     if (errString.includes('PythonError:')) {
         const lines = errString.split('\n');
@@ -296,9 +438,14 @@ function formatPyodideError(err) {
             !line.includes('PythonError:') &&
             !line.includes('<exec>')
         );
-        return relevantLines.join('\n').trim();
+        let filteredErr = relevantLines.join('\n').trim();
+        // ถ้ากรองจนไม่เหลืออะไร ให้ใช้ error ตัวเต็ม
+        if (!filteredErr) filteredErr = errString; 
+        
+        // ส่งข้อความไปแปล
+        return translatePythonErrorToThai(filteredErr, errString, code) + "\n\n(Original Error: " + errString.split('\n').pop() + ")";
     }
-    return errString;
+    return translatePythonErrorToThai(errString, errString, code);
 }
 
 // ฟังก์ชันเช็ค Syntax แบบ Hybrid (PC ใช้ Pyodide, มือถือใช้ AWS)
@@ -314,15 +461,29 @@ async function checkSyntax_Hybrid(code) {
     // 2. ถ้าเป็น PC -> ใช้ Pyodide (เร็วและฟรี)
     updateStatusUI("💻 Checking on PC...", "pyodide");
     try {
-        // ใช้ compile() เพื่อเช็ค Syntax โดยไม่ต้องรันจริง
-        pyodideInstance.runPython(`compile(${JSON.stringify(code)}, '<string>', 'exec')`);
+        // ให้รันโค้ดจริงๆ ใน Pyodide เพื่อดักจับ Runtime Error (เช่น NameError)
+        // ปลอดภัยเพราะระบบมีการ Mock Tkinter ไว้แล้ว
+        await pyodideInstance.runPythonAsync(code);
+
+        // เพิ่มการตรวจจับตัวแปรที่พิมพ์ผิดในฟังก์ชัน (Static Analysis) ที่ยังไม่ถูกรัน
+        pyodideInstance.globals.set("student_code_to_check", code);
+        const staticResultStr = await pyodideInstance.runPythonAsync(STATIC_CHECK_PYTHON_CODE);
+        const staticResult = JSON.parse(staticResultStr);
+        if (staticResult.error) {
+            if (staticResult.type === "AttributeError") {
+                throw new Error(`PythonError: Traceback (most recent call last):\n  File "<exec>", line ${staticResult.line}, in <module>\nAttributeError: 'Unknown' object has no attribute '${staticResult.name}'`);
+            } else {
+                throw new Error(`PythonError: Traceback (most recent call last):\n  File "<exec>", line ${staticResult.line}, in <module>\nNameError: name '${staticResult.name}' is not defined`);
+            }
+        }
+
         updateStatusUI("✅ Ready (PC)", "pyodide");
         return { status: 'success' };
     } catch (err) {
         updateStatusUI("✅ Ready (PC)", "pyodide");
         return {
             status: 'error',
-            message: formatPyodideError(err)
+            message: formatPyodideError(err, code)
         };
     }
 }
