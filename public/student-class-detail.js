@@ -446,7 +446,7 @@ async function playGame(gameName) {
             alert('เกิดข้อผิดพลาดในการหักตั๋ว กรุณาลองใหม่');
         }
     } else {
-        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (5 คะแนน = 1 ตั๋ว)');
+        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (10 คะแนน = 1 ตั๋ว)');
     }
 }
 window.playGame = playGame;
@@ -681,9 +681,9 @@ async function loadStats(classId, userId) {
         document.getElementById('totalScore').textContent = `${totalScore}/${totalMaxScore}`;
         document.getElementById('scorePercentage').textContent = `(${scorePercentage}%)`;
 
-        // คำนวณและแสดงตั๋ว Arcade (ทุกๆ 5 คะแนน = 1 ตั๋ว)
-        const totalEarnedTickets = Math.floor(totalScore / 5);
-        const unclaimedPoints = totalScore % 5;
+        // คำนวณและแสดงตั๋ว Arcade (ทุกๆ 10 คะแนน = 1 ตั๋ว)
+        const totalEarnedTickets = Math.floor(totalScore / 10);
+        const unclaimedPoints = totalScore % 10;
         
         // ดึงข้อมูล usedTickets และคะแนนเกม จาก Firebase users
         const userDoc = await db.collection('users').doc(userId).get();
@@ -697,7 +697,7 @@ async function loadStats(classId, userId) {
         if (elArcadeTickets) elArcadeTickets.textContent = `${availableTickets}`;
         
         const elUnclaimedPoints = document.getElementById('unclaimedPoints');
-        if (elUnclaimedPoints) elUnclaimedPoints.textContent = `(เศษ ${unclaimedPoints}/5)`;
+        if (elUnclaimedPoints) elUnclaimedPoints.textContent = `(เศษ ${unclaimedPoints}/10)`;
         
         // โหลด Highscore และรวมคะแนน
         const arcadeHighscores = userData.arcadeHighscores || {};
@@ -738,7 +738,7 @@ async function loadStats(classId, userId) {
         const elArcadeTickets = document.getElementById('arcadeTickets');
         if (elArcadeTickets) elArcadeTickets.textContent = '0';
         const elUnclaimedPoints = document.getElementById('unclaimedPoints');
-        if (elUnclaimedPoints) elUnclaimedPoints.textContent = '(เศษ 0/5)';
+        if (elUnclaimedPoints) elUnclaimedPoints.textContent = '(เศษ 0/10)';
     }
 }
 
