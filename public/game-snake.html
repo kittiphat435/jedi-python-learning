@@ -221,7 +221,7 @@
                 }
                 
                 // รอให้ผู้ใช้กดปุ่มเพื่อเริ่มเดิน
-                document.addEventListener('keydown', direction);
+                window.addEventListener('keydown', direction);
             } else {
                 alert("กรุณาเข้าสู่ระบบ");
                 window.location.href = "login.html";
@@ -445,6 +445,12 @@
                 a.href = 'student-class-detail.html?id=' + classId;
             });
         }
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        window.addEventListener('click', () => { window.focus(); });
+        window.addEventListener('mousemove', () => { window.focus(); }, { once: true }); 
     });
 </script>
 </body>

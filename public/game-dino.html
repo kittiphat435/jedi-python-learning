@@ -214,7 +214,7 @@
             }
         }
 
-        document.addEventListener('keydown', (e) => {
+        window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault(); // ป้องกันจอเลื่อน
                 jump();
@@ -429,6 +429,12 @@
                 a.href = 'student-class-detail.html?id=' + classId;
             });
         }
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        window.addEventListener('click', () => { window.focus(); });
+        window.addEventListener('mousemove', () => { window.focus(); }, { once: true }); 
     });
 </script>
 </body>

@@ -226,6 +226,7 @@
         let isPlaying = false;
 
         async function startGame() {
+            window.focus();
             if (isPlaying) return;
             isPlaying = true;
             document.getElementById('startScreen').style.display = 'none';
@@ -450,7 +451,7 @@
         }
 
         // Keyboard controls
-        document.addEventListener('keydown', event => {
+        window.addEventListener('keydown', event => {
             if(gameOver) return;
             
             if (!isPlaying) {
@@ -594,6 +595,12 @@
                 a.href = 'student-class-detail.html?id=' + classId;
             });
         }
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        window.addEventListener('click', () => { window.focus(); });
+        window.addEventListener('mousemove', () => { window.focus(); }, { once: true }); 
     });
 </script>
 </body>
