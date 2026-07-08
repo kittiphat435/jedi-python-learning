@@ -2639,6 +2639,11 @@ async function saveProblem(event) {
             });
         }
 
+        // เพิ่มคำต่อท้ายสำหรับข้อสอบ
+        if (problemType === 'comprehension' && !problemData.title.endsWith('(ข้อสอบ)')) {
+            problemData.title += ' (ข้อสอบ)';
+        }
+
         console.log('กำลังบันทึกข้อมูลโจทย์:', problemData);
 
         // บันทึกข้อมูล

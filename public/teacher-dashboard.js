@@ -2415,6 +2415,13 @@ async function saveProblem(event) {
             });
         }
 
+        // เพิ่มคำต่อท้ายสำหรับกระดานสรุปแบบกลุ่ม และข้อสอบ
+        if (problemType === 'summary' && problemData.isGroupWork && !problemData.title.endsWith('(ระบบกลุ่ม)')) {
+            problemData.title += ' (ระบบกลุ่ม)';
+        } else if (problemType === 'comprehension' && !problemData.title.endsWith('(ข้อสอบ)')) {
+            problemData.title += ' (ข้อสอบ)';
+        }
+
         console.log('กำลังบันทึกข้อมูลโจทย์:', problemData);
 
         // บันทึกข้อมูล
