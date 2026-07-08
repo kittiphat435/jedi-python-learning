@@ -636,7 +636,7 @@ async function loadStats(classId, userId) {
                 if (submission.status === 'completed') {
                     completedProblems++;
                     // ใช้คะแนนจริงที่ได้ (ถ้ามี) ถ้าไม่มีใช้เต็ม (เผื่อข้อมูลเก่า)
-                    totalScore += (submission.score > 0 ? submission.score : maxScore);
+                    totalScore += ((submission.score !== undefined) ? Number(submission.score) : maxScore);
                 } else if (submission.status === 'inProgress' && submission.score > 0) {
                     // กรณีทำค้างไว้ (Optional: จะนับคะแนนหรือไม่แล้วแต่ Logic)
                     // totalScore += submission.score; 
@@ -1514,4 +1514,4 @@ window.exchangeTicket = async function() {
         btn.disabled = false;
         btn.textContent = "แลกตั๋ว (-10 คะแนน)";
     }
-}
+}
