@@ -202,73 +202,10 @@
         // 2. ควบคุมการกระโดด
         async function jump() {
             if (isGameOver) return;
-            
-            if (!isPlaying && !isCheckingTicket) {
-                isCheckingTicket = true; // ล็อก
-                // เช็คตั๋วก่อนเริ่มเล่น
-                const user = firebase.auth().currentUser;
-                if (!user) {
-                    isCheckingTicket = false;
-                    return;
-                }
-
-                try {
-                    // ดึงคะแนนทั้งหมดของนักเรียน
-                    const submissionsSnapshot = await db.collection('submissions').where('studentId', '==', user.uid).get();
-                    const latestSubmissions = new Map();
-                    submissionsSnapshot.docs.filter(doc => !doc.data().classId || doc.data().classId === 'admin').forEach(doc => {
-                        const data = doc.data();
-                        const existing = latestSubmissions.get(data.problemId);
-                        if (!existing || data.submittedAt.toDate() > existing.submittedAt.toDate()) {
-                            latestSubmissions.set(data.problemId, data);
-                        }
-                    });
-
-                    let totalScore = 0;
-                    const adminProblemsSnapshot = await db.collection('problems').get();
-                    for (const doc of adminProblemsSnapshot.docs) {
-                        const problemId = doc.id;
-                        const problemData = doc.data();
-                        const submission = latestSubmissions.get(problemId);
-                        
-                        if (submission) {
-                             if (problemData.type === 'flowchart' || problemData.type === 'gui') {
-                                if (submission.status === 'completed') {
-                                    totalScore += (submission.score > 0 ? submission.score : (submission.maxScore || 10));
-                                }
-                            } else if (submission.status === 'completed') {
-                                totalScore += submission.score || 0;
-                            }
-                        }
-                    }
-
-                    const totalEarnedTickets = Math.floor(totalScore / 5);
-                    
-                    const userDoc = await db.collection('users').doc(user.uid).get();
-                    const usedTickets = userDoc.exists ? (userDoc.data().usedTickets || 0) : 0;
-                    const availableTickets = Math.max(0, totalEarnedTickets - usedTickets);
-
-                    if (availableTickets <= 0) {
-                        alert('ตั๋วไม่พอ! กรุณาทำโจทย์เพิ่มเพื่อสะสมคะแนน (5 คะแนน = 1 ตั๋ว)');
-                        window.location.href = 'student-class-detail.html';
-                        isCheckingTicket = false;
-                        return;
-                    }
-
-                    // หักตั๋ว 1 ใบ
-                    await db.collection('users').doc(user.uid).set({
-                        usedTickets: usedTickets + 1
-                    }, { merge: true });
-
-                    isPlaying = true;
-                    document.getElementById('startScreen').style.display = 'none';
-                    gameLoop = requestAnimationFrame(update);
-                } catch (error) {
-                    console.error("Error checking tickets:", error);
-                    alert("เกิดข้อผิดพลาดในการตรวจสอบตั๋ว");
-                    isCheckingTicket = false;
-                    return;
-                }
+            if (!isPlaying) {
+                isPlaying = true;
+                document.getElementById('startScreen').style.display = 'none';
+                gameLoop = requestAnimationFrame(update);
             }
 
             if (isPlaying && !dino.isJumping) {
