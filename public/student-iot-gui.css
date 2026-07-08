@@ -15,7 +15,7 @@ body {
 @media (min-width: 1024px) {
     .main-layout {
         display: grid;
-        grid-template-columns: 450px 1fr; /* โจทย์ 450px, Editor ที่เหลือ */
+        grid-template-columns: 1fr 1fr; /* โจทย์ 50%, Editor 50% */
         gap: 24px;
         align-items: start;
     }
@@ -136,6 +136,7 @@ body {
 .problem-description {
     line-height: 1.6;
     color: #555;
+    white-space: pre-wrap;
 }
 
 .attachments-cta {

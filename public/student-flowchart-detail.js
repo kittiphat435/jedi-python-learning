@@ -128,7 +128,8 @@ async function loadProblem(problemId) {
         // แสดงข้อมูลพื้นฐานของโจทย์
         document.getElementById('problemTitle').textContent = studentProblemData.title;
         const descElement = document.getElementById('problemDescription');
-        let descHTML = studentProblemData.description || '';
+        let descText = studentProblemData.description || '';
+        let descHTML = descText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
 
         // แสดงรูปภาพประกอบถ้ามี (แบบย่อ/ขยายได้)
         if (studentProblemData.image) {

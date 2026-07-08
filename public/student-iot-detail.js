@@ -59,9 +59,11 @@ async function loadProblem(problemId, userId) {
 
         // อัพเดทเนื้อหาโจทย์
         document.getElementById('problemTitle').textContent = currentProblem.title;
+        let descriptionText = currentProblem.description || '';
+        let descriptionHTML = descriptionText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
         document.getElementById('problemDescription').innerHTML = `
             <div class="max-score"><strong>คะแนนเต็ม: ${maxScore} คะแนน</strong></div>
-            ${currentProblem.description}
+            ${descriptionHTML}
         `;
 
         updateProblemDisplay();
@@ -90,7 +92,8 @@ function updateProblemDisplay() {
     if (descriptionElement) {
         descriptionElement.style.marginTop = '8px';
         descriptionElement.style.marginBottom = '8px';
-        let descriptionHTML = currentProblem.description || 'ไม่มีคำอธิบาย';
+        let descText = currentProblem.description || 'ไม่มีคำอธิบาย';
+        let descriptionHTML = descText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
 
         // แสดงรูปภาพประกอบถ้ามี (แบบย่อ/ขยายได้)
         if (currentProblem.image) {

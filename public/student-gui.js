@@ -2749,7 +2749,8 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         // Display problem description with additional content
         const descriptionElement = document.getElementById('problemDescription');
         if (descriptionElement) {
-            let descriptionHTML = problemData.description || 'ไม่มีคำอธิบาย';
+            let descriptionText = problemData.description || 'ไม่มีคำอธิบาย';
+            let descriptionHTML = descriptionText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
             
             // เพิ่มรูปภาพหรือสื่อถ้ามี
             if (problemData.image) {
@@ -5821,21 +5822,44 @@ function showYarnReward() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-label', 'ผ่านแล้ว');
 
-    overlay.innerHTML = `
-        <div class="reward-card">
-            <img class="reward-image" src="${rewardImageUrl}" alt="ด้าย">
-        </div>
-    `;
+    const card = document.createElement('div');
+    card.className = 'reward-card';
+    const img = new Image();
+    img.className = 'reward-image';
+    img.alt = 'ด้าย';
 
-    const remove = () => {
-        if (!overlay.isConnected) return;
-        overlay.classList.add('reward-overlay-hide');
-        setTimeout(() => overlay.remove(), 240);
+    const triggerEffectsAndShow = () => {
+        if (window.confetti) {
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10000 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                var particleCount = 50 * (timeLeft / duration);
+                window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        card.appendChild(img);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+
+        const remove = () => {
+            if (!overlay.isConnected) return;
+            overlay.classList.add('reward-overlay-hide');
+            setTimeout(() => overlay.remove(), 240);
+        };
+
+        overlay.addEventListener('click', remove);
+        setTimeout(remove, 3000); // 3 seconds after image loads
     };
 
-    overlay.addEventListener('click', remove);
-    document.body.appendChild(overlay);
-    setTimeout(remove, 2200);
+    img.onload = triggerEffectsAndShow;
+    img.onerror = triggerEffectsAndShow; // fallback
+    img.src = rewardImageUrl;
 }
 // ฟังก์ชันบันทึกโค้ดแบบ Draft (บันทึกเมื่อกดแสดง GUI)
 async function saveDraftCode(code) {

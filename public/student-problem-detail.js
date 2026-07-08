@@ -133,9 +133,11 @@ async function loadProblem(problemId, userId) {
 
         // อัพเดทเนื้อหาโจทย์
         document.getElementById('problemTitle').textContent = currentProblem.title;
+        let descriptionText = currentProblem.description || '';
+        let descriptionHTML = descriptionText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
         document.getElementById('problemDescription').innerHTML = `
             <div class="max-score"><strong>คะแนนเต็ม: ${maxScore} คะแนน</strong></div>
-            ${currentProblem.description}
+            ${descriptionHTML}
         `;
 
         updateProblemDisplay();
@@ -164,7 +166,8 @@ function updateProblemDisplay() {
     if (descriptionElement) {
         descriptionElement.style.marginTop = '8px';
         descriptionElement.style.marginBottom = '8px';
-        let descriptionHTML = currentProblem.description || 'ไม่มีคำอธิบาย';
+        let descText = currentProblem.description || 'ไม่มีคำอธิบาย';
+        let descriptionHTML = descText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
 
         // แสดงรูปภาพประกอบถ้ามี (แบบย่อ/ขยายได้)
         if (currentProblem.image) {
@@ -1054,21 +1057,44 @@ function showYarnReward() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-label', 'ผ่านแล้ว');
 
-    overlay.innerHTML = `
-        <div class="reward-card">
-            <img class="reward-image" src="${rewardImageUrl}" alt="ด้าย">
-        </div>
-    `;
+    const card = document.createElement('div');
+    card.className = 'reward-card';
+    const img = new Image();
+    img.className = 'reward-image';
+    img.alt = 'ด้าย';
 
-    const remove = () => {
-        if (!overlay.isConnected) return;
-        overlay.classList.add('reward-overlay-hide');
-        setTimeout(() => overlay.remove(), 240);
+    const triggerEffectsAndShow = () => {
+        if (window.confetti) {
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10000 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                var particleCount = 50 * (timeLeft / duration);
+                window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        card.appendChild(img);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+
+        const remove = () => {
+            if (!overlay.isConnected) return;
+            overlay.classList.add('reward-overlay-hide');
+            setTimeout(() => overlay.remove(), 240);
+        };
+
+        overlay.addEventListener('click', remove);
+        setTimeout(remove, 3000); // 3 seconds after image loads
     };
 
-    overlay.addEventListener('click', remove);
-    document.body.appendChild(overlay);
-    setTimeout(remove, 2200);
+    img.onload = triggerEffectsAndShow;
+    img.onerror = triggerEffectsAndShow; // fallback
+    img.src = rewardImageUrl;
 }
 
 function resetCode() {

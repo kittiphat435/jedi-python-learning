@@ -112,7 +112,8 @@ async function loadProblem() {
         // Display problem info
         document.getElementById('problemTitle').textContent = currentProblem.title || '';
         const descElement = document.getElementById('problemDescription');
-        let descHTML = currentProblem.description || '';
+        let descText = currentProblem.description || '';
+        let descHTML = descText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
         
         // แสดงรูปภาพประกอบถ้ามี (แบบย่อ/ขยายได้)
         if (currentProblem.image) {

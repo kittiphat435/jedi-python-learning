@@ -1160,7 +1160,8 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         // Display problem description with additional content
         const descriptionElement = document.getElementById('problemDescription');
         if (descriptionElement) {
-            let descriptionHTML = problemData.description || 'ไม่มีคำอธิบาย';
+            let descriptionText = problemData.description || 'ไม่มีคำอธิบาย';
+            let descriptionHTML = descriptionText.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
             
             // เพิ่มรูปภาพหรือสื่อถ้ามี
             if (problemData.image) {

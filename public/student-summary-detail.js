@@ -83,7 +83,7 @@ async function loadProblemDetails() {
 
         currentProblem = problemDoc.data();
         document.getElementById('problemTitle').textContent = currentProblem.title || 'กิจกรรมสรุปผลการเรียน';
-        document.getElementById('problemDescription').innerHTML = currentProblem.description ? currentProblem.description.replace(/\n/g, '<br>') : 'ไม่มีคำชี้แจง';
+        document.getElementById('problemDescription').innerHTML = currentProblem.description ? currentProblem.description.replace(/\\n/g, '<br>').replace(/\n/g, '<br>') : 'ไม่มีคำชี้แจง';
         
         const maxScore = currentProblem.maxScore || 10;
         document.getElementById('maxScoreDisplay').textContent = `คะแนนเต็ม: ${maxScore} คะแนน`;

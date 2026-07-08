@@ -908,7 +908,7 @@ async function viewProblem(problemId, targetStudentId = null) {
                     <div class="problem-content">
                         <div class="problem-description">
                             <h3>คำอธิบายโจทย์</h3>
-                            <p>${problemData.description || ''}</p>
+                            <p>${(problemData.description || '').replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</p>
                         </div>
 
                         ${(() => {
