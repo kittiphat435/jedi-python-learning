@@ -385,13 +385,20 @@ function renderProblemsPage() {
                </div>`
             : '';
 
+        let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
+        if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
+            displayTitle += ' (ระบบกลุ่ม)';
+        } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
+            displayTitle += ' (ข้อสอบ)';
+        }
+
         div.innerHTML = `
             ${dragHandleHtml}
             <div class="problem-info" style="flex-grow: 1;">
                 <div class="problem-header">
                     <span class="problem-type">${problemTypeIcon} ${problemTypeText}</span>
                 </div>
-                <h3>${problem.title}</h3>
+                <h3>${displayTitle}</h3>
                 <p>${problem.description || 'ไม่มีคำอธิบาย'}</p>
             </div>
             <div class="problem-actions" style="display: flex; align-items: center; gap: 10px;">
@@ -1949,9 +1956,17 @@ function renderProblemBankList(problems) {
         const typeInfo = typeMapping[problem.type] || { icon: '📄', text: 'ทั่วไป' };
         const div = document.createElement('div');
         div.className = 'problem-bank-item';
+        
+        let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
+        if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
+            displayTitle += ' (ระบบกลุ่ม)';
+        } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
+            displayTitle += ' (ข้อสอบ)';
+        }
+        
         div.innerHTML = `
             <div class="problem-info">
-                <h3><span title="${typeInfo.text}">${typeInfo.icon}</span> ${problem.title}</h3>
+                <h3><span title="${typeInfo.text}">${typeInfo.icon}</span> ${displayTitle}</h3>
                 <p>${problem.description ? problem.description.substring(0, 100) + (problem.description.length > 100 ? '...' : '') : ''}</p>
                 ${problem.classNames && problem.classNames.length > 0 ?
                 `<p class="used-in">ใช้ในห้อง: ${problem.classNames.join(', ')}</p>` :

@@ -505,6 +505,13 @@ function displayProblems(problems) {
             contentToShow = problem.description || 'ไม่มีคำอธิบาย';
         }
 
+        let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
+        if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
+            displayTitle += ' (ระบบกลุ่ม)';
+        } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
+            displayTitle += ' (ข้อสอบ)';
+        }
+
         // ถ้าโจทย์ปิดรับคำตอบแล้ว และยังไม่ได้ทำเสร็จ ให้ disable ปุ่ม
         const isDisabled = problem.isClosed && !isViewMode;
         const finalButtonText = isDisabled ? 'ปิดรับคำตอบแล้ว' : buttonText;
@@ -516,7 +523,7 @@ function displayProblems(problems) {
                     <span class="status-badge status-${problem.status}">${statusText}</span>
                     ${problem.isClosed ? '<span style="color: #e74c3c; font-weight: bold; font-size: 0.9em; margin-left: 10px;">(ปิดรับคำตอบ)</span>' : ''}
                 </div>
-                <h3>${problem.title}</h3>
+                <h3>${displayTitle}</h3>
                 <p>${contentToShow}</p>
             </div>
             <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn" ${isDisabled ? 'disabled style="background-color: #ccc; cursor: not-allowed;"' : ''}>

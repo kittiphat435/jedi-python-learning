@@ -484,11 +484,18 @@ async function loadRecentProblems(userId) {
         recentProblems.innerHTML = '';
 
         problems.forEach(problem => {
+            let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
+            if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
+                displayTitle += ' (ระบบกลุ่ม)';
+            } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
+                displayTitle += ' (ข้อสอบ)';
+            }
+            
             const div = document.createElement('div');
             div.className = 'problem-card';
             div.innerHTML = `
                 <div class="problem-info">
-                    <h3>${problem.title}</h3>
+                    <h3>${displayTitle}</h3>
                     <p>${problem.description}</p>
                     <span class="status-badge ${problem.status === 'completed' ? 'status-completed' : 'status-pending'}">
                         ${problem.status === 'completed' ? 'สำเร็จ' : 'กำลังทำ'}
