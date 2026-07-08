@@ -436,7 +436,7 @@
             // เพิ่มความเร็วทุกๆ 30 วินาที
             if (time - lastSpeedUpTime > 30000) {
                 if (dropInterval > 150) {
-                    dropInterval *= 0.85; // เร็วขึ้นประมาณ 15%
+                    dropInterval *= 0.70; // เร็วขึ้น 30%
                 }
                 lastSpeedUpTime = time;
             }
