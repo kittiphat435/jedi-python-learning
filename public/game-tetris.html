@@ -585,5 +585,16 @@
             }
         });
     </script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const classId = urlParams.get('classId');
+        if (classId) {
+            document.querySelectorAll('a[href="student-class-detail.html"]').forEach(a => {
+                a.href = 'student-class-detail.html?id=' + classId;
+            });
+        }
+    });
+</script>
 </body>
 </html>
