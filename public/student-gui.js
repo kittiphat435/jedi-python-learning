@@ -4062,6 +4062,7 @@ async function sendToSimulator(autoRun = false) {
   function convertCode() {
     console.log("convertCode starting...");
     const code = document.getElementById('pythonInput')?.value
+               || document.getElementById('codeEditorTextarea')?.value
                || document.getElementById('codeEditor')?.value
                || '';
     console.log("code to convert:", code.substring(0, 50));
@@ -6091,3 +6092,22 @@ function playScoreAnimation(earnedScore, maxScore) {
         }, 1000 / fps);
     });
 }
+
+// Global Error Handler to notify users of any unexpected bugs (e.g. broken buttons)
+window.addEventListener('error', function(e) {
+    const errorMsg = 'พบข้อผิดพลาดในระบบ: ' + (e.message || 'Unknown Error') + ' (กรุณาแจ้งครูผู้สอน)';
+    if (typeof showError === 'function') {
+        showError(errorMsg);
+    } else {
+        alert(errorMsg);
+    }
+});
+
+window.addEventListener('unhandledrejection', function(e) {
+    const errorMsg = 'พบข้อผิดพลาด(Async)ในระบบ: ' + (e.reason?.message || e.reason || 'Unknown Error') + ' (กรุณาแจ้งครูผู้สอน)';
+    if (typeof showError === 'function') {
+        showError(errorMsg);
+    } else {
+        alert(errorMsg);
+    }
+});
