@@ -427,7 +427,7 @@ root.mainloop()`);
 
 window.toggleProblemTypeFields = function () {
     const problemType = document.getElementById('problemType').value;
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'summarySection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection'];
 
     sections.forEach(section => {
         const element = document.getElementById(section);
@@ -454,6 +454,8 @@ window.toggleProblemTypeFields = function () {
         setTimeout(() => {
             addSaveWidgetButton();
         }, 100); // เพิ่ม delay เพื่อให้แน่ใจว่า DOM อัพเดตแล้ว
+    } else if (problemType === 'free_gui') {
+        document.getElementById('freeGuiSection').style.display = 'block';
     } else if (problemType === 'summary') {
         document.getElementById('summarySection').style.display = 'block';
     } else if (problemType === 'iot') {
@@ -1592,6 +1594,15 @@ async function editProblem(problemId) {
                 }
                 break;
 
+            case 'free_gui':
+                if (document.getElementById('freeGuiDescription')) {
+                    document.getElementById('freeGuiDescription').value = problemData.description || '';
+                }
+                if (document.getElementById('freeGuiTemplate')) {
+                    document.getElementById('freeGuiTemplate').value = problemData.templateCode || '';
+                }
+                break;
+
             case 'iot':
             case 'python':
                 if (document.getElementById('problemDescription')) {
@@ -2400,6 +2411,19 @@ async function saveProblem(event) {
                 maxScore,
                 flowchartData,
                 scoringCriteria
+            });
+        } else if (problemType === 'free_gui') {
+            const description = document.getElementById('freeGuiDescription')?.value?.trim() || '';
+            const templateCode = document.getElementById('freeGuiTemplate')?.value || '';
+            
+            if (!description) {
+                alert('กรุณากรอกคำอธิบายโจทย์ GUI (อิสระ)');
+                return;
+            }
+
+            Object.assign(problemData, {
+                description,
+                templateCode
             });
         } else if (problemType === 'summary') {
             const description = document.getElementById('summaryDescription')?.value?.trim() || '';

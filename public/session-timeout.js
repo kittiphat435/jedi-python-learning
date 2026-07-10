@@ -29,11 +29,19 @@
     }, 60000);
 
     // Initial check when auth state changes (e.g. on page load)
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                checkSession(user);
-            }
-        });
+    function initSessionCheck() {
+        if (typeof firebase !== 'undefined' && firebase.auth && firebase.apps.length > 0) {
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    checkSession(user);
+                }
+            });
+        } else if (typeof firebase !== 'undefined') {
+            // Check again shortly if firebase is loaded but app is not initialized yet
+            setTimeout(initSessionCheck, 100);
+        }
     }
+    
+    // Start the checking loop
+    initSessionCheck();
 })();

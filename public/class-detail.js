@@ -849,6 +849,30 @@ async function viewProblem(problemId, targetStudentId = null) {
                             </div>
                         `;
                         break;
+                    case 'free_gui':
+                        submissionContent = `
+                            <div class="free-gui-submission">
+                                <div class="gui-preview" style="margin-bottom: 15px;">
+                                    <h4>โค้ด Python (GUI) ที่ส่ง:</h4>
+                                    <pre><code>${submission.code || 'ไม่มีโค้ด'}</code></pre>
+                                </div>
+                                <div class="manual-scoring" style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <h4 style="margin-top: 0;">ให้คะแนนผลงาน (GUI อิสระ)</h4>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <input type="number" id="manual-score-${submission.id || studentId}" value="${submission.score || 0}" min="0" style="width: 80px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                                        <span>/ 10</span>
+                                        <button class="primary-btn" onclick="saveManualScore('${submission.problemId}', '${studentId}', document.getElementById('manual-score-${submission.id || studentId}').value, 10)">
+                                            บันทึกคะแนน
+                                        </button>
+                                        <button class="secondary-btn" style="margin-left: 10px;" onclick="window.open('student-free-gui.html?id=${submission.problemId}&classId=admin&mode=view&studentId=${studentId}', '_blank')">
+                                            ▶ ทดสอบรัน GUI
+                                        </button>
+                                    </div>
+                                    <div id="score-status-${studentId}" style="margin-top: 10px; color: green; display: none;">บันทึกคะแนนเรียบร้อยแล้ว</div>
+                                </div>
+                            </div>
+                        `;
+                        break;
                     case 'summary':
                         const note = submission.note || {};
                         submissionContent = `
@@ -2279,3 +2303,44 @@ window.viewProblem = viewProblem;
 window.closeProblemDetailsModal = closeProblemDetailsModal;
 window.toggleSubmission = toggleSubmission;
 window.exportScoresCSV = exportScoresCSV;
+window.saveManualScore = async function(problemId, studentId, score, maxScore) {
+    try {
+        const btn = event.currentTarget;
+        const originalText = btn.textContent;
+        btn.textContent = 'กำลังบันทึก...';
+        btn.disabled = true;
+
+        const submissionsRef = db.collection('submissions');
+        const snapshot = await submissionsRef
+            .where('problemId', '==', problemId)
+            .where('studentId', '==', studentId)
+            .get();
+
+        if (!snapshot.empty) {
+            // อัปเดตทุก submission ของนักเรียนในข้อนี้ (หรือเฉพาะล่าสุด)
+            const updatePromises = snapshot.docs.map(doc => 
+                doc.ref.update({
+                    score: Number(score),
+                    maxScore: Number(maxScore)
+                })
+            );
+            await Promise.all(updatePromises);
+            
+            const statusDiv = document.getElementById(`score-status-${studentId}`);
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        btn.textContent = originalText;
+        btn.disabled = false;
+    } catch (error) {
+        console.error('Error saving manual score:', error);
+        alert('เกิดข้อผิดพลาดในการบันทึกคะแนน: ' + error.message);
+        event.currentTarget.textContent = 'บันทึกคะแนน';
+        event.currentTarget.disabled = false;
+    }
+};

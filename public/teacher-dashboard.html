@@ -125,6 +125,7 @@
                             <option value="matching">จับคู่</option>
                             <option value="flowchart">Flowchart</option>
                             <option value="gui">GUI (Graphical User Interface)</option>
+                            <option value="free_gui">GUI (อิสระ)</option>
                             <option value="summary">สรุปผลการเรียน (กระดานสรุปความรู้สไตล์ Padlet)</option>
                             <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
                             <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
@@ -540,6 +541,18 @@ root.mainloop()
                         <div id="guiValidationMessage" class="validation-message" style="display: none;"></div>
                     </div>
 
+                    <!-- เพิ่ม Section สำหรับโจทย์ GUI อิสระ -->
+                    <div id="freeGuiSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ GUI (อิสระ) *</label>
+                            <textarea id="freeGuiDescription" class="input-field" rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Template Code *</label>
+                            <textarea id="freeGuiTemplate" class="code-editor" rows="10">
+                            </textarea>
+                        </div>
+                    </div>
     
             </div>
             </form>

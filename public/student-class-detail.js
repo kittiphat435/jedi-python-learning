@@ -484,6 +484,10 @@ function displayProblems(problems) {
                 typeIcon = '🪟';
                 typeText = 'โจทย์สร้าง GUI';
                 break;
+            case 'free_gui':
+                typeIcon = '🎨';
+                typeText = 'โจทย์ GUI (อิสระ)';
+                break;
             case 'summary':
                 typeIcon = '📋';
                 typeText = 'สรุปผลการเรียน';
@@ -495,7 +499,7 @@ function displayProblems(problems) {
 
         // แก้ไขส่วนเลือกเนื้อหาที่จะแสดง
         let contentToShow;
-        if (problem.type === 'python' || problem.type === 'gui' || problem.type === 'summary') {
+        if (problem.type === 'python' || problem.type === 'gui' || problem.type === 'free_gui' || problem.type === 'summary') {
             contentToShow = problem.description || 'ไม่มีคำอธิบาย';
         } else if (problem.type === 'comprehension') {
             contentToShow = problem.content || problem.passage || 'ไม่มีคำอธิบาย';
@@ -629,6 +633,8 @@ async function loadStats(classId, userId) {
                     const tScore = (problemData.testCases || []).reduce((s, t) => s + (t.score || 1), 0);
                     maxScore = wScore + oScore + tScore;
                 }
+            } else if (problemData.type === 'free_gui') {
+                maxScore = problemData.maxScore || 10; // กำหนด 10 เป็นค่าเริ่มต้นถ้าไม่มี
             }
 
             // ตรวจสอบ submission 
@@ -636,7 +642,7 @@ async function loadStats(classId, userId) {
 
             if (submission) {
                 // ใช้ maxScore จาก submission สำหรับโจทย์ GUI เพื่อป้องกันคะแนนเต็มไม่ตรงกัน (เช่น ส่งเก่าได้ 20 แต่ปัจจุบัน 21)
-                if (submission.maxScore && problemData.type === 'gui') {
+                if (submission.maxScore && (problemData.type === 'gui' || problemData.type === 'free_gui')) {
                     maxScore = submission.maxScore;
                 }
 
@@ -955,6 +961,9 @@ function viewProblem(problemId, type, isViewMode = false, isClosed = false) {
             break;
         case 'gui':
             url = `student-gui.html?id=${problemId}&classId=${classId}${extraParams}`;
+            break;
+        case 'free_gui':
+            url = `student-free-gui.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'summary':
             url = `student-summary-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
