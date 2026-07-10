@@ -2155,22 +2155,25 @@ async function sendToSimulator(autoRun = false) {
       // เพิ่ม console.log เพื่อแสดงเนื้อหาของ htmlOutput ที่จะถูกใส่ใน iframe.srcdoc
       console.log('HTML Output ที่จะใส่ใน iframe.srcdoc:', htmlOutput.substring(0, 500) + '...');
       
+      // **เพิ่ม onload ก่อนกำหนดค่า srcdoc เพื่อป้องกันปัญหา Race Condition และกำหนด Timeout ให้ Render ทัน**
+      resultFrame.onload = () => {
+        setTimeout(() => {
+          try {
+            const doc = resultFrame.contentDocument || resultFrame.contentWindow.document;
+            const contentHeight = doc.documentElement.scrollHeight;
+            resultFrame.style.height = (contentHeight > 300 ? contentHeight : 300) + 'px';
+            console.log('ปรับขนาด iframe อัตโนมัติสำเร็จ Height:', contentHeight);
+          } catch (e) {
+            console.warn('ปรับขนาด iframe อัตโนมัติไม่สำเร็จ:', e);
+          }
+        }, 100);
+      };
+
       // แสดงผลใน result-frame
       resultFrame.srcdoc = htmlOutput;
       
       // เพิ่ม console.log หลังจากกำหนดค่า iframe.srcdoc
       console.log('iframe.srcdoc หลังกำหนดค่า:', resultFrame.srcdoc.substring(0, 500) + '...');
-  
-      // **เพิ่ม onload เพื่อปรับขนาด iframe ตามเนื้อหาในตัวมันเอง**
-      resultFrame.onload = () => {
-        try {
-          const doc = resultFrame.contentDocument || resultFrame.contentWindow.document;
-          const contentHeight = doc.documentElement.scrollHeight;
-          resultFrame.style.height = contentHeight + 'px';
-        } catch (e) {
-          console.warn('ปรับขนาด iframe อัตโนมัติไม่สำเร็จ:', e);
-        }
-      };
   
       // ถ้ามี guiPreview ให้แสดงสถานะสำเร็จ
       if (previewDiv) {
