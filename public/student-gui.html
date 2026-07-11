@@ -6,7 +6,19 @@
     <title>JediCode</title>
     <!-- Prevent favicon 404 error from blocking page load -->
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    
+
+    <!-- Preconnect: เริ่ม DNS lookup + TLS handshake ไปยัง domain ภายนอกทั้งหมดตั้งแต่ต้น
+         ให้ทำงานขนานไปกับตอนโหลด/parse HTML แทนที่จะรอจนกว่าจะเจอ <link>/<script> แต่ละอันก่อนค่อยเริ่ม
+         ช่วยลดเวลาโหลดหน้าโจทย์ลงได้จริง โดยเฉพาะบนเน็ตโรงเรียนที่มักช้า/หน่วง -->
+    <link rel="preconnect" href="https://stackpath.bootstrapcdn.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
+
     <script>
         // สร้าง Policy เพื่ออนุญาตให้ใส่ HTML/Script ลงใน iframe ได้
         if (window.trustedTypes && window.trustedTypes.createPolicy) {

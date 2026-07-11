@@ -3,16 +3,28 @@
 
 <head>
     <title>Teacher Dashboard - Python Learning Platform</title>
+
+    <!-- Preconnect: เริ่ม DNS lookup + TLS handshake ไปยัง domain ภายนอกทั้งหมดตั้งแต่ต้น
+         ให้ทำงานขนานไปกับตอนโหลด/parse HTML แทนที่จะรอจนกว่าจะเจอ <link>/<script> แต่ละอันก่อนค่อยเริ่ม -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
+
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="teacher-dashboard.css">
     <!-- เพิ่ม SVG.js สำหรับจัดการ SVG -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.1.1/svg.min.js"></script>
+    <!-- เพิ่ม defer ให้ script ทั้งหมดในนี้: เดิมไม่มี defer/async เลยสักตัว ทำให้ browser ต้อง
+         หยุดแปลง HTML รอโหลด+รันทีละไฟล์เรียงกัน (SVG.js -> draggy -> CodeMirror -> python mode)
+         ก่อนจะไปต่อได้ ทั้งที่ไฟล์เหล่านี้ไม่ได้ถูกใช้แบบ inline ในหน้านี้เลย (ใช้ใน .js อื่นที่โหลดทีหลัง)
+         defer ทำให้ browser โหลดทุกไฟล์ขนานกันได้ แล้วค่อยรันเรียงลำดับเดิมก่อน DOMContentLoaded -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.1.1/svg.min.js" defer></script>
 
     <!-- เพิ่ม Draggable plugin สำหรับ SVG.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.draggy.js/1.1.1/svg.draggy.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.draggy.js/1.1.1/svg.draggy.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/python/python.min.js" defer></script>
 </head>
 
 <body class="has-code-warp accent-purple">
@@ -567,14 +579,16 @@ root.mainloop()
 
 
     <!-- Firebase Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
-    <script src="flowchart-editor.js"></script>
-    <script src="teacher-dashboard.js"></script>
+    <!-- เพิ่ม defer ทั้งชุด (เหตุผลเดียวกับด้านบน) ลำดับการรันยังเหมือนเดิมทุกประการ
+         เพราะ defer รันเรียงตามลำดับที่ปรากฏในเอกสารเสมอ แค่โหลดไฟล์ขนานกันได้เท่านั้น -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js" defer></script>
+    <script src="flowchart-editor.js" defer></script>
+    <script src="teacher-dashboard.js" defer></script>
 
-    <script src="./session-timeout.js"></script>
+    <script src="./session-timeout.js" defer></script>
 </body>
 
 </html>

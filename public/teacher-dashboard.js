@@ -657,12 +657,18 @@ function getUserProfileImage(user) {
 }
 
 // Check Teacher Role
-async function checkTeacherRole(userId) {
+// รับ userDoc ที่ดึงมาแล้ว (optional) จาก onAuthStateChanged เพื่อไม่ต้องยิง users/{uid} ซ้ำกับ
+// loadUserInfo ที่ดึงเอกสารเดียวกันอยู่แล้ว ถ้าไม่ได้ส่งมาจะ fallback ไปดึงเอง (เผื่อเรียกจากที่อื่น)
+async function checkTeacherRole(userId, userDoc = null) {
     try {
-        const userDoc = await db.collection('users').doc(userId).get();
+        userDoc = userDoc || await db.collection('users').doc(userId).get();
         if (userDoc.exists && userDoc.data().role === 'teacher') {
-            await loadClasses(userId);
-            await loadProblems();
+            // เดิม await loadClasses() แล้วค่อย await loadProblems() ทีละตัว (เรียงคิว) ทั้งที่
+            // สองอย่างนี้ไม่เกี่ยวข้องกันเลย ยิงพร้อมกันได้เลย
+            await Promise.all([
+                loadClasses(userId),
+                loadProblems()
+            ]);
         } else {
             alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
             window.location.href = 'index.html';
@@ -681,8 +687,14 @@ auth.onAuthStateChanged(async (user) => {
     if (user) {
         try {
             console.log('User logged in:', user.email);
-            await loadUserInfo(user);
-            await checkTeacherRole(user.uid);
+            // ดึง users/{uid} แค่ครั้งเดียวตรงนี้ ใช้ร่วมกันทั้ง loadUserInfo และ checkTeacherRole
+            // (เดิมสองฟังก์ชันนี้ต่างคนต่างไปดึงเอกสารเดียวกันซ้ำ แถมยัง await เรียงกันอีก
+            //  รวมเป็น 2 round-trip ที่ไม่จำเป็นก่อนหน้าจะเริ่มโหลดข้อมูลจริงด้วยซ้ำ)
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            await Promise.all([
+                loadUserInfo(user, userDoc),
+                checkTeacherRole(user.uid, userDoc)
+            ]);
 
         } catch (error) {
             console.error('Error setting up dashboard:', error);
@@ -693,9 +705,10 @@ auth.onAuthStateChanged(async (user) => {
     }
 });
 // แก้ไขฟังก์ชัน loadUserInfo
-async function loadUserInfo(user, userRole) {
+// รับ userDoc ที่ดึงมาแล้ว (optional) จาก onAuthStateChanged แทนที่จะดึง users/{uid} ซ้ำเอง
+async function loadUserInfo(user, userDoc = null) {
     try {
-        const userDoc = await db.collection('users').doc(user.uid).get();
+        userDoc = userDoc || await db.collection('users').doc(user.uid).get();
         const userData = userDoc.data();
         const userInfo = document.querySelector('.user-info');
 

@@ -286,6 +286,20 @@
         <div class="loading-text">กำลังโหลด...</div>
     </div>
 
+    <!-- Ticket Toast (แจ้งเตือนหักตั๋วก่อนเข้าเกม Arcade) -->
+    <div id="ticketToastOverlay" class="ticket-toast-overlay">
+        <div class="ticket-toast-card">
+            <div class="ticket-toast-icon"><i class="fas fa-ticket-alt"></i></div>
+            <div class="ticket-toast-title">หัก 1 ตั๋วสำเร็จ!</div>
+            <div class="ticket-toast-sub">ตั๋วคงเหลือ: <b id="ticketToastRemaining">0</b> ใบ</div>
+            <div class="ticket-toast-loading">
+                <span id="ticketToastGameLabel">กำลังเข้าสู่เกม</span>
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+            <div class="ticket-toast-bar"><div class="ticket-toast-bar-fill" id="ticketToastBarFill"></div></div>
+        </div>
+    </div>
+
     <!-- Custom JavaScript -->
     <script src="./student-class-detail.js"></script>
 

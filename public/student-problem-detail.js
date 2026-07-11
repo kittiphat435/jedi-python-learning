@@ -7,13 +7,58 @@ const config = {
 // ===============================
 // Robust Text Normalization (For Thai & Mobile Inputs)
 // ===============================
+
+// Fix: student-typed Thai text vs copy-pasted Thai text can compare as "not equal"
+// even though they look 100% identical, because Thai vowel signs and tone marks
+// (combining characters) can be entered in different codepoint order depending on
+// keyboard/IME (e.g. base+vowel+tone vs base+tone+vowel look the same when rendered).
+// Standard text.normalize('NFC'/'NFD') does NOT fix this for Thai, because several
+// Thai vowel signs (e.g. SARA II, U+0E35) have Unicode canonical combining class 0,
+// which blocks the canonical reordering algorithm from moving tone marks (class 107)
+// across them. So we need our own Thai-specific reorder step below, applied to both
+// the student's output and the expected answer before comparing.
+const THAI_VOWEL_MARKS = new Set([0x0E31, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 0x0E38, 0x0E39, 0x0E3A, 0x0E47, 0x0E4C, 0x0E4D, 0x0E4E]);
+const THAI_TONE_MARKS = new Set([0x0E48, 0x0E49, 0x0E4A, 0x0E4B]);
+
+function thaiMarkPriority(codePoint) {
+    if (THAI_VOWEL_MARKS.has(codePoint)) return 0; // vowel/other marks always come first
+    if (THAI_TONE_MARKS.has(codePoint)) return 1;  // tone marks always come after vowels
+    return -1; // not a mark that needs reordering
+}
+
+function reorderThaiCombiningMarks(text) {
+    if (!text) return text;
+    const chars = Array.from(text);
+    const result = [];
+    let i = 0;
+    while (i < chars.length) {
+        result.push(chars[i]);
+        i++;
+        // collect the run of combining marks immediately following the base character
+        const run = [];
+        while (i < chars.length && thaiMarkPriority(chars[i].codePointAt(0)) !== -1) {
+            run.push(chars[i]);
+            i++;
+        }
+        if (run.length > 1) {
+            // reorder so vowel marks always come before tone marks (stable sort keeps
+            // original relative order within the same group)
+            run.sort((a, b) => thaiMarkPriority(a.codePointAt(0)) - thaiMarkPriority(b.codePointAt(0)));
+        }
+        result.push(...run);
+    }
+    return result.join('');
+}
+
 function normalizeText(text) {
     if (text === null || text === undefined) return '';
-    return text.toString()
-        .normalize('NFC')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+    return reorderThaiCombiningMarks(
+        text.toString()
+            .normalize('NFC')
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+    );
 }
 
 function compareText(actual, expected) {
@@ -788,9 +833,9 @@ async function testCode() {
 
                 // --- Lenient Match: อนุโลมเรื่องช่องว่าง แต่ "บังคับ" เรื่องการขึ้นบรรทัดใหม่ ---
                 if (!outputCorrect) {
-                    const normExpected = expectedOutput.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normSlicedActual = slicedActual.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
-                    const normActualRaw = actualOutputRaw.normalize('NFC').split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normExpected = reorderThaiCombiningMarks(expectedOutput.normalize('NFC')).split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normSlicedActual = reorderThaiCombiningMarks(slicedActual.normalize('NFC')).split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
+                    const normActualRaw = reorderThaiCombiningMarks(actualOutputRaw.normalize('NFC')).split('\n').map(l => l.replace(/\s+/g, '')).join('\n');
                     
                     let adjustedExpected = normExpected;
                     // ... (adjustedExpected logic remains) ...

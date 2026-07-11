@@ -1,13 +1,51 @@
 // ===============================
 // Robust Text Normalization (For Thai & Mobile Inputs)
 // ===============================
+
+// Fix: student-typed Thai text vs copy-pasted Thai text can compare as "not equal"
+// even though visually identical, because Thai vowel/tone marks can be typed in
+// different order depending on keyboard/IME. Standard .normalize('NFC'/'NFD') does
+// NOT fix this for Thai (several vowel signs have Unicode combining class 0, which
+// blocks canonical reordering of tone marks across them). So reorder marks ourselves.
+const THAI_VOWEL_MARKS = new Set([0x0E31, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 0x0E38, 0x0E39, 0x0E3A, 0x0E47, 0x0E4C, 0x0E4D, 0x0E4E]);
+const THAI_TONE_MARKS = new Set([0x0E48, 0x0E49, 0x0E4A, 0x0E4B]);
+
+function thaiMarkPriority(codePoint) {
+    if (THAI_VOWEL_MARKS.has(codePoint)) return 0; // vowel/other marks always come first
+    if (THAI_TONE_MARKS.has(codePoint)) return 1;  // tone marks always come after vowels
+    return -1; // not a mark that needs reordering
+}
+
+function reorderThaiCombiningMarks(text) {
+    if (!text) return text;
+    const chars = Array.from(text);
+    const result = [];
+    let i = 0;
+    while (i < chars.length) {
+        result.push(chars[i]);
+        i++;
+        const run = [];
+        while (i < chars.length && thaiMarkPriority(chars[i].codePointAt(0)) !== -1) {
+            run.push(chars[i]);
+            i++;
+        }
+        if (run.length > 1) {
+            run.sort((a, b) => thaiMarkPriority(a.codePointAt(0)) - thaiMarkPriority(b.codePointAt(0)));
+        }
+        result.push(...run);
+    }
+    return result.join('');
+}
+
 function normalizeText(text) {
     if (text === null || text === undefined) return '';
-    return text.toString()
-        .normalize('NFC') // Normalize Unicode (e.g., Thai vowel ordering)
-        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove hidden characters (Zero-width space, etc.)
-        .replace(/\s+/g, ' ') // Collapse multiple spaces into one
-        .trim();
+    return reorderThaiCombiningMarks(
+        text.toString()
+            .normalize('NFC') // Normalize Unicode (e.g., Thai vowel ordering)
+            .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove hidden characters (Zero-width space, etc.)
+            .replace(/\s+/g, ' ') // Collapse multiple spaces into one
+            .trim()
+    );
 }
 
 function compareText(actual, expected) {
@@ -516,36 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
         // Setup Ace Editor
         const codeEditor=setupEditor();
-        const convertBtn = document.getElementById('convertBtn');
-        if (convertBtn) {  // <--- เพิ่มบรรทัดนี้
-            convertBtn.addEventListener('click', async () => {
-            console.log('Preview button clicked');
-            const code = codeEditor.value;
-            console.log('Code to preview:', code.substring(0, 100) + '...');
-
-            if (convertBtn.disabled) {
-                console.log('Preview button is disabled');
-                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนแสดง GUI');
-                return;
-            }
-            
-            // อ่านโค้ดจาก textarea ที่เพิ่งสร้าง
-            const editorCode = document.getElementById('codeEditorTextarea').value;
-            document.getElementById('pythonInput').value = editorCode;
-
-            // แสดงผลใน result-frame
-            sendToSimulator(true);
-            
-            // เปิดใช้งานปุ่ม Test หลังจากรันโค้ดสำเร็จ
-            if (testBtn) {
-                testBtn.disabled = false;
-            }
-            // ยังคงปิดใช้งานปุ่ม testCaseBtn - ต้องตรวจคำตอบก่อน
-            if (testCaseBtn) {
-                testCaseBtn.disabled = true;
-            }
-            });
-        }
+        // หมายเหตุ: เดิมมีการผูก click listener ให้ convertBtn ตรงนี้ซ้ำกับใน setupEventListeners()
+        // ทำให้ sendToSimulator() ถูกเรียก 2 ครั้งต่อการคลิก 1 ครั้ง เกิด race condition กับ resultFrame.srcdoc/onload
+        // (อาการ: กด "แสดง GUI" แล้ว preview ค้าง ต้องเปิด F12 ถึงจะทำงาน) จึงลบออก เหลือ listener เดียวใน setupEventListeners()
         // Get problem ID and class ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const problemId = urlParams.get('id');
@@ -553,11 +564,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const viewMode = urlParams.get('mode') === 'view';
         // Allow teacher to view student's submission
         const targetStudentId = urlParams.get('studentId') || user.uid;
-    
+
         if (!problemId || !classId) {
             showError('ไม่พบรหัสโจทย์หรือรหัสห้องเรียน');
             return;
         }
+
+        // เก็บ problemId ไว้ใน global เพื่อให้ window.dbConnect/dbAppend (Firestore)
+        // แยกข้อมูลของแต่ละโจทย์ออกจากกันอัตโนมัติ ไม่ว่านักเรียนจะตั้งชื่อ table ซ้ำกันหรือไม่
+        window.currentProblemId = problemId;
     
         // Run data fetching in parallel to significantly reduce loading time
         const loadingTasks = [checkEnrollment(classId, user.uid)];
@@ -4507,6 +4522,11 @@ async function sendToSimulator(autoRun = false) {
 
     // 6.1 Initialize simple global variables from the code
     const globalVars = {};
+    // ตัวแปรที่ต้องรอ async (ตอนนี้มีแค่ database.connect) แยกออกมาต่างหาก เพราะ <script> ที่ generate
+    // ออกมาเป็น classic script (ไม่ใช่ type="module") จะใช้ "await" ที่ top-level ตรงๆ ไม่ได้
+    // (SyntaxError: await is only valid in async functions) ต้องประกาศตัวแปรไว้เฉยๆ ก่อน
+    // แล้วค่อย assign ค่าใน async IIFE แยกต่างหาก
+    const asyncGlobalVars = new Set();
     logicalLines.forEach(({ line: raw }) => {
       const line = raw.trim();
       let m;
@@ -4527,16 +4547,41 @@ async function sendToSimulator(autoRun = false) {
         }
       }
       // database.connect("...")
+      // หมายเหตุ: โค้ดที่ transpile ออกมานี้จะไปรันอยู่ใน iframe (result-frame) ซึ่งมี window
+      // ของตัวเอง แยกจาก window ของหน้าหลักที่ประกาศ window.dbConnect ไว้ ต้องเรียกผ่าน
+      // window.parent เพื่อข้ามไปเรียกฟังก์ชันจริงบนหน้าหลัก (iframe ใช้ srcdoc จึง same-origin
+      // กับหน้าหลัก เข้าถึง window.parent ได้โดยไม่ติด CORS)
       else if (m = line.match(/^([\p{L}_][\p{L}\p{N}_]*)\s*=\s*database\.connect\s*\(\s*['"](.*?)['"]\s*\)$/u)) {
-        globalVars[m[1]] = `await window.dbConnect("${m[2]}")`;
+        globalVars[m[1]] = `window.parent.dbConnect("${m[2]}")`;
+        asyncGlobalVars.add(m[1]);
       }
     });
 
     Object.keys(globalVars).forEach(k => {
       const val = globalVars[k];
-      js += `let ${k} = ${val};\n`;
+      if (asyncGlobalVars.has(k)) {
+        js += `let ${k};\n`; // ประกาศไว้ก่อน ค่อย assign ใน async IIFE ด้านล่าง
+      } else {
+        js += `let ${k} = ${val};\n`;
+      }
     });
-    
+
+    // Assign ค่าตัวแปรที่ต้องรอ async (database.connect) ผ่าน IIFE แยก เพื่อเลี่ยง top-level await
+    // ที่ classic <script> ไม่รองรับ โดยตัวแปรยังอยู่ใน scope เดียวกับฟังก์ชัน (async function ...)
+    // ด้านล่าง เพราะประกาศด้วย let ไว้แล้วข้างบน จึงเรียกใช้ใน command ของปุ่มได้ตามปกติ
+    if (asyncGlobalVars.size > 0) {
+      js += `(async () => {\n`;
+      asyncGlobalVars.forEach(k => {
+        js += `  try {\n`;
+        js += `    ${k} = await ${globalVars[k]};\n`;
+        js += `  } catch (e) {\n`;
+        js += `    console.error('[Database] เชื่อมต่อไม่สำเร็จ:', e);\n`;
+        js += `    document.body.insertAdjacentHTML('afterbegin', '<div style="background:#f8d7da;color:#721c24;padding:10px;border-radius:5px;margin-bottom:10px;">❌ ' + e.message + '</div>');\n`;
+        js += `  }\n`;
+      });
+      js += `})();\n\n`;
+    }
+
     // Add lambda_func if used
     if (Object.values(buttonToFunc).some(cmd => cmd && cmd.includes('lambda_func'))) {
         js += `function lambda_func() {
@@ -4601,7 +4646,15 @@ async function sendToSimulator(autoRun = false) {
                 let trimmed = arg.trim();
                 return trimmed.replace(/([\p{L}\p{N}_]+)\.get\(\)/gu, '(document.getElementById("entry_$1") ? document.getElementById("entry_$1").value : "")');
             }).join(', ');
-            functionBodyJs += `  if(typeof window.dbAppend === 'function') { await window.dbAppend(${dbVar}, [${parsedArgs}]); }\n`;
+            functionBodyJs += `  if(window.parent && typeof window.parent.dbAppend === 'function') {\n`;
+            functionBodyJs += `    try {\n`;
+            functionBodyJs += `      await window.parent.dbAppend(${dbVar}, [${parsedArgs}]);\n`;
+            functionBodyJs += `      document.body.insertAdjacentHTML('afterbegin', '<div style="background:#e6ffe6;color:#155724;padding:10px;border-radius:5px;margin-bottom:10px;">✅ บันทึกข้อมูลสำเร็จ</div>');\n`;
+            functionBodyJs += `    } catch (e) {\n`;
+            functionBodyJs += `      console.error('[Database] save error:', e);\n`;
+            functionBodyJs += `      document.body.insertAdjacentHTML('afterbegin', '<div style="background:#f8d7da;color:#721c24;padding:10px;border-radius:5px;margin-bottom:10px;">❌ ' + e.message + '</div>');\n`;
+            functionBodyJs += `    }\n`;
+            functionBodyJs += `  }\n`;
         }
         
         // str(...) conversion and variable set OR variable.set(value)
@@ -6091,190 +6144,167 @@ window.addEventListener('unhandledrejection', function(e) {
 });
 
 // ==========================================
-// Google Sheets Database Integration (Auto 100%)
+// Firestore Database Integration (แทนที่ Google Sheets/OAuth เดิม)
+// ==========================================
+// เหตุผลที่เปลี่ยน: การใช้ Google Sheets ต้องให้นักเรียนแต่ละคนกด OAuth consent
+// (เปิด popup ขอสิทธิ์ Drive/Sheets ของตัวเอง) ซึ่งโรงเรียนที่ใช้ Google Workspace for
+// Education มักบล็อกแอปภายนอกที่ยัง unverified ทำให้นักเรียนเชื่อมต่อไม่ได้ทั้งห้อง
+// Firestore ใช้ session ที่นักเรียน login เข้าแพลตฟอร์มอยู่แล้ว (Firebase Auth เดิม)
+// จึงไม่ต้องมี OAuth popup เลย เชื่อมต่อได้ทันทีทุกคน และยังฟรีในโควตา Spark plan
 // ==========================================
 
-const GOOGLE_CLIENT_ID = '204639976302-71pslohik4a8cf9er1bkm6952ognlejf.apps.googleusercontent.com'; // Added real Client ID
-const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-let tokenClient;
-let gapiInited = false;
-let gisInited = false;
-let currentAccessToken = null;
+let dbConnected = false;
 
-// Debug logs and robust initialization
-function gapiLoaded() {
-    console.log("[Auth] gapiLoaded called");
-    if (typeof gapi !== 'undefined' && gapi.load && !gapiInited) {
-        gapi.load('client', initializeGapiClient);
-    }
-}
-
-async function initializeGapiClient() {
-    console.log("[Auth] initializeGapiClient called");
-    if (gapiInited) return; // Prevent double init
-    try {
-        await gapi.client.init({
-            discoveryDocs: [DISCOVERY_DOC],
-        });
-        gapiInited = true;
-        console.log("[Auth] gapi.client.init success");
-        checkGoogleAuthReady();
-    } catch(e) {
-        console.error("[Auth] GAPI Init Error:", e);
-    }
-}
-
-function gisLoaded() {
-    console.log("[Auth] gisLoaded called");
-    if (gisInited) return; // Prevent double init
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_CLIENT_ID,
-            scope: SCOPES,
-            callback: (tokenResponse) => {
-                if (tokenResponse && tokenResponse.access_token) {
-                    currentAccessToken = tokenResponse.access_token;
-                    console.log("[Database] Access Token Received");
-                    const connectBtn = document.getElementById('connectDbBtn');
-                    if (connectBtn) {
-                        connectBtn.innerHTML = '<i class="fas fa-check"></i> เชื่อมต่อฐานข้อมูลแล้ว';
-                        connectBtn.style.backgroundColor = '#4CAF50';
-                    }
-                    showSuccess('เชื่อมต่อ Google Sheets สำเร็จ');
-                }
-            },
-        });
-        gisInited = true;
-        console.log("[Auth] Token client initialized");
-        checkGoogleAuthReady();
-    } else {
-        console.warn("[Auth] google.accounts not ready yet");
-    }
-}
-
-function checkGoogleAuthReady() {
-    console.log(`[Auth] checkGoogleAuthReady -> gapiInited: ${gapiInited}, gisInited: ${gisInited}`);
+// ปุ่ม "เชื่อมต่อฐานข้อมูล" ยังคงไว้ตามที่ต้องการ (ให้นักเรียนรู้สถานะว่ายังไม่ได้ต่อ)
+// แต่เปลี่ยนจากการขอ OAuth token เป็นการทดสอบยิง Firestore จริง 1 ครั้งเพื่อยืนยันว่าต่อได้
+window.handleAuthClick = async function() {
+    console.log("[Database] handleAuthClick (Firestore) triggered");
     const connectBtn = document.getElementById('connectDbBtn');
-    if (gapiInited && gisInited && connectBtn) {
-        connectBtn.disabled = false;
-        // Remove old listener to prevent duplicates
-        connectBtn.removeEventListener('click', handleAuthClick);
-        connectBtn.addEventListener('click', handleAuthClick);
-        console.log("✅ [Auth] Google Auth Ready! Button bound.");
-    } else if (!connectBtn) {
-        console.warn("[Auth] checkGoogleAuthReady -> connectDbBtn not found in DOM");
-    }
-}
+    const currentUser = firebase.auth().currentUser;
 
-window.handleAuthClick = function() {
-    console.log("[Auth] handleAuthClick triggered");
-    if (tokenClient == null) {
-        showError('ระบบ Google Authentication ยังไม่พร้อมทำงาน');
-        console.error("[Auth] tokenClient is null");
+    if (!currentUser) {
+        showError('กรุณาล็อกอินก่อนใช้งานฐานข้อมูล');
         return;
     }
-    // Request permission
-    console.log("[Auth] Requesting access token...");
-    tokenClient.requestAccessToken({prompt: 'consent'});
+
+    if (connectBtn) {
+        connectBtn.disabled = true;
+        connectBtn.textContent = 'กำลังเชื่อมต่อ...';
+    }
+
+    try {
+        // ทดสอบเขียนจริงเพื่อยืนยัน connection (เหมือน test connection ของ database ทั่วไป)
+        await db.collection('user_databases').doc(currentUser.uid).set({
+            lastConnected: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        dbConnected = true;
+        console.log("[Database] Firestore connected");
+
+        if (connectBtn) {
+            connectBtn.innerHTML = '<i class="fas fa-check"></i> เชื่อมต่อฐานข้อมูลแล้ว';
+            connectBtn.style.backgroundColor = '#4CAF50';
+            connectBtn.disabled = false;
+        }
+        showSuccess('เชื่อมต่อฐานข้อมูลสำเร็จ');
+    } catch (err) {
+        console.error("[Database] Firestore connect error:", err);
+        showError('เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + err.message);
+        if (connectBtn) {
+            connectBtn.disabled = false;
+            connectBtn.innerHTML = '<i class="fas fa-database"></i> เชื่อมต่อฐานข้อมูล';
+        }
+    }
+};
+
+// สร้าง reference ไปยังตารางของนักเรียนคนนี้ โดยแยกตามโจทย์ (problemId) โดยอัตโนมัติ
+// โครงสร้าง: user_databases/{uid}/problems/{problemId}/{tableName}
+// ทำให้ต่อให้ 2 โจทย์ตั้งชื่อตารางซ้ำกัน (เช่นทั้งคู่ใช้ database.connect("students"))
+// ข้อมูลก็จะไม่ปนกัน เพราะแยกชั้นด้วย problemId ให้อัตโนมัติ ไม่ต้องให้นักเรียนตั้งชื่อเอง
+function getStudentTableRef(uid, tableName) {
+    const problemId = window.currentProblemId || 'unknown_problem';
+    return db.collection('user_databases').doc(uid)
+        .collection('problems').doc(problemId)
+        .collection(tableName);
 }
 
-// Map global functions so HTML onload can call them
-window.gapiLoaded = gapiLoaded;
-window.gisLoaded = gisLoaded;
-
-// Fallback: forcefully check every 500ms until initialized (max 10 times)
-let initAttempts = 0;
-const initInterval = setInterval(() => {
-    initAttempts++;
-    console.log(`[Auth] Fallback init attempt ${initAttempts}`);
-    if (typeof gapi !== 'undefined' && !gapiInited) window.gapiLoaded();
-    if (typeof google !== 'undefined' && !gisInited) window.gisLoaded();
-    
-    if ((gapiInited && gisInited) || initAttempts > 10) {
-        clearInterval(initInterval);
-    }
-}, 500);
-
-// Mock Backend Functions for Python to Call
+// Mock Backend Functions for Python to Call (เรียกจากโค้ด transpile ของ database.connect()/db.append())
 window.dbConnect = async function(tableName) {
-    if (!currentAccessToken) {
+    if (!dbConnected) {
         throw new Error('กรุณากดปุ่ม "เชื่อมต่อฐานข้อมูล" ก่อนใช้งานคำสั่ง database');
     }
     const currentUser = firebase.auth().currentUser;
     if (!currentUser) throw new Error("Please login to JediCode first.");
-    const uid = currentUser.uid;
 
-    const dbRef = db.collection('user_databases').doc(uid);
-    const doc = await dbRef.get();
-    let userDbs = doc.exists ? doc.data().databases || {} : {};
-
-    let spreadsheetId = userDbs[tableName];
-    
-    if (!spreadsheetId) {
-        console.log(`[Database] Auto-creating new Google Sheet for ${tableName}...`);
-        try {
-            const response = await gapi.client.sheets.spreadsheets.create({
-                resource: {
-                    properties: {
-                        title: tableName
-                    }
-                }
-            });
-            spreadsheetId = response.result.spreadsheetId;
-            userDbs[tableName] = spreadsheetId;
-            
-            await dbRef.set({ databases: userDbs }, { merge: true });
-            console.log(`[Database] Created sheet: ${spreadsheetId}`);
-        } catch (err) {
-            console.error("Error creating spreadsheet:", err);
-            throw new Error(`ไม่สามารถสร้างตาราง ${tableName} ได้: ${err.message}`);
-        }
-    }
-
-    // Update UI with a link to the spreadsheet
+    // Update UI: ปุ่ม "ดูตาราง" สำหรับดูข้อมูลที่บันทึกไว้ (แทนลิงก์เปิด Google Sheet เดิม)
     const linksContainer = document.getElementById('dbLinksContainer');
     if (linksContainer && !document.getElementById(`db-link-${tableName}`)) {
-        const linkBtn = document.createElement('a');
+        const linkBtn = document.createElement('button');
         linkBtn.id = `db-link-${tableName}`;
-        linkBtn.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-        linkBtn.target = '_blank';
+        linkBtn.type = 'button';
         linkBtn.className = 'control-btn';
         linkBtn.style.backgroundColor = '#0F9D58';
         linkBtn.style.color = 'white';
-        linkBtn.style.textDecoration = 'none';
         linkBtn.style.padding = '8px 15px';
         linkBtn.style.marginLeft = '10px';
         linkBtn.style.borderRadius = '5px';
-        linkBtn.innerHTML = `<i class="fas fa-table"></i> เปิดตาราง: ${tableName}`;
+        linkBtn.style.border = 'none';
+        linkBtn.style.cursor = 'pointer';
+        linkBtn.innerHTML = `<i class="fas fa-table"></i> ดูตาราง: ${tableName}`;
+        linkBtn.addEventListener('click', () => showFirestoreTableViewer(tableName));
         linksContainer.appendChild(linkBtn);
     }
-    
-    return spreadsheetId;
+
+    // ใช้ชื่อตารางเป็นตัวอ้างอิง (เก็บใน JS variable ฝั่งนักเรียนเหมือนของเดิมที่เคยเก็บ spreadsheetId)
+    return tableName;
 };
 
-window.dbAppend = async function(spreadsheetId, dataArray) {
-    if (!currentAccessToken) {
+window.dbAppend = async function(tableName, dataArray) {
+    if (!dbConnected) {
         throw new Error('กรุณากดปุ่ม "เชื่อมต่อฐานข้อมูล" ก่อน');
     }
-    
-    if (!spreadsheetId) {
-        throw new Error('ไม่พบการเชื่อมต่อฐานข้อมูล (Spreadsheet ID is missing)');
+    if (!tableName) {
+        throw new Error('ไม่พบการเชื่อมต่อฐานข้อมูล (Table name is missing)');
     }
-    
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) throw new Error("Please login to JediCode first.");
+
     try {
-        await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId: spreadsheetId,
-            range: 'Sheet1!A1',
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
-            resource: {
-                values: [dataArray]
-            }
-        });
-        console.log(`[Database] Data appended to spreadsheet: ${spreadsheetId}`);
+        await getStudentTableRef(currentUser.uid, tableName)
+            .add({
+                values: dataArray,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        console.log(`[Database] Data appended to table: ${tableName} (problem: ${window.currentProblemId})`);
     } catch (err) {
         console.error("Error appending data:", err);
         throw new Error(`บันทึกข้อมูลไม่สำเร็จ: ${err.message}`);
+    }
+};
+
+// แสดงข้อมูลที่บันทึกไว้ใน Firestore เป็นตารางง่าย ๆ (ทดแทนการเปิด Google Sheet เดิม)
+window.showFirestoreTableViewer = async function(tableName) {
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) return;
+
+    let modal = document.getElementById('firestoreTableModal');
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'firestoreTableModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:8px;padding:20px;max-width:80%;max-height:80%;overflow:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <h3 style="margin:0;">ตาราง: ${tableName}</h3>
+                <button id="closeFirestoreModalBtn" style="border:none;background:#eee;border-radius:4px;padding:5px 10px;cursor:pointer;">ปิด</button>
+            </div>
+            <div id="firestoreTableContent">กำลังโหลดข้อมูล...</div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('closeFirestoreModalBtn').addEventListener('click', () => modal.remove());
+
+    try {
+        const snapshot = await getStudentTableRef(currentUser.uid, tableName)
+            .orderBy('createdAt', 'asc')
+            .get();
+
+        const contentDiv = document.getElementById('firestoreTableContent');
+        if (snapshot.empty) {
+            contentDiv.innerHTML = '<p>ยังไม่มีข้อมูลในตารางนี้</p>';
+            return;
+        }
+
+        let html = '<table style="border-collapse:collapse;width:100%;"><tbody>';
+        snapshot.forEach(doc => {
+            const row = doc.data().values || [];
+            html += '<tr>' + row.map(cell => `<td style="border:1px solid #ddd;padding:6px 10px;">${cell}</td>`).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        contentDiv.innerHTML = html;
+    } catch (err) {
+        console.error('Error loading table data:', err);
+        document.getElementById('firestoreTableContent').innerHTML = `<p style="color:red;">โหลดข้อมูลไม่สำเร็จ: ${err.message}</p>`;
     }
 };

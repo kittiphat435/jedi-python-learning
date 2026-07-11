@@ -102,11 +102,36 @@ async function checkEnrollment(classId, userId) {
             }).catch(err => console.error("Error loading profile details:", err));
         }
 
+        // ดึงข้อมูลชุดที่ loadProblems/loadStats/initProgressChart ต้องใช้ร่วมกันแค่ครั้งเดียวตรงนี้
+        // (เดิมแต่ละฟังก์ชันต่างคนต่างไปดึง class_problems / submissions / problems / class_enrollments
+        //  ซ้ำกันเองหมด แถม loadStats ยังวนลูป await ดึง problems ทีละตัวแบบเรียงคิว (sequential)
+        //  ถ้าห้องมีโจทย์ 15-20 ข้อ กลายเป็นรอ 15-20 round-trip ต่อกัน นี่คือสาเหตุหลักที่หน้านี้โหลดช้า)
+        const [classProblemsSnapshot, submissionsSnapshot] = await Promise.all([
+            db.collection('class_problems').where('classId', '==', classId).get(),
+            db.collection('submissions').where('studentId', '==', userId).where('classId', '==', classId).get()
+        ]);
+
+        const uniqueProblemIds = new Set();
+        classProblemsSnapshot.forEach(doc => uniqueProblemIds.add(doc.data().problemId));
+
+        // ดึงเอกสารโจทย์ทุกข้อแบบขนานพร้อมกันทีเดียว (ครั้งเดียว ใช้ร่วมกันทั้ง loadProblems และ loadStats)
+        const problemDocsMap = new Map();
+        await Promise.all(Array.from(uniqueProblemIds).map(async (id) => {
+            try {
+                const doc = await db.collection('problems').doc(id).get();
+                if (doc.exists) problemDocsMap.set(id, doc);
+            } catch (e) {
+                console.error('Error loading problem doc:', id, e);
+            }
+        }));
+
+        const sharedClassData = { classProblemsSnapshot, submissionsSnapshot, problemDocsMap, enrollmentSnapshot };
+
         await Promise.all([
             loadClassDetails(classId),
-            loadProblems(classId, userId),
-            loadStats(classId, userId),
-            initProgressChart(classId, userId)
+            loadProblems(classId, userId, sharedClassData),
+            loadStats(classId, userId, sharedClassData),
+            initProgressChart(classId, userId, sharedClassData)
         ]);
 
         // เริ่มการอัพเดตอัตโนมัติหลังโหลดข้อมูลเสร็จ
@@ -325,26 +350,29 @@ let allProblems = [];
 // โหลดโจทย์ทั้งหมด (ฉบับแก้ไข: อ่านสถานะ completed และ timestamp ให้แม่นยำ)
 // [student-class-detail.js]
 
-async function loadProblems(classId, userId) {
+// รับ sharedClassData (optional) จาก checkEnrollment เพื่อใช้ classProblemsSnapshot/submissionsSnapshot/
+// problemDocsMap ที่ดึงมาแล้วครั้งเดียว แทนการยิง Firestore ซ้ำเอง ถ้าไม่ได้ส่งมา (เช่นถูกเรียกจากที่อื่น
+// ในอนาคต) จะ fallback ไปดึงเองเหมือนพฤติกรรมเดิมทั้งหมด
+async function loadProblems(classId, userId, sharedClassData = null) {
     const problemList = document.getElementById('problemList');
     try {
         problemList.innerHTML = '<p>กำลังโหลดข้อมูล...</p>';
 
-        // 1. ดึงโจทย์ทั้งหมดในห้องเรียน
-        const classProblemSnapshot = await db.collection('class_problems')
-            .where('classId', '==', classId)
-            .get();
+        // 1. ดึงโจทย์ทั้งหมดในห้องเรียน (ใช้ของที่ดึงมาแล้วถ้ามี)
+        const classProblemSnapshot = sharedClassData?.classProblemsSnapshot
+            || await db.collection('class_problems').where('classId', '==', classId).get();
 
         if (classProblemSnapshot.empty) {
             problemList.innerHTML = '<p>ยังไม่มีโจทย์ในห้องเรียน</p>';
             return;
         }
 
-        // 2. ดึงประวัติการส่งงาน (เหมือนเดิม)
-        const submissionsSnapshot = await db.collection('submissions')
-            .where('studentId', '==', userId)
-            .where('classId', '==', classId)
-            .get();
+        // 2. ดึงประวัติการส่งงาน (ใช้ของที่ดึงมาแล้วถ้ามี)
+        const submissionsSnapshot = sharedClassData?.submissionsSnapshot
+            || await db.collection('submissions')
+                .where('studentId', '==', userId)
+                .where('classId', '==', classId)
+                .get();
 
         // 3. สร้าง Map Submission (เหมือนเดิม)
         const submissionStatus = new Map();
@@ -371,16 +399,18 @@ async function loadProblems(classId, userId) {
              }
         });
 
-        // 4. วนลูปสร้างรายการโจทย์
+        // 4. วนลูปสร้างรายการโจทย์ (ถ้ามี problemDocsMap ที่ดึงมาแล้วใช้เลย ไม่ต้องยิง Firestore ซ้ำ)
         const problemPromises = classProblemSnapshot.docs.map(async (doc) => {
             const relationData = doc.data(); // ข้อมูลจาก class_problems (มี orderIndex)
             const problemDataId = relationData.problemId;
-            let problemDoc;
-            
-            try {
-                problemDoc = await db.collection('problems').doc(problemDataId).get();
-            } catch (e) {
-                return null;
+            let problemDoc = sharedClassData?.problemDocsMap?.get(problemDataId);
+
+            if (!problemDoc) {
+                try {
+                    problemDoc = await db.collection('problems').doc(problemDataId).get();
+                } catch (e) {
+                    return null;
+                }
             }
 
             if (!problemDoc.exists) return null;
@@ -559,20 +589,23 @@ function searchProblems(searchText) {
 // โหลดสถิติ
 // ใน student-class-detail.js
 // ใน student-class-detail.js
-async function loadStats(classId, userId) {
+// รับ sharedClassData (optional) จาก checkEnrollment เพื่อใช้ข้อมูลที่ดึงมาแล้วครั้งเดียว
+// ถ้าถูกเรียกแบบ standalone (เช่นจาก startStatsUpdate ทุก 10 วิ หรือ refresh หลัง quiz) จะ fallback
+// ไปดึงเอง แต่ยังคงดึงเอกสารโจทย์แบบขนาน (Promise.all) ไม่ใช่ทีละตัวแบบเดิม
+async function loadStats(classId, userId, sharedClassData = null) {
     try {
-        const classProblemsSnapshot = await db.collection('class_problems')
-            .where('classId', '==', classId)
-            .get();
+        const classProblemsSnapshot = sharedClassData?.classProblemsSnapshot
+            || await db.collection('class_problems').where('classId', '==', classId).get();
 
         const uniqueProblemIds = new Set();
         classProblemsSnapshot.forEach(doc => uniqueProblemIds.add(doc.data().problemId));
         const totalProblems = uniqueProblemIds.size;
 
-        const submissionsSnapshot = await db.collection('submissions')
-            .where('classId', '==', classId)
-            .where('studentId', '==', userId)
-            .get();
+        const submissionsSnapshot = sharedClassData?.submissionsSnapshot
+            || await db.collection('submissions')
+                .where('classId', '==', classId)
+                .where('studentId', '==', userId)
+                .get();
 
         const latestSubmissions = new Map();
         
@@ -600,13 +633,29 @@ async function loadStats(classId, userId) {
             }
         });
 
+        // ดึงเอกสารโจทย์ทุกข้อ: ใช้ของที่แชร์มาจาก checkEnrollment ถ้ามี ไม่งั้น fetch แบบขนานทั้งหมดทีเดียว
+        // (เดิมตรงนี้เป็น for-loop + await ทีละตัวเรียงคิว ถ้าห้องมี 15-20 โจทย์ = รอ 15-20 round-trip
+        // ต่อกันตามลำดับ เป็นสาเหตุหลักที่หน้านี้โหลดช้า 5-8 วินาที)
+        let problemDocsMap = sharedClassData?.problemDocsMap;
+        if (!problemDocsMap) {
+            problemDocsMap = new Map();
+            await Promise.all(Array.from(uniqueProblemIds).map(async (id) => {
+                try {
+                    const doc = await db.collection('problems').doc(id).get();
+                    if (doc.exists) problemDocsMap.set(id, doc);
+                } catch (e) {
+                    console.error('Error loading problem doc:', id, e);
+                }
+            }));
+        }
+
         let totalScore = 0;
         let totalMaxScore = 0;
         let completedProblems = 0;
 
         for (let problemId of uniqueProblemIds) {
-            const problemDoc = await db.collection('problems').doc(problemId).get();
-            if (!problemDoc.exists) continue; // กันเหนียว
+            const problemDoc = problemDocsMap.get(problemId);
+            if (!problemDoc || !problemDoc.exists) continue; // กันเหนียว
 
             const problemData = problemDoc.data();
             let maxScore = 0;
@@ -670,10 +719,12 @@ async function loadStats(classId, userId) {
 
         // คำนวณตั๋วและคะแนน Arcade
         // ดึงข้อมูล boughtTickets, usedTickets และคะแนนเกม จาก class_enrollments ของห้องนี้
-        const enrollSnapshot = await db.collection('class_enrollments')
-            .where('studentId', '==', userId)
-            .where('classId', '==', classId).get();
-            
+        // (ใช้ enrollmentSnapshot ที่ checkEnrollment ดึงไปแล้วตอนต้น ไม่ต้องยิงซ้ำ)
+        const enrollSnapshot = sharedClassData?.enrollmentSnapshot
+            || await db.collection('class_enrollments')
+                .where('studentId', '==', userId)
+                .where('classId', '==', classId).get();
+
         let enrollmentData = {};
         if (!enrollSnapshot.empty) {
             enrollmentData = enrollSnapshot.docs[0].data();
@@ -810,7 +861,11 @@ function updateStudentRank(progress) {
 
 // สร้างกราฟแสดงความคืบหน้า
 // ใน student-class-detail.js
-async function initProgressChart(classId, userId) {
+// รับ sharedClassData (optional) จาก checkEnrollment เพื่อใช้ submissionsSnapshot ที่ดึงมาแล้ว
+// (เดิมฟังก์ชันนี้ดึง submissions ของนักเรียนคนนี้ "ทุกห้องเรียน" มาก่อน แล้วค่อยกรอง classId
+// ทีหลังฝั่ง client ทั้งที่ query กรอง classId ตั้งแต่ต้นได้เลย ยิ่งนักเรียนอยู่หลายห้อง/ส่งงานมาก
+// ยิ่งโหลดข้อมูลเกินความจำเป็นมาก)
+async function initProgressChart(classId, userId, sharedClassData = null) {
     const ctx = document.getElementById('progressChart');
     if (!ctx) return;
 
@@ -820,11 +875,16 @@ async function initProgressChart(classId, userId) {
             chartInstance.destroy();
         }
 
-        const submissions = await db.collection('submissions')
-            .where('studentId', '==', userId)
-            .get();
+        const submissions = sharedClassData?.submissionsSnapshot
+            || await db.collection('submissions')
+                .where('studentId', '==', userId)
+                .where('classId', '==', classId)
+                .get();
 
         // ✅ แก้ไข: แปลงข้อมูลก่อนกรองและเรียง (จัดการ timestamp)
+        // หมายเหตุ: submissions ตอนนี้ถูก query กรอง classId มาแล้วตั้งแต่ต้น (ไม่ว่าจะมาจาก
+        // sharedClassData หรือ fallback query ด้านบน) filter ซ้ำด้วย .classId === classId ไว้เผื่อ
+        // เอกสารเก่าบางอันไม่มี field classId ให้ตกไปอยู่ในนี้โดยไม่ได้ตั้งใจ ไม่กระทบผลลัพธ์ปกติ
         let filteredSubmissions = submissions.docs
             .filter(doc => doc.data().classId === classId)
             .map(doc => {
@@ -1415,44 +1475,73 @@ async function renderSelfAnalysis() {
     }
 }
 
+// ชื่อเกมสำหรับแสดงผลใน Toast (แทนคีย์ดิบ เช่น 'snake')
+const ARCADE_GAME_LABELS = { snake: 'Python Snake', dino: 'Dino Jump', tetris: 'Tetris' };
+
+// แจ้งเตือนหักตั๋วสำเร็จแบบสวยงาม (แทน alert() เดิม) แล้ว resolve เมื่อ animation จบพร้อมเข้าเกม
+function showTicketToast(gameName, newAvailable) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('ticketToastOverlay');
+        const remainingEl = document.getElementById('ticketToastRemaining');
+        const labelEl = document.getElementById('ticketToastGameLabel');
+        const barFill = document.getElementById('ticketToastBarFill');
+        if (!overlay || !remainingEl || !labelEl || !barFill) { resolve(); return; }
+
+        remainingEl.textContent = newAvailable;
+        labelEl.textContent = `กำลังเข้าสู่เกม ${ARCADE_GAME_LABELS[gameName] || gameName}`;
+        barFill.style.width = '0%';
+
+        overlay.classList.add('show');
+        // ต้องรอ 1 เฟรมก่อนเริ่ม transition ของแถบโหลด ไม่งั้นจะกระโดดไป 100% ทันทีโดยไม่มี animation
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => { barFill.style.width = '100%'; });
+        });
+
+        setTimeout(() => {
+            overlay.classList.remove('show');
+            resolve();
+        }, 1200);
+    });
+}
+
 // ฟังก์ชันควบคุม Arcade Room (ไม่ใช้ Modal แล้ว)
 async function playGame(gameName) {
     const user = firebase.auth().currentUser;
     if (!user) return;
-    
+
     // ดึงจำนวนตั๋วปัจจุบันที่แสดงอยู่บนหน้าเว็บ
     const ticketText = document.getElementById('arcadeTickets').textContent;
     const availableTickets = parseInt(ticketText) || 0;
-    
+
     if (availableTickets > 0) {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const classId = urlParams.get('id');
-            
+
             // ดึงข้อมูล class_enrollments ปัจจุบันเพื่อดูว่าเคยใช้ตั๋วไปกี่ใบแล้ว
             const enrollSnapshot = await db.collection('class_enrollments')
                 .where('studentId', '==', user.uid)
                 .where('classId', '==', classId).get();
-                
+
             if (!enrollSnapshot.empty) {
                 const enrollDoc = enrollSnapshot.docs[0];
                 const usedTickets = enrollDoc.data().usedTickets || 0;
-                
+
                 // อัปเดตตั๋วที่ใช้ไปแล้วใน Firebase (+1)
                 await enrollDoc.ref.update({
                     usedTickets: usedTickets + 1
                 });
             }
-            
+
             // อัปเดต UI แบบ Real-time
             const newAvailable = availableTickets - 1;
             document.getElementById('arcadeTickets').textContent = `${newAvailable}`;
-            
-            alert(`หัก 1 ตั๋วสำเร็จ!\nตั๋วคงเหลือ: ${newAvailable} ใบ\n\nกำลังเข้าสู่เกม ${gameName}...`);
-            
+
+            await showTicketToast(gameName, newAvailable);
+
             // เปิดเกมในหน้าเดียวกันเลย พร้อมแนบ classId
             window.location.href = `game-${gameName}.html?classId=${classId}`;
-            
+
         } catch (error) {
             console.error('Error updating tickets:', error);
             alert('เกิดข้อผิดพลาดในการหักตั๋ว กรุณาลองใหม่');

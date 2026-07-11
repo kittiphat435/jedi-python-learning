@@ -1,13 +1,51 @@
 // ===============================
 // Robust Text Normalization (For Thai & Mobile Inputs)
 // ===============================
+
+// Fix: student-typed Thai text vs copy-pasted Thai text can compare as "not equal"
+// even though visually identical, because Thai vowel/tone marks can be typed in
+// different order depending on keyboard/IME. Standard .normalize('NFC'/'NFD') does
+// NOT fix this for Thai (several vowel signs have Unicode combining class 0, which
+// blocks canonical reordering of tone marks across them). So reorder marks ourselves.
+const THAI_VOWEL_MARKS = new Set([0x0E31, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 0x0E38, 0x0E39, 0x0E3A, 0x0E47, 0x0E4C, 0x0E4D, 0x0E4E]);
+const THAI_TONE_MARKS = new Set([0x0E48, 0x0E49, 0x0E4A, 0x0E4B]);
+
+function thaiMarkPriority(codePoint) {
+    if (THAI_VOWEL_MARKS.has(codePoint)) return 0; // vowel/other marks always come first
+    if (THAI_TONE_MARKS.has(codePoint)) return 1;  // tone marks always come after vowels
+    return -1; // not a mark that needs reordering
+}
+
+function reorderThaiCombiningMarks(text) {
+    if (!text) return text;
+    const chars = Array.from(text);
+    const result = [];
+    let i = 0;
+    while (i < chars.length) {
+        result.push(chars[i]);
+        i++;
+        const run = [];
+        while (i < chars.length && thaiMarkPriority(chars[i].codePointAt(0)) !== -1) {
+            run.push(chars[i]);
+            i++;
+        }
+        if (run.length > 1) {
+            run.sort((a, b) => thaiMarkPriority(a.codePointAt(0)) - thaiMarkPriority(b.codePointAt(0)));
+        }
+        result.push(...run);
+    }
+    return result.join('');
+}
+
 function normalizeText(text) {
     if (text === null || text === undefined) return '';
-    return text.toString()
-        .normalize('NFC') // Normalize Unicode (e.g., Thai vowel ordering)
-        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove hidden characters (Zero-width space, etc.)
-        .replace(/\s+/g, ' ') // Collapse multiple spaces into one
-        .trim();
+    return reorderThaiCombiningMarks(
+        text.toString()
+            .normalize('NFC') // Normalize Unicode (e.g., Thai vowel ordering)
+            .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove hidden characters (Zero-width space, etc.)
+            .replace(/\s+/g, ' ') // Collapse multiple spaces into one
+            .trim()
+    );
 }
 
 function compareText(actual, expected) {
@@ -574,36 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
         // Setup Ace Editor
         const codeEditor=setupEditor();
-        const convertBtn = document.getElementById('convertBtn');
-        if (convertBtn) {  // <--- เพิ่มบรรทัดนี้
-            convertBtn.addEventListener('click', async () => {
-            console.log('Preview button clicked');
-            const code = codeEditor.value;
-            console.log('Code to preview:', code.substring(0, 100) + '...');
-
-            if (convertBtn.disabled) {
-                console.log('Preview button is disabled');
-                showError('กรุณาตรวจสอบโค้ดให้ผ่านก่อนแสดง GUI');
-                return;
-            }
-            
-            // อ่านโค้ดจาก textarea ที่เพิ่งสร้าง
-            const editorCode = document.getElementById('codeEditorTextarea').value;
-            document.getElementById('pythonInput').value = editorCode;
-
-            // แสดงผลใน result-frame
-            sendToSimulator(true);
-            
-            // เปิดใช้งานปุ่ม Test หลังจากรันโค้ดสำเร็จ
-            if (testBtn) {
-                testBtn.disabled = false;
-            }
-            // ยังคงปิดใช้งานปุ่ม testCaseBtn - ต้องตรวจคำตอบก่อน
-            if (testCaseBtn) {
-                testCaseBtn.disabled = true;
-            }
-            });
-        }
+        // หมายเหตุ: เดิมมีการผูก click listener ให้ convertBtn ตรงนี้ซ้ำกับใน setupEventListeners()
+        // ทำให้ sendToSimulator() ถูกเรียก 2 ครั้งต่อการคลิก 1 ครั้ง เกิด race condition กับ resultFrame.srcdoc/onload
+        // (อาการ: กด "แสดง GUI" แล้ว preview ค้าง ต้องเปิด F12 ถึงจะทำงาน) จึงลบออก เหลือ listener เดียวใน setupEventListeners()
         // Get problem ID and class ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const problemId = urlParams.get('id');

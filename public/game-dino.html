@@ -4,139 +4,311 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dino Jump - JediCode Arcade</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        body { 
-            margin: 0; padding: 0; 
-            background-color: #34495e; 
-            color: white; 
-            font-family: 'Sarabun', sans-serif; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        :root {
+            --retro-bg: #0d0d1a;
+            --retro-panel: #1a1a2e;
+            --retro-green: #39ff14;
+            --retro-green-dark: #1fa60c;
+            --retro-cyan: #00e5ff;
+            --retro-magenta: #ff2fd6;
+            --retro-yellow: #ffd400;
+            --retro-red: #ff3b3b;
+            --retro-purple: #b23bff;
+            --retro-orange: #ff8a3d;
+            --pixel-font: 'Press Start 2P', 'Sarabun', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--retro-bg);
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(255,138,61,0.08), transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(0,229,255,0.08), transparent 40%);
+            color: white;
+            font-family: 'Sarabun', sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; overflow: hidden;
         }
 
-        /* สไตล์สำหรับปุ่ม Fullscreen */
-        .fullscreen-btn {
+        .fullscreen-btn, .sound-btn, .leaderboard-btn {
             position: absolute;
             top: 20px;
-            right: 20px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            background: var(--retro-panel);
+            color: var(--retro-cyan);
+            border: 2px solid var(--retro-cyan);
+            width: 42px;
+            height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2em;
+            font-size: 1.1em;
             cursor: pointer;
             z-index: 100;
-            transition: background 0.3s;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 3px 3px 0 rgba(0,229,255,0.35);
         }
-        .fullscreen-btn:hover { background: rgba(255,255,255,0.4); }
-        
-        .header { 
+        .fullscreen-btn:hover, .sound-btn:hover, .leaderboard-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 rgba(0,229,255,0.5);
+        }
+        .fullscreen-btn { right: 20px; }
+        .sound-btn { right: 72px; }
+        .leaderboard-btn {
+            right: 124px;
+            border-color: var(--retro-yellow);
+            color: var(--retro-yellow);
+            box-shadow: 3px 3px 0 rgba(255,212,0,0.35);
+        }
+        .leaderboard-btn:hover { box-shadow: 4px 4px 0 rgba(255,212,0,0.5); }
+
+        .header {
             display: flex; justify-content: space-between; align-items: center;
-            width: 100%; max-width: 600px; margin-bottom: 20px; 
+            width: 100%; max-width: 600px; margin-bottom: 16px;
             box-sizing: border-box; padding: 0 10px;
+            gap: 10px;
         }
         .score-box {
-            background: #2c3e50; padding: 10px 20px; border-radius: 8px; font-size: 1.2em; font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            background: var(--retro-panel);
+            border: 2px solid var(--retro-orange);
+            padding: 10px 14px;
+            font-family: var(--pixel-font);
+            font-size: 0.6em;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            flex: 1;
+            text-align: center;
         }
-        .score-val { color: #3498db; font-size: 1.5em; }
-        .highscore-val { color: #f1c40f; font-size: 1.5em; }
-        
-        canvas { 
-            background-color: #f5f6fa; 
-            border: 5px solid #bdc3c7; 
-            border-radius: 8px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-            max-width: 100%;
+        .score-val { color: var(--retro-orange); font-size: 1.6em; display: block; margin-top: 6px; text-shadow: 0 0 8px rgba(255,138,61,0.7); }
+        .highscore-val { color: var(--retro-yellow); font-size: 1.6em; display: block; margin-top: 6px; text-shadow: 0 0 8px rgba(255,212,0,0.7); }
+
+        .status-bar {
+            width: 100%; max-width: 600px; min-height: 22px;
+            display: flex; gap: 8px; margin-bottom: 8px; padding: 0 10px;
+            font-family: var(--pixel-font); font-size: 0.5em;
+        }
+        .status-chip {
+            padding: 4px 8px; border-radius: 3px; display: none;
+            align-items: center; gap: 4px;
+        }
+        .status-chip.active { display: flex; }
+        .status-chip.chip-star { background: rgba(255,212,0,0.2); color: var(--retro-yellow); border: 1px solid var(--retro-yellow); }
+        .status-chip.chip-shield { background: rgba(0,229,255,0.2); color: var(--retro-cyan); border: 1px solid var(--retro-cyan); }
+        .status-chip.chip-slow { background: rgba(178,59,255,0.2); color: var(--retro-purple); border: 1px solid var(--retro-purple); }
+
+        .game-frame {
+            position: relative;
+            width: 100%; max-width: 600px;
+            border: 6px solid #33334d;
+            box-shadow:
+                0 0 0 3px #0d0d1a,
+                0 0 0 6px var(--retro-orange),
+                0 15px 40px rgba(0,0,0,0.6);
+        }
+
+        canvas {
+            background-color: #060614;
+            display: block;
+            width: 100%;
             height: auto;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
         }
-        
-        .btn { 
-            background-color: #0984e3; color: white; border: none; 
-            padding: 12px 24px; border-radius: 5px; cursor: pointer; 
-            font-size: 1.1em; font-weight: bold; text-decoration: none; 
+
+        .scanlines {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(0,0,0,0) 0px,
+                rgba(0,0,0,0) 1px,
+                rgba(0,0,0,0.18) 2px,
+                rgba(0,0,0,0.18) 3px
+            );
+            mix-blend-mode: multiply;
+        }
+        .crt-flicker {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            background: rgba(255,138,61,0.02);
+            animation: flicker 4s infinite;
+        }
+        @keyframes flicker {
+            0%, 96%, 100% { opacity: 1; }
+            97% { opacity: 0.85; }
+            98% { opacity: 1; }
+        }
+
+        .btn {
+            background-color: var(--retro-magenta); color: white; border: none;
+            padding: 12px 22px; cursor: pointer;
+            font-family: var(--pixel-font);
+            font-size: 0.6em;
             display: inline-flex; align-items: center; gap: 8px;
-            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            transition: transform 0.15s, box-shadow 0.15s;
         }
-        .btn:hover { background-color: #74b9ff; transform: scale(1.05); }
-        .btn-secondary { background-color: #7f8c8d; }
-        .btn-secondary:hover { background-color: #95a5a6; }
-        
-        #gameOver { 
-            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(44, 62, 80, 0.9); 
-            flex-direction: column; align-items: center; justify-content: center; 
-            border-radius: 8px; text-align: center;
+        .btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.5); }
+        .btn:active { transform: translate(0,0); box-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+        .btn-secondary { background-color: #33334d; }
+
+        #gameOver {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(6, 6, 20, 0.92);
+            flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; z-index: 6;
         }
-        #gameOver h2 { color: #e74c3c; font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 0 #000; }
-        #newRecordMsg { color: #f1c40f; font-weight: bold; font-size: 1.5em; display: none; animation: pulse 1s infinite; }
-        
+        #gameOver h2 {
+            color: var(--retro-red); font-family: var(--pixel-font);
+            font-size: 1.5em; margin: 0 0 16px 0;
+            text-shadow: 0 0 10px rgba(255,59,59,0.8), 3px 3px 0 #000;
+            animation: pulse 1.2s infinite;
+        }
+        #finalScore { color: var(--retro-orange); }
+        #newRecordMsg {
+            color: var(--retro-yellow); font-weight: bold; font-family: var(--pixel-font);
+            font-size: 0.65em; display: none; animation: pulse 1s infinite;
+            text-shadow: 0 0 8px rgba(255,212,0,0.8);
+        }
+
         #startScreen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            background: rgba(245, 246, 250, 0.8); border-radius: 8px;
-            color: #2d3436; font-size: 1.5em; font-weight: bold;
+            background: rgba(6, 6, 20, 0.75);
+            color: var(--retro-orange); font-family: var(--pixel-font); font-size: 0.65em; font-weight: bold;
+            z-index: 5; text-align: center; line-height: 1.9; padding: 0 20px;
+            text-shadow: 0 0 8px rgba(255,138,61,0.7);
         }
 
         @keyframes pulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            50% { transform: scale(1.08); }
             100% { transform: scale(1); }
         }
+
+        .keyboard-hint { font-family: 'Sarabun', sans-serif; }
+
+        /* Leaderboard Modal (ใช้สไตล์เดียวกับเกมงูเพื่อความสม่ำเสมอ) */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75);
+            z-index: 200;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: var(--retro-panel);
+            border: 3px solid var(--retro-yellow);
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.6);
+            width: 92%; max-width: 380px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .modal-box h3 {
+            font-family: var(--pixel-font);
+            color: var(--retro-yellow);
+            font-size: 0.85em;
+            text-align: center;
+            margin: 0 0 16px 0;
+            text-shadow: 0 0 8px rgba(255,212,0,0.6);
+        }
+        .modal-close {
+            display: block; margin: 16px auto 0;
+            background: #33334d; color: white; border: none;
+            padding: 10px 20px; cursor: pointer;
+            font-family: var(--pixel-font); font-size: 0.55em;
+        }
+        .lb-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 6px; font-size: 0.85em;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .lb-row.me { background: rgba(0,229,255,0.12); border-radius: 4px; }
+        .lb-rank { width: 26px; font-family: var(--pixel-font); font-size: 0.7em; color: var(--retro-cyan); }
+        .lb-rank.top1 { color: var(--retro-yellow); }
+        .lb-rank.top2 { color: #d0d0e0; }
+        .lb-rank.top3 { color: #cd7f32; }
+        .lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lb-score { font-family: var(--pixel-font); font-size: 0.7em; color: var(--retro-orange); }
+        .lb-empty { text-align: center; padding: 20px 0; opacity: 0.7; }
+        .lb-loading { text-align: center; padding: 20px 0; opacity: 0.7; }
     </style>
 </head>
 <body>
 
-    <!-- ปุ่ม Fullscreen -->
+    <button id="leaderboardBtn" class="leaderboard-btn" title="อันดับในห้องเรียน">
+        <i class="fas fa-trophy"></i>
+    </button>
+    <button id="soundBtn" class="sound-btn" title="เปิด/ปิดเสียง">
+        <i class="fas fa-volume-up"></i>
+    </button>
     <button id="fullscreenBtn" class="fullscreen-btn" title="เปิดเต็มจอ">
         <i class="fas fa-expand"></i>
     </button>
 
     <div class="header">
-        <div class="score-box">คะแนน: <span id="score" class="score-val">0</span></div>
-        <div class="score-box">สถิติสูงสุด: <span id="highScore" class="highscore-val">0</span></div>
+        <div class="score-box">คะแนน<span id="score" class="score-val">0</span></div>
+        <div class="score-box">สถิติสูงสุด<span id="highScore" class="highscore-val">0</span></div>
     </div>
 
-    <div style="position: relative;">
+    <div class="status-bar" id="statusBar">
+        <span class="status-chip chip-star" id="chipStar"><i class="fas fa-star"></i> x2</span>
+        <span class="status-chip chip-shield" id="chipShield"><i class="fas fa-shield-halved"></i></span>
+        <span class="status-chip chip-slow" id="chipSlow"><i class="fas fa-hourglass-half"></i></span>
+    </div>
+
+    <div class="game-frame">
         <!-- Canvas กว้าง 600 สูง 200 -->
         <canvas id="gameCanvas" width="600" height="200"></canvas>
-        
+        <div class="scanlines"></div>
+        <div class="crt-flicker"></div>
+
         <div id="startScreen">
-            กด Spacebar หรือ แตะหน้าจอ เพื่อเริ่มและกระโดด
+            กด Spacebar หรือ แตะหน้าจอ<br>เพื่อเริ่มและกระโดด
         </div>
 
         <div id="gameOver">
             <h2>GAME OVER</h2>
-            <p style="font-size: 1.5em; margin-bottom: 5px;">คะแนนของคุณ: <span id="finalScore" style="color: #3498db; font-weight: bold;">0</span></p>
+            <p style="font-size: 1em; margin-bottom: 5px;">คะแนนของคุณ<br><span id="finalScore" style="font-family: var(--pixel-font); font-size: 1.3em; font-weight: bold;">0</span></p>
             <p id="newRecordMsg">🎉 ทำลายสถิติใหม่! 🎉</p>
-            <div style="margin-top: 30px; display: flex; gap: 15px;">
+            <div style="margin-top: 20px; display: flex; gap: 15px;">
                 <a href="student-class-detail.html" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> กลับโซน Arcade</a>
             </div>
         </div>
     </div>
-    
-    <div style="margin-top: 20px; color: #bdc3c7; text-align: center; padding: 0 10px;">
+
+    <div style="margin-top: 20px; color: #8888aa; text-align: center; padding: 0 10px;" class="keyboard-hint">
         <p><i class="fas fa-keyboard"></i> กด <b>Spacebar</b> หรือ <b>แตะหน้าจอ/คลิกเมาส์</b> เพื่อกระโดดหลบสิ่งกีดขวาง</p>
+        <p style="font-size: 0.85em;">⭐ ดาว = คะแนน x2 &nbsp; 🛡️ โล่ = กันชนตาย 1 ครั้ง &nbsp; ⏳ นาฬิกาทราย = ชะลอเกม</p>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="modal-overlay" id="leaderboardModal">
+        <div class="modal-box">
+            <h3><i class="fas fa-trophy"></i> อันดับในห้องเรียน</h3>
+            <div id="leaderboardContent" class="lb-loading">กำลังโหลด...</div>
+            <button class="modal-close" id="closeLeaderboardBtn">ปิด</button>
+        </div>
     </div>
 
     <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
+
     <script src="config.js"></script>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
         const db = firebase.firestore();
-        
+        const GROUND_Y = 190;
+
         let score = 0;
         let userHighScore = 0;
         let gameLoop;
@@ -157,14 +329,87 @@
 
         // สิ่งกีดขวาง (กระบองเพชร)
         let obstacles = [];
-        let obstacleSpeed = 5;
+        let obstacleSpeed = 4.5;
+        let baseObstacleSpeed = 4.5;
         let frameCount = 0;
-        
+
         // มอนสเตอร์บินได้ (แมลงวัน)
         let monsters = [];
-        let isCheckingTicket = false; // ตัวแปรป้องกันการกดรัวๆ
+
+        // Power-up ที่กำลังบินอยู่บนจอ (มีได้ทีละ 1 อัน)
+        let powerup = null;
+        const POWERUP_TYPES = ['star', 'shield', 'slow'];
+
+        // สถานะเอฟเฟกต์ที่กำลัง active
+        let scoreMultiplier = 1;
+        let multiplierEndAt = 0;
+        let shieldActive = false;
+        let slowActive = false;
+        let slowEndAt = 0;
+
+        // พื้นหลัง parallax (ภูเขา/เมฆ)
+        let groundOffset = 0;
+        const mountains = Array.from({ length: 6 }, (_, i) => ({ x: i * 140, h: 30 + (i % 3) * 15 }));
+        const clouds = Array.from({ length: 4 }, (_, i) => ({ x: i * 180 + 40, y: 20 + (i % 2) * 20 }));
 
         let scoreDocRef = null;
+        let currentClassId = null;
+
+        // ==========================================
+        // 🔊 เสียงประกอบสไตล์ 8-bit (Web Audio API ไม่ต้องใช้ไฟล์เสียงภายนอก)
+        // ==========================================
+        let audioCtx = null;
+        let soundOn = (localStorage.getItem('dinoSoundOn') !== 'false');
+
+        function getAudioCtx() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    return null;
+                }
+            }
+            return audioCtx;
+        }
+
+        function beep(freq, durationMs, type = 'square', startDelayMs = 0, volume = 0.15) {
+            if (!soundOn) return;
+            const ctxA = getAudioCtx();
+            if (!ctxA) return;
+            const osc = ctxA.createOscillator();
+            const gain = ctxA.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.value = volume;
+            osc.connect(gain);
+            gain.connect(ctxA.destination);
+            const startTime = ctxA.currentTime + startDelayMs / 1000;
+            osc.start(startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + durationMs / 1000);
+            osc.stop(startTime + durationMs / 1000 + 0.02);
+        }
+
+        function playJumpSound() { beep(500, 90, 'square'); }
+        function playScoreMilestoneSound() { beep(784, 70, 'triangle'); beep(1046, 100, 'triangle', 70); }
+        function playPowerupSound() { beep(660, 70, 'triangle'); beep(880, 70, 'triangle', 70); beep(1320, 120, 'triangle', 140); }
+        function playHitSound() { beep(220, 150, 'sawtooth', 0, 0.12); }
+        function playGameOverSound() {
+            beep(392, 140, 'square', 0);
+            beep(330, 140, 'square', 140);
+            beep(262, 260, 'square', 280);
+        }
+
+        const soundBtn = document.getElementById('soundBtn');
+        function updateSoundBtnIcon() {
+            soundBtn.innerHTML = soundOn ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
+        }
+        updateSoundBtnIcon();
+        soundBtn.addEventListener('click', () => {
+            soundOn = !soundOn;
+            localStorage.setItem('dinoSoundOn', soundOn ? 'true' : 'false');
+            updateSoundBtnIcon();
+            if (soundOn) { getAudioCtx(); beep(660, 60, 'square'); }
+        });
 
         // 1. โหลด Highscore
         firebase.auth().onAuthStateChanged(async (user) => {
@@ -172,7 +417,8 @@
                 try {
                     const urlParams = new URLSearchParams(window.location.search);
                     const classId = urlParams.get('classId');
-                    
+                    currentClassId = classId;
+
                     if (classId) {
                         const snapshot = await db.collection('class_enrollments')
                             .where('studentId', '==', user.uid)
@@ -211,6 +457,7 @@
             if (isPlaying && !dino.isJumping) {
                 dino.dy = dino.jumpPower;
                 dino.isJumping = true;
+                playJumpSound();
             }
         }
 
@@ -226,50 +473,167 @@
             jump();
         }, { passive: false });
 
-        // 3. วาดกราฟิก
+        // ==========================================
+        // 🎨 วาดกราฟิกสไตล์ Pixel Art
+        // ==========================================
+        function px(x, y, w, h, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = "#060614";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // เมฆพิกเซล (ชั้นไกลสุด เลื่อนช้า)
+            clouds.forEach(c => {
+                px(c.x, c.y, 24, 6, "#2a2a44");
+                px(c.x + 6, c.y - 4, 14, 6, "#2a2a44");
+            });
+
+            // ภูเขาพิกเซล (ชั้นกลาง)
+            mountains.forEach(m => {
+                ctx.fillStyle = "#1c1c33";
+                ctx.beginPath();
+                ctx.moveTo(m.x, GROUND_Y);
+                ctx.lineTo(m.x + 35, GROUND_Y - m.h);
+                ctx.lineTo(m.x + 70, GROUND_Y);
+                ctx.closePath();
+                ctx.fill();
+            });
+        }
+
+        function drawGround() {
+            px(0, GROUND_Y, canvas.width, 2, "#ff8a3d");
+            // เส้นประพื้นวิ่ง เลื่อนตามความเร็ว จำลองการเคลื่อนที่
+            ctx.fillStyle = "#33334d";
+            for (let gx = -20 + (groundOffset % 30); gx < canvas.width; gx += 30) {
+                px(gx, GROUND_Y + 6, 14, 3, "#33334d");
+            }
+        }
+
+        function drawDino() {
+            const bodyColor = "#ff8a3d";
+            const outline = "#3a1e08";
+            px(dino.x, dino.y, dino.width, dino.height, outline);
+            px(dino.x + 2, dino.y + 2, dino.width - 4, dino.height - 6, bodyColor);
+
+            // ตา
+            px(dino.x + 18, dino.y + 6, 5, 5, "#0d0d1a");
+
+            // ขาวิ่ง 2 เฟรมสลับกัน (เฉพาะตอนอยู่บนพื้น ไม่กระโดด)
+            if (!dino.isJumping) {
+                const frame = Math.floor(frameCount / 6) % 2;
+                if (frame === 0) {
+                    px(dino.x + 4, dino.y + dino.height - 6, 6, 6, bodyColor);
+                    px(dino.x + 18, dino.y + dino.height - 10, 6, 10, bodyColor);
+                } else {
+                    px(dino.x + 4, dino.y + dino.height - 10, 6, 10, bodyColor);
+                    px(dino.x + 18, dino.y + dino.height - 6, 6, 6, bodyColor);
+                }
+            } else {
+                px(dino.x + 4, dino.y + dino.height - 8, 6, 8, bodyColor);
+                px(dino.x + 18, dino.y + dino.height - 8, 6, 8, bodyColor);
+            }
+
+            // โล่รอบตัวถ้า shield active
+            if (shieldActive) {
+                ctx.strokeStyle = "#00e5ff";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(dino.x - 3, dino.y - 3, dino.width + 6, dino.height + 6);
+            }
+        }
+
+        function drawObstacle(obs) {
+            const color = "#39ff14";
+            const outline = "#0c3305";
+            px(obs.x, obs.y, obs.width, obs.height, outline);
+            px(obs.x + 2, obs.y + 2, obs.width - 4, obs.height - 4, color);
+            if (obs.hasArm) {
+                px(obs.x - 4, obs.y + 8, 6, 10, outline);
+                px(obs.x - 3, obs.y + 9, 4, 8, color);
+            }
+        }
+
+        function drawMonster(m) {
+            px(m.x, m.y, m.width, m.height, "#0d0d1a");
+            px(m.x + 2, m.y + 2, m.width - 4, m.height - 4, "#ff2fd6");
+            // ปีกกระพือ
+            const wingUp = Math.sin(m.angle * 15) > 0;
+            ctx.fillStyle = "rgba(236, 240, 241, 0.85)";
+            const wingOffset = wingUp ? -6 : -2;
+            ctx.fillRect(m.x - 4, m.y + wingOffset, 8, 4);
+            ctx.fillRect(m.x + m.width - 4, m.y + wingOffset, 8, 4);
+        }
+
+        const POWERUP_STYLES = {
+            star:   { color: "#ffd400" },
+            shield: { color: "#00e5ff" },
+            slow:   { color: "#b23bff" }
+        };
+
+        function drawPowerup(p) {
+            const style = POWERUP_STYLES[p.type];
+            px(p.x, p.y, 20, 20, "#0d0d1a");
+            px(p.x + 2, p.y + 2, 16, 16, style.color);
+            ctx.fillStyle = "#0d0d1a";
+            if (p.type === 'star') {
+                px(p.x + 9, p.y + 5, 2, 2, "#0d0d1a");
+                px(p.x + 6, p.y + 9, 8, 2, "#0d0d1a");
+                px(p.x + 8, p.y + 13, 2, 2, "#0d0d1a");
+            } else if (p.type === 'shield') {
+                px(p.x + 8, p.y + 6, 4, 8, "#0d0d1a");
+            } else {
+                px(p.x + 6, p.y + 6, 8, 2, "#0d0d1a");
+                px(p.x + 9, p.y + 8, 2, 5, "#0d0d1a");
+                px(p.x + 6, p.y + 14, 8, 2, "#0d0d1a");
+            }
+        }
+
         function draw() {
-            // ล้างหน้าจอ
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawGround();
+            drawDino();
+            obstacles.forEach(drawObstacle);
+            monsters.forEach(drawMonster);
+            if (powerup) drawPowerup(powerup);
+        }
 
-            // วาดพื้น
-            ctx.beginPath();
-            ctx.moveTo(0, 190);
-            ctx.lineTo(600, 190);
-            ctx.strokeStyle = "#bdc3c7";
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        function updateStatusChips() {
+            const now = Date.now();
+            document.getElementById('chipStar').classList.toggle('active', now < multiplierEndAt);
+            document.getElementById('chipShield').classList.toggle('active', shieldActive);
+            document.getElementById('chipSlow').classList.toggle('active', now < slowEndAt);
+        }
 
-            // วาดไดโนเสาร์ (สี่เหลี่ยมสีฟ้า)
-            ctx.fillStyle = "#0984e3";
-            ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+        function applyPowerup(type) {
+            playPowerupSound();
+            const now = Date.now();
+            if (type === 'star') {
+                scoreMultiplier = 2;
+                multiplierEndAt = now + 8000;
+            } else if (type === 'shield') {
+                shieldActive = true;
+            } else if (type === 'slow') {
+                slowActive = true;
+                slowEndAt = now + 8000;
+            }
+            updateStatusChips();
+        }
 
-            // วาดตาไดโนเสาร์
-            ctx.fillStyle = "white";
-            ctx.fillRect(dino.x + 20, dino.y + 5, 5, 5);
+        function checkEffectExpiry() {
+            const now = Date.now();
+            if (scoreMultiplier > 1 && now >= multiplierEndAt) {
+                scoreMultiplier = 1;
+            }
+            if (slowActive && now >= slowEndAt) {
+                slowActive = false;
+            }
+            updateStatusChips();
+        }
 
-            // วาดสิ่งกีดขวาง (กระบองเพชรสีแดง)
-            ctx.fillStyle = "#d63031";
-            obstacles.forEach(obs => {
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-            });
-
-            // วาดมอนสเตอร์บินได้ (แมลงวัน)
-            monsters.forEach(m => {
-                // ตัวแมลงวันสีเทาดำ
-                ctx.fillStyle = "#2d3436"; 
-                ctx.beginPath();
-                ctx.arc(m.x + m.width/2, m.y + m.height/2, m.width/2, 0, Math.PI * 2);
-                ctx.fill();
-
-                // ปีกกระพือ (สีขาวใส)
-                ctx.fillStyle = "rgba(236, 240, 241, 0.8)";
-                ctx.beginPath();
-                ctx.ellipse(m.x + m.width/2 - 5, m.y - 2, 8, 12, Math.PI/6 * Math.sin(m.angle*15), 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.ellipse(m.x + m.width/2 + 5, m.y - 2, 8, 12, -Math.PI/6 * Math.sin(m.angle*15), 0, Math.PI * 2);
-                ctx.fill();
-            });
+        function currentObstacleSpeed() {
+            return slowActive ? obstacleSpeed * 0.55 : obstacleSpeed;
         }
 
         // 4. อัปเดตสถานะเกม
@@ -277,14 +641,31 @@
             if (isGameOver) return;
 
             frameCount++;
+            groundOffset -= currentObstacleSpeed();
+            if (groundOffset < -1000) groundOffset = 0;
 
-            // เพิ่มคะแนนตามระยะทางที่วิ่ง (ช้าลง 5 เท่า จากเดิมทุก 10 frame เป็นทุก 50 frame)
+            checkEffectExpiry();
+
+            // เลื่อนพื้นหลัง parallax
+            mountains.forEach(m => {
+                m.x -= currentObstacleSpeed() * 0.2;
+                if (m.x < -70) m.x += 140 * mountains.length / 2;
+            });
+            clouds.forEach(c => {
+                c.x -= currentObstacleSpeed() * 0.4;
+                if (c.x < -40) c.x = canvas.width + 20;
+            });
+
+            // เพิ่มคะแนนตามระยะทางที่วิ่ง (ปรับอัตราให้ใกล้เคียงกับเกมงู/Tetris)
             if (frameCount % 50 === 0) {
-                score++;
+                score += 4 * scoreMultiplier;
                 document.getElementById('score').textContent = score;
-                
-                // เพิ่มความเร็วเกมทุกๆ 100 คะแนน
-                if (score % 100 === 0) obstacleSpeed += 0.5;
+            }
+
+            // เพิ่มความเร็วเกมตามเวลาจริงที่รอด (ไม่ผูกกับคะแนน เพื่อคงจังหวะความยากเดิมไว้)
+            if (frameCount % 5000 === 0 && frameCount > 0) {
+                obstacleSpeed += 0.5;
+                playScoreMilestoneSound();
             }
 
             // ระบบแรงโน้มถ่วงของไดโนเสาร์
@@ -292,52 +673,65 @@
             dino.y += dino.dy;
 
             // ชนพื้น
-            if (dino.y + dino.height > 190) {
-                dino.y = 190 - dino.height;
+            if (dino.y + dino.height > GROUND_Y) {
+                dino.y = GROUND_Y - dino.height;
                 dino.dy = 0;
                 dino.isJumping = false;
             }
 
-            // สร้างสิ่งกีดขวางใหม่ (สุ่มระยะห่าง)
-            if (frameCount % (Math.floor(Math.random() * 60) + 60) === 0) {
+            // สร้างสิ่งกีดขวางใหม่ (สุ่มระยะห่าง กว้างขึ้นให้มีเวลาตั้งตัว ใกล้เคียงความยากเกมงู/Tetris มากขึ้น)
+            if (frameCount % (Math.floor(Math.random() * 70) + 90) === 0) {
                 obstacles.push({
                     x: canvas.width,
-                    y: 190 - 40, // ความสูง 40
+                    y: GROUND_Y - 40,
                     width: 20,
-                    height: 40
+                    height: 40,
+                    hasArm: Math.random() > 0.5
                 });
             }
 
-            // สร้างแมลงวัน (ทุกๆ ประมาณ 30 วินาที ที่ 60fps = 1800 frame)
+            // สร้างแมลงวัน
             if (frameCount % 1800 === 0 && frameCount > 0) {
                 monsters.push({
                     x: canvas.width,
-                    baseY: 60 + Math.random() * 40, // ความสูงฐานแบบสุ่ม (บนๆ)
+                    baseY: 60 + Math.random() * 40,
                     y: 60,
                     width: 20,
                     height: 20,
                     angle: 0,
-                    speed: obstacleSpeed + 1 // บินเร็วกว่ากระบองเพชรนิดนึง
+                    speed: obstacleSpeed + 1
                 });
             }
+
+            // สุ่ม spawn power-up (บินมาในระดับที่กระโดดเก็บได้)
+            if (!powerup && frameCount % 600 === 0 && Math.random() < 0.6) {
+                const type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+                powerup = { x: canvas.width, y: 110 + Math.random() * 30, type };
+            }
+
+            const speedNow = currentObstacleSpeed();
 
             // ขยับสิ่งกีดขวาง และเช็คการชน
             for (let i = 0; i < obstacles.length; i++) {
                 let obs = obstacles[i];
-                obs.x -= obstacleSpeed;
+                obs.x -= speedNow;
 
-                // ตรวจสอบการชน (Collision Detection)
-                if (dino.x < obs.x + obs.width &&
-                    dino.x + dino.width > obs.x &&
-                    dino.y < obs.y + obs.height &&
-                    dino.y + dino.height > obs.y) {
-                    
-                    isGameOver = true;
-                    handleGameOver();
-                    return; // จบเกมทันที
+                // ลดขนาด hitbox ลงเล็กน้อยจากภาพจริง (forgiveness margin) ให้รู้สึกยุติธรรมขึ้น ไม่ตายอย่างไม่เป็นธรรม
+                if (dino.x + 4 < obs.x + obs.width - 3 &&
+                    dino.x + dino.width - 4 > obs.x + 3 &&
+                    dino.y + 4 < obs.y + obs.height &&
+                    dino.y + dino.height > obs.y + 3) {
+
+                    if (!consumeShieldIfActive()) {
+                        isGameOver = true;
+                        handleGameOver();
+                        return;
+                    }
+                    obstacles.splice(i, 1);
+                    i--;
+                    continue;
                 }
 
-                // ลบสิ่งกีดขวางที่หลุดจอ
                 if (obs.x + obs.width < 0) {
                     obstacles.splice(i, 1);
                     i--;
@@ -347,25 +741,42 @@
             // ขยับแมลงวัน และเช็คการชน
             for (let i = 0; i < monsters.length; i++) {
                 let m = monsters[i];
-                m.x -= m.speed;
+                m.x -= m.speed * (slowActive ? 0.55 : 1);
                 m.angle += 0.05;
-                m.y = m.baseY + Math.sin(m.angle) * 30; // บินขึ้นลงแบบคลื่น (แอมพลิจูด 30)
+                m.y = m.baseY + Math.sin(m.angle) * 30;
 
-                // ตรวจสอบการชนกับแมลงวัน (Hitbox เล็กลงนิดนึงเพื่อความแฟร์)
                 if (dino.x < m.x + 15 &&
                     dino.x + dino.width > m.x + 5 &&
                     dino.y < m.y + 15 &&
                     dino.y + dino.height > m.y + 5) {
-                    
-                    isGameOver = true;
-                    handleGameOver();
-                    return; // จบเกมทันที
+
+                    if (!consumeShieldIfActive()) {
+                        isGameOver = true;
+                        handleGameOver();
+                        return;
+                    }
+                    monsters.splice(i, 1);
+                    i--;
+                    continue;
                 }
 
-                // ลบแมลงวันที่หลุดจอ
                 if (m.x + m.width < 0) {
                     monsters.splice(i, 1);
                     i--;
+                }
+            }
+
+            // ขยับ power-up และเช็คการเก็บ
+            if (powerup) {
+                powerup.x -= speedNow;
+                if (dino.x < powerup.x + 20 &&
+                    dino.x + dino.width > powerup.x &&
+                    dino.y < powerup.y + 20 &&
+                    dino.y + dino.height > powerup.y) {
+                    applyPowerup(powerup.type);
+                    powerup = null;
+                } else if (powerup.x + 20 < 0) {
+                    powerup = null;
                 }
             }
 
@@ -373,15 +784,25 @@
             gameLoop = requestAnimationFrame(update);
         }
 
+        // ถ้ามีโล่อยู่ ใช้ป้องกันการชนครั้งนี้แล้วคืนค่า true, ถ้าไม่มีคืนค่า false
+        function consumeShieldIfActive() {
+            if (!shieldActive) return false;
+            shieldActive = false;
+            playHitSound();
+            updateStatusChips();
+            return true;
+        }
+
         // วาดฉากเริ่มเกมทิ้งไว้
         draw();
 
         // 5. จัดการเมื่อจบเกม
         async function handleGameOver() {
+            playGameOverSound();
             cancelAnimationFrame(gameLoop);
             document.getElementById('gameOver').style.display = 'flex';
             document.getElementById('finalScore').textContent = score;
-            
+
             if (score > userHighScore) {
                 document.getElementById('newRecordMsg').style.display = 'block';
                 const user = firebase.auth().currentUser;
@@ -419,6 +840,97 @@
                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             }
         });
+
+        // ==========================================
+        // 🏆 Leaderboard ในห้องเรียน
+        // ==========================================
+        const leaderboardBtn = document.getElementById('leaderboardBtn');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+
+        leaderboardBtn.addEventListener('click', async () => {
+            leaderboardModal.classList.add('open');
+            await loadLeaderboard();
+        });
+        closeLeaderboardBtn.addEventListener('click', () => leaderboardModal.classList.remove('open'));
+        leaderboardModal.addEventListener('click', (e) => {
+            if (e.target === leaderboardModal) leaderboardModal.classList.remove('open');
+        });
+
+        async function loadLeaderboard() {
+            leaderboardContent.className = 'lb-loading';
+            leaderboardContent.textContent = 'กำลังโหลด...';
+
+            const user = firebase.auth().currentUser;
+            if (!currentClassId || !user) {
+                leaderboardContent.className = 'lb-empty';
+                leaderboardContent.textContent = 'ไม่พบข้อมูลห้องเรียน';
+                return;
+            }
+
+            try {
+                const enrollSnapshot = await db.collection('class_enrollments')
+                    .where('classId', '==', currentClassId)
+                    .get();
+
+                if (enrollSnapshot.empty) {
+                    leaderboardContent.className = 'lb-empty';
+                    leaderboardContent.textContent = 'ยังไม่มีข้อมูล';
+                    return;
+                }
+
+                // เอาเฉพาะคนที่มีคะแนน แล้วดึงชื่อของทุกคนแบบขนานพร้อมกันทีเดียว (ไม่ loop ทีละคน)
+                const withScore = enrollSnapshot.docs
+                    .map(doc => ({ studentId: doc.data().studentId, score: doc.data()?.arcadeHighscores?.dino || 0 }))
+                    .filter(e => e.score > 0);
+
+                const entries = await Promise.all(withScore.map(async (e) => {
+                    try {
+                        const userDoc = await db.collection('users').doc(e.studentId).get();
+                        const name = userDoc.exists ? (userDoc.data().displayName || 'ไม่ระบุชื่อ') : 'ไม่ระบุชื่อ';
+                        return { ...e, name };
+                    } catch (err) {
+                        return { ...e, name: 'ไม่ระบุชื่อ' };
+                    }
+                }));
+
+                entries.sort((a, b) => b.score - a.score);
+                const top = entries.slice(0, 10);
+
+                if (top.length === 0) {
+                    leaderboardContent.className = 'lb-empty';
+                    leaderboardContent.textContent = 'ยังไม่มีใครทำคะแนน Dino Jump ในห้องนี้';
+                    return;
+                }
+
+                leaderboardContent.className = '';
+                leaderboardContent.innerHTML = top.map((e, idx) => {
+                    const rank = idx + 1;
+                    const rankClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+                    const isMe = e.studentId === user.uid;
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+                    return `
+                        <div class="lb-row ${isMe ? 'me' : ''}">
+                            <span class="lb-rank ${rankClass}">${medal}</span>
+                            <span class="lb-name">${escapeLbHtml(e.name)}${isMe ? ' (คุณ)' : ''}</span>
+                            <span class="lb-score">${e.score}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading leaderboard:', e);
+                leaderboardContent.className = 'lb-empty';
+                leaderboardContent.textContent = 'โหลดข้อมูลไม่สำเร็จ';
+            }
+        }
+
+        function escapeLbHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
     </script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -434,7 +946,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         window.addEventListener('click', () => { window.focus(); });
-        window.addEventListener('mousemove', () => { window.focus(); }, { once: true }); 
+        window.addEventListener('mousemove', () => { window.focus(); }, { once: true });
     });
 </script>
 
