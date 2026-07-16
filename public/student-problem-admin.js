@@ -439,6 +439,10 @@ function displayProblems(problems) {
                     typeIcon = '🪟';
                     typeText = 'GUI';
                     break;
+                case 'code_order':
+                    typeIcon = '🧩';
+                    typeText = 'เรียงลำดับ Code';
+                    break;
                 default:
                     typeIcon = '❓';
                     typeText = 'ไม่ระบุ';
@@ -816,6 +820,9 @@ function viewProblem(problemId, type, isViewMode = false) {
             break;
         case 'iot':
             url = `student-iot-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
+            break;
+        case 'code_order':
+            url = `student-code-order-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;
             break;
         default:
             url = `student-quiz-detail.html?id=${problemId}&classId=${classId}${viewModeParam}`;

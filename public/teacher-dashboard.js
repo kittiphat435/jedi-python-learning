@@ -427,7 +427,7 @@ root.mainloop()`);
 
 window.toggleProblemTypeFields = function () {
     const problemType = document.getElementById('problemType').value;
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection', 'codeOrderSection'];
 
     sections.forEach(section => {
         const element = document.getElementById(section);
@@ -458,6 +458,8 @@ window.toggleProblemTypeFields = function () {
         document.getElementById('freeGuiSection').style.display = 'block';
     } else if (problemType === 'summary') {
         document.getElementById('summarySection').style.display = 'block';
+    } else if (problemType === 'code_order') {
+        document.getElementById('codeOrderSection').style.display = 'block';
     } else if (problemType === 'iot') {
         document.getElementById('pythonSection').style.display = 'block';
         const iotSection = document.getElementById('iotSection');
@@ -1166,6 +1168,12 @@ root.mainloop()`);
     if (matchingQuestionsList) matchingQuestionsList.innerHTML = '';
     if (matchingAnswersList) matchingAnswersList.innerHTML = '';
 
+    // รีเซ็ตโจทย์เรียงลำดับ Code จากรูปภาพ (ถ้ามี)
+    if (typeof resetCodeOrderForm === 'function') resetCodeOrderForm();
+
+    // เผื่อไว้กรณี loading overlay ค้าง ให้ซ่อนแน่นอนตอนปิด modal
+    if (typeof hideSaveLoading === 'function') hideSaveLoading();
+
     // รีเซ็ต comprehension questions (ถ้ามี)
     const questionsList = document.getElementById('questionsList');
     if (questionsList) questionsList.innerHTML = '';
@@ -1824,6 +1832,40 @@ async function editProblem(problemId) {
                     }
                 }
                 break;
+
+            case 'code_order': {
+                const codeOrderDescription = document.getElementById('codeOrderDescription');
+                const codeOrderMaxScore = document.getElementById('codeOrderMaxScore');
+                const codeOrderOriginalPreview = document.getElementById('codeOrderOriginalPreview');
+                const codeOrderSliceControls = document.getElementById('codeOrderSliceControls');
+
+                if (codeOrderDescription) codeOrderDescription.value = problemData.description || '';
+
+                const lineUrls = Array.isArray(problemData.lines) ? [...problemData.lines] : [];
+
+                if (codeOrderMaxScore) {
+                    codeOrderMaxScore.value = problemData.maxScore || lineUrls.length || 1;
+                    codeOrderMaxScore.dataset.userEdited = '1'; // ค่าถูกกำหนดไว้แล้ว ไม่ต้อง auto-update ทับ
+                }
+
+                if (codeOrderOriginalPreview) {
+                    codeOrderOriginalPreview.innerHTML = problemData.originalImage
+                        ? `<img src="${problemData.originalImage}" style="max-width:100%; border:1px solid #ddd; border-radius:6px;">`
+                        : '';
+                }
+
+                // ต้องอัปโหลดรูปใหม่ถ้าต้องการตรวจจับ/ตัดบรรทัดใหม่
+                if (codeOrderSliceControls) codeOrderSliceControls.style.display = 'none';
+
+                window.codeOrderState = {
+                    canvas: null,
+                    boundaries: [],
+                    lineDataUrls: lineUrls,
+                    originalImageURL: problemData.originalImage || ''
+                };
+                renderCodeOrderLinesList(false);
+                break;
+            }
         }
 
         const form = document.getElementById('problemForm');
@@ -2443,12 +2485,60 @@ async function saveProblem(event) {
             const maxScore = parseInt(document.getElementById('summaryMaxScore')?.value) || 10;
             const isGroupWork = document.getElementById('summaryIsGroupWork')?.checked || false;
             const maxGroups = parseInt(document.getElementById('summaryMaxGroups')?.value) || 5;
-            
+
             Object.assign(problemData, {
                 description,
                 maxScore,
                 isGroupWork,
                 maxGroups
+            });
+        } else if (problemType === 'code_order') {
+            const description = document.getElementById('codeOrderDescription')?.value?.trim() || '';
+            if (!description) {
+                alert('กรุณากรอกคำอธิบายโจทย์');
+                return;
+            }
+
+            const state = window.codeOrderState || { lineDataUrls: [] };
+            if (!state.lineDataUrls || state.lineDataUrls.length < 2) {
+                alert('กรุณาอัปโหลดรูปโค้ดต้นฉบับ และตรวจสอบให้มีอย่างน้อย 2 บรรทัดก่อนบันทึก');
+                return;
+            }
+
+            const maxScore = parseInt(document.getElementById('codeOrderMaxScore')?.value) || state.lineDataUrls.length;
+
+            // อัปโหลดรูปแต่ละบรรทัดขึ้น Firebase Storage (ข้ามรายการที่เป็น URL อยู่แล้ว เช่น ตอนแก้ไขโจทย์เดิมที่ไม่ได้เปลี่ยนรูป)
+            const lineUrls = [];
+            try {
+                for (let i = 0; i < state.lineDataUrls.length; i++) {
+                    if (typeof updateSaveLoadingText === 'function') {
+                        updateSaveLoadingText(`กำลังอัปโหลดรูปบรรทัดโค้ด ${i + 1}/${state.lineDataUrls.length}...`);
+                    }
+                    const item = state.lineDataUrls[i];
+                    if (typeof item === 'string' && item.startsWith('http')) {
+                        lineUrls.push(item);
+                        continue;
+                    }
+                    const blob = await (await fetch(item)).blob();
+                    const fileName = `code_order_lines/${Date.now()}_${i}_${Math.random().toString(36).substring(7)}.png`;
+                    const imageRef = firebase.storage().ref().child(fileName);
+                    const snapshot = await imageRef.put(blob);
+                    const downloadURL = await snapshot.ref.getDownloadURL();
+                    window.pendingImageUploads = window.pendingImageUploads || [];
+                    window.pendingImageUploads.push(downloadURL);
+                    lineUrls.push(downloadURL);
+                }
+            } catch (uploadError) {
+                console.error('เกิดข้อผิดพลาดในการอัปโหลดรูปบรรทัดโค้ด:', uploadError);
+                alert('อัปโหลดรูปภาพบรรทัดโค้ดไม่สำเร็จ กรุณาลองใหม่');
+                return;
+            }
+
+            Object.assign(problemData, {
+                description,
+                originalImage: state.originalImageURL || '',
+                lines: lineUrls,
+                maxScore
             });
         }
 
@@ -2952,7 +3042,8 @@ function renderProblemList(problems) {
             'quiz': 'ปรนัย',
             'summary': 'กระดานสรุปผล',
             'iot': 'โจทย์ IoT (ESP32/Wokwi)',
-            'iot_gui': 'IoT + GUI Dashboard'
+            'iot_gui': 'IoT + GUI Dashboard',
+            'code_order': 'เรียงลำดับ Code (จากรูปภาพ)'
         };
 
         const iconMapping = {
@@ -2964,7 +3055,8 @@ function renderProblemList(problems) {
             'quiz': '✅',
             'summary': '📝',
             'iot': '🔌',
-            'iot_gui': '📱'
+            'iot_gui': '📱',
+            'code_order': '🧩'
         };
 
         const typeIcon = iconMapping[problem.type] || '📄';
@@ -3006,6 +3098,10 @@ function renderProblemList(problems) {
             case 'iot_gui':
                 contentPreview = problem.description || 'ไม่มีคำอธิบาย';
                 countText = `GUI Test Cases: ${problem.testCases?.length || 0}`;
+                break;
+            case 'code_order':
+                contentPreview = problem.description || 'ไม่มีคำอธิบาย';
+                countText = `จำนวนบรรทัดโค้ด: ${problem.lines?.length || 0}`;
                 break;
             default:
                 contentPreview = 'ไม่มีข้อมูล';
@@ -3179,7 +3275,7 @@ function toggleProblemTypeFields() {
     const problemType = document.getElementById('problemType').value;
 
     // ซ่อนทุก section ก่อน
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'summarySection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'summarySection', 'codeOrderSection'];
     sections.forEach(section => {
         const element = document.getElementById(section);
         if (element) element.style.display = 'none';
@@ -3201,6 +3297,8 @@ function toggleProblemTypeFields() {
         document.getElementById('matchingSection').style.display = 'block';
     } else if (problemType === 'summary') {
         document.getElementById('summarySection').style.display = 'block';
+    } else if (problemType === 'code_order') {
+        document.getElementById('codeOrderSection').style.display = 'block';
     }
 }
 
@@ -4802,6 +4900,248 @@ function compressImage(file, maxWidth, maxHeight, quality) {
     });
 }
 
+// ============ เรียงลำดับ Code จากรูปภาพ (Code Order) ============
+window.codeOrderState = {
+    canvas: null,          // canvas เต็มรูป (ไม่แสดงผล) ใช้ตัดบรรทัด - มีเฉพาะตอนเพิ่งอัปโหลดรูปใหม่
+    boundaries: [],        // [[yStart, yEnd], ...] เรียงบนลงล่าง = ลำดับเฉลย (คู่กับ canvas)
+    lineDataUrls: [],      // ภาพต่อบรรทัด: dataURL (รูปที่เพิ่งตัด) หรือ URL จริง (โจทย์เดิมที่เคยอัปโหลดแล้ว)
+    originalImageURL: ''   // URL รูปเต็มที่อัปโหลดไว้อ้างอิง
+};
+
+function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function handleCodeOrderImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น'); return; }
+
+    const progressDiv = document.getElementById('codeOrderUploadProgress');
+    if (progressDiv) { progressDiv.style.display = 'block'; progressDiv.style.color = ''; progressDiv.innerText = 'กำลังโหลดรูปภาพ...'; }
+
+    try {
+        const img = await loadImageFromFile(file);
+
+        // วาดรูปเต็มลง canvas ที่ไม่แสดงผล เพื่อใช้ตัดบรรทัดทีหลัง
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        window.codeOrderState.canvas = canvas;
+        window.codeOrderState.originalImageURL = '';
+
+        const originalPreview = document.getElementById('codeOrderOriginalPreview');
+        if (originalPreview) {
+            originalPreview.innerHTML = `<img src="${canvas.toDataURL('image/png')}" style="max-width:100%; border:1px solid #ddd; border-radius:6px;">`;
+        }
+
+        // อัปโหลดรูปเต็มไว้อ้างอิง (ให้ครูตรวจสอบย้อนหลังได้ ไม่ใช่รูปที่นักเรียนเห็น)
+        if (progressDiv) progressDiv.innerText = 'กำลังอัปโหลดรูปต้นฉบับ...';
+        const compressedFull = await compressImage(file, 1600, 1600, 0.8);
+        const fileName = `code_order_originals/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+        const imageRef = firebase.storage().ref().child(fileName);
+        const snapshot = await imageRef.put(compressedFull);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+        window.codeOrderState.originalImageURL = downloadURL;
+        window.pendingImageUploads = window.pendingImageUploads || [];
+        window.pendingImageUploads.push(downloadURL);
+
+        const sliceControls = document.getElementById('codeOrderSliceControls');
+        if (sliceControls) sliceControls.style.display = 'block';
+
+        if (progressDiv) progressDiv.innerText = 'กำลังตรวจจับบรรทัดโค้ด...';
+        detectCodeOrderLines();
+        renderCodeOrderLines();
+
+        if (progressDiv) {
+            progressDiv.innerText = 'พร้อมแล้ว ตรวจสอบบรรทัดด้านล่างก่อนบันทึกโจทย์';
+            setTimeout(() => { progressDiv.style.display = 'none'; }, 4000);
+        }
+    } catch (error) {
+        console.error('Error processing code order image:', error);
+        if (progressDiv) { progressDiv.innerText = 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ'; progressDiv.style.color = '#dc3545'; }
+    }
+}
+
+// ตรวจจับตำแหน่งบรรทัดโค้ดด้วยการฉาย pixel ในแนวนอน (horizontal projection)
+// หลักการ: แถวพิกเซลที่มีตัวอักษรจะมีค่าความเข้ม (ink) สูงกว่าแถวว่าง
+// ช่วงแถวว่างต่อเนื่องที่ยาวพอ = รอยต่อระหว่างบรรทัด
+function detectCodeOrderLines() {
+    const state = window.codeOrderState;
+    const canvas = state.canvas;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    const imageData = ctx.getImageData(0, 0, width, height).data;
+
+    // sensitivity: 1 (หยาบ ตัดยาก รวมบรรทัดง่าย) - 10 (ละเอียด ตัดง่าย แยกบรรทัดง่าย)
+    const sensitivity = parseInt(document.getElementById('codeOrderSensitivity')?.value) || 4;
+
+    const rowInk = new Array(height).fill(0);
+    const step = width > 1200 ? 2 : 1; // ข้ามพิกเซลถ้ารูปกว้างมาก เพื่อความเร็ว
+    for (let y = 0; y < height; y++) {
+        let ink = 0;
+        for (let x = 0; x < width; x += step) {
+            const idx = (y * width + x) * 4;
+            const a = imageData[idx + 3];
+            if (a === 0) continue; // โปร่งใส ไม่นับ
+            const brightness = (imageData[idx] + imageData[idx + 1] + imageData[idx + 2]) / 3;
+            if (brightness < 200) ink++; // พิกเซลเข้ม = น่าจะเป็นตัวอักษร
+        }
+        rowInk[y] = ink;
+    }
+
+    const maxInk = Math.max(...rowInk, 1);
+    const inkThreshold = maxInk * (0.015 + (10 - sensitivity) * 0.01);
+    const minGap = Math.max(2, Math.round(height * 0.003) + (10 - sensitivity));
+
+    const hasContent = rowInk.map(v => v > inkThreshold);
+
+    const rawRanges = [];
+    let start = -1;
+    let gapCount = 0;
+    for (let y = 0; y < height; y++) {
+        if (hasContent[y]) {
+            if (start === -1) start = y;
+            gapCount = 0;
+        } else if (start !== -1) {
+            gapCount++;
+            if (gapCount > minGap) {
+                rawRanges.push([start, y - gapCount]);
+                start = -1;
+                gapCount = 0;
+            }
+        }
+    }
+    if (start !== -1) rawRanges.push([start, height - 1 - gapCount]);
+
+    // เพิ่ม padding รอบแต่ละบรรทัดเล็กน้อย กันตัวอักษรถูกตัดขอบ (เช่นหาง g, y)
+    const padding = Math.max(2, Math.round(height * 0.004));
+    const boundaries = rawRanges.map(([s, e]) => [
+        Math.max(0, s - padding),
+        Math.min(height - 1, e + padding)
+    ]);
+
+    state.boundaries = boundaries.length > 0 ? boundaries : [[0, height - 1]];
+}
+
+function renderCodeOrderLines() {
+    const state = window.codeOrderState;
+    if (!state.canvas) { renderCodeOrderLinesList(false); return; }
+
+    state.lineDataUrls = state.boundaries.map(([yStart, yEnd]) => {
+        const lineHeight = Math.max(1, yEnd - yStart + 1);
+        const lineCanvas = document.createElement('canvas');
+        lineCanvas.width = state.canvas.width;
+        lineCanvas.height = lineHeight;
+        const lctx = lineCanvas.getContext('2d');
+        lctx.fillStyle = '#ffffff';
+        lctx.fillRect(0, 0, lineCanvas.width, lineHeight);
+        lctx.drawImage(state.canvas, 0, yStart, state.canvas.width, lineHeight, 0, 0, state.canvas.width, lineHeight);
+        return lineCanvas.toDataURL('image/png');
+    });
+
+    renderCodeOrderLinesList(true);
+}
+
+// วาดรายการรูปต่อบรรทัดจาก state.lineDataUrls (ใช้ได้ทั้งตอนเพิ่งตัดใหม่ และตอนแก้ไขโจทย์เดิม)
+function renderCodeOrderLinesList(allowMerge) {
+    const state = window.codeOrderState;
+    const listEl = document.getElementById('codeOrderLinesList');
+    const countEl = document.getElementById('codeOrderLineCount');
+    if (!listEl) return;
+
+    if (!state.lineDataUrls || state.lineDataUrls.length === 0) {
+        listEl.style.display = 'none';
+        listEl.innerHTML = '';
+        if (countEl) countEl.innerText = '';
+        return;
+    }
+
+    listEl.style.display = 'block';
+    if (countEl) countEl.innerText = `ทั้งหมด ${state.lineDataUrls.length} บรรทัด (เรียงบนลงล่าง = ลำดับเฉลย)`;
+
+    listEl.innerHTML = state.lineDataUrls.map((url, i) => `
+        <div class="matching-item code-order-line">
+            <span class="item-number">${i + 1}.</span>
+            <img src="${url}" class="code-order-thumb">
+            <div class="code-order-line-actions">
+                ${allowMerge && i < state.lineDataUrls.length - 1 ? `<button type="button" class="secondary-btn" onclick="mergeCodeOrderLine(${i})">รวมกับถัดไป</button>` : ''}
+                <button type="button" class="delete-btn" onclick="deleteCodeOrderLine(${i})">ลบ</button>
+            </div>
+        </div>
+    `).join('');
+
+    const maxScoreInput = document.getElementById('codeOrderMaxScore');
+    if (maxScoreInput && !maxScoreInput.dataset.userEdited) {
+        maxScoreInput.value = state.lineDataUrls.length;
+    }
+}
+
+function reDetectCodeOrderLines() {
+    if (!window.codeOrderState.canvas) return;
+    detectCodeOrderLines();
+    renderCodeOrderLines();
+}
+
+function mergeCodeOrderLine(index) {
+    const state = window.codeOrderState;
+    if (!state.canvas) return; // รวมบรรทัดได้เฉพาะตอนเพิ่งอัปโหลดรูปใหม่ (มี canvas ให้ตัดใหม่)
+    if (index < 0 || index >= state.boundaries.length - 1) return;
+    const [start1] = state.boundaries[index];
+    const [, end2] = state.boundaries[index + 1];
+    state.boundaries.splice(index, 2, [start1, end2]);
+    renderCodeOrderLines();
+}
+
+function deleteCodeOrderLine(index) {
+    const state = window.codeOrderState;
+    if (state.canvas) {
+        if (index < 0 || index >= state.boundaries.length) return;
+        state.boundaries.splice(index, 1);
+        renderCodeOrderLines();
+    } else {
+        if (index < 0 || index >= state.lineDataUrls.length) return;
+        state.lineDataUrls.splice(index, 1);
+        renderCodeOrderLinesList(false);
+    }
+}
+
+function resetCodeOrderForm() {
+    window.codeOrderState = { canvas: null, boundaries: [], lineDataUrls: [], originalImageURL: '' };
+    const originalPreview = document.getElementById('codeOrderOriginalPreview');
+    const linesList = document.getElementById('codeOrderLinesList');
+    const lineCount = document.getElementById('codeOrderLineCount');
+    const sliceControls = document.getElementById('codeOrderSliceControls');
+    const progressDiv = document.getElementById('codeOrderUploadProgress');
+    const maxScoreInput = document.getElementById('codeOrderMaxScore');
+    if (originalPreview) originalPreview.innerHTML = '';
+    if (linesList) { linesList.innerHTML = ''; linesList.style.display = 'none'; }
+    if (lineCount) lineCount.innerText = '';
+    if (sliceControls) sliceControls.style.display = 'none';
+    if (progressDiv) progressDiv.style.display = 'none';
+    if (maxScoreInput) { maxScoreInput.value = 1; delete maxScoreInput.dataset.userEdited; }
+}
+
+window.handleCodeOrderImageUpload = handleCodeOrderImageUpload;
+window.reDetectCodeOrderLines = reDetectCodeOrderLines;
+window.mergeCodeOrderLine = mergeCodeOrderLine;
+window.deleteCodeOrderLine = deleteCodeOrderLine;
+
 async function duplicateProblem(problemId) {
     try {
         // 1. ใช้ editProblem โหลดข้อมูลเข้าฟอร์มก่อน
@@ -4834,8 +5174,43 @@ async function duplicateProblem(problemId) {
     }
 }
 
+// ============ Loading Overlay ตอนกำลังบันทึกโจทย์ ============
+// (มีประโยชน์มากโดยเฉพาะโจทย์ประเภทเรียงลำดับ Code ที่ต้องอัปโหลดรูปหลายบรรทัด อาจใช้เวลาสักครู่)
+function showSaveLoading(text) {
+    const overlay = document.getElementById('saveLoadingOverlay');
+    const textEl = document.getElementById('saveLoadingText');
+    const saveBtn = document.getElementById('saveProblemBtn');
+    if (textEl) textEl.textContent = text || 'กำลังบันทึกโจทย์...';
+    if (overlay) overlay.style.display = 'flex';
+    if (saveBtn) saveBtn.disabled = true;
+}
+
+function updateSaveLoadingText(text) {
+    const textEl = document.getElementById('saveLoadingText');
+    if (textEl) textEl.textContent = text;
+}
+
+function hideSaveLoading() {
+    const overlay = document.getElementById('saveLoadingOverlay');
+    const saveBtn = document.getElementById('saveProblemBtn');
+    if (overlay) overlay.style.display = 'none';
+    if (saveBtn) saveBtn.disabled = false;
+}
+
+window.updateSaveLoadingText = updateSaveLoadingText;
+
+// ครอบ saveProblem เดิมด้วย loading overlay (ไม่แก้ logic เดิมข้างใน กัน error/return กลางทางไม่ซ่อน overlay)
+const _saveProblemOriginal = saveProblem;
+window.saveProblem = async function (event) {
+    showSaveLoading();
+    try {
+        await _saveProblemOriginal(event);
+    } finally {
+        hideSaveLoading();
+    }
+};
+
 window.duplicateProblem = duplicateProblem;
-window.saveProblem = saveProblem;
 window.deleteProblem = deleteProblem;
 window.editProblem = editProblem;
 window.viewClass = viewClass;

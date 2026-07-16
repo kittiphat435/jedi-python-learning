@@ -93,6 +93,7 @@
                         <option value="flowchart">วาด Flowchart</option>
                         <option value="comprehension">อ่านและทำความเข้าใจโค้ด</option>
                         <option value="matching">จับคู่</option>
+                        <option value="code_order">เรียงลำดับ Code (จากรูปภาพ)</option>
                         <option value="quiz">ปรนัย (Multiple Choice)</option>
                         <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
                         <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
@@ -138,6 +139,7 @@
                             <option value="flowchart">Flowchart</option>
                             <option value="gui">GUI (Graphical User Interface)</option>
                             <option value="free_gui">GUI (อิสระ)</option>
+                            <option value="code_order">เรียงลำดับ Code (จากรูปภาพ)</option>
                             <option value="summary">สรุปผลการเรียน (กระดานสรุปความรู้สไตล์ Padlet)</option>
                             <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
                             <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
@@ -565,12 +567,65 @@ root.mainloop()
                             </textarea>
                         </div>
                     </div>
-    
+
+                    <!-- เพิ่ม Section สำหรับโจทย์เรียงลำดับ Code จากรูปภาพ -->
+                    <div id="codeOrderSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="codeOrderDescription" class="input-field" rows="3"
+                                placeholder="เช่น จงเรียงลำดับคำสั่งต่อไปนี้ให้ถูกต้องตามโค้ดต้นฉบับ"></textarea>
+                        </div>
+
+                        <div class="form-group attachment-panel">
+                            <label style="font-weight: bold; color: #1a73e8;">📷 อัปโหลดรูปโค้ดต้นฉบับ (เต็มบรรทัด)</label>
+                            <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                                อัปโหลดรูป screenshot โค้ดฉบับเต็ม 1 ภาพ ระบบจะตัดออกเป็น 1 ภาพต่อ 1 บรรทัดให้อัตโนมัติ
+                                จากนั้นตรวจสอบ ปรับ "รวมกับถัดไป" / "ลบ" รายบรรทัดก่อนกดบันทึกโจทย์
+                            </div>
+
+                            <input type="file" id="codeOrderImageFile" accept="image/*" style="display: none;"
+                                onchange="handleCodeOrderImageUpload(event)">
+                            <button type="button" class="preview-btn"
+                                onclick="document.getElementById('codeOrderImageFile').click()">เลือกรูปโค้ดต้นฉบับ</button>
+
+                            <div id="codeOrderUploadProgress" style="display:none; margin-top:5px; font-size:14px; color:#3498db;"></div>
+
+                            <div id="codeOrderOriginalPreview" class="image-preview" style="margin-top: 10px;"></div>
+
+                            <div id="codeOrderSliceControls" style="display: none; margin-top: 15px;">
+                                <label style="display:block; margin-bottom:5px;">ความไวในการตรวจจับช่องว่างระหว่างบรรทัด</label>
+                                <input type="range" id="codeOrderSensitivity" min="1" max="10" value="4"
+                                    oninput="reDetectCodeOrderLines()" style="width: 250px;">
+                                <button type="button" class="secondary-btn" onclick="reDetectCodeOrderLines()">ตรวจจับใหม่ทั้งหมด</button>
+                                <div style="font-size:0.85em; color:#666; margin-top:5px;">
+                                    ปรับหากตัดบรรทัดผิด (บรรทัดติดกัน หรือบรรทัดเดียวถูกตัดเป็นหลายชิ้น)
+                                </div>
+                            </div>
+
+                            <div id="codeOrderLineCount" style="margin-top:10px; font-weight:bold;"></div>
+                            <div id="codeOrderLinesList" class="pairs-list" style="margin-top:10px; display:none;"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>คะแนนเต็ม</label>
+                            <input type="number" id="codeOrderMaxScore" class="input-field" value="1" min="1"
+                                oninput="this.dataset.userEdited='1'">
+                        </div>
+                    </div>
+
             </div>
             </form>
             <div class="modal-footer">
                 <button type="button" onclick="closeModal()" class="secondary-btn">ยกเลิก</button>
-                <button type="button" onclick="saveProblem()" class="primary-btn">บันทึก</button>
+                <button type="button" id="saveProblemBtn" onclick="saveProblem()" class="primary-btn">บันทึก</button>
+            </div>
+
+            <!-- Overlay แสดงระหว่างกำลังบันทึกโจทย์ (เช่น ตอนอัปโหลดรูปบรรทัดโค้ดหลายรูป จะใช้เวลาสักครู่) -->
+            <div id="saveLoadingOverlay" class="save-loading-overlay" style="display:none;">
+                <div class="save-loading-box">
+                    <div class="save-spinner"></div>
+                    <p id="saveLoadingText">กำลังบันทึกโจทย์...</p>
+                </div>
             </div>
         </div>
 

@@ -522,6 +522,10 @@ function displayProblems(problems) {
                 typeIcon = '📋';
                 typeText = 'สรุปผลการเรียน';
                 break;
+            case 'code_order':
+                typeIcon = '🧩';
+                typeText = 'เรียงลำดับ Code';
+                break;
             default:
                 typeIcon = '❓';
                 typeText = 'ไม่ระบุประเภท';
@@ -1027,6 +1031,9 @@ function viewProblem(problemId, type, isViewMode = false, isClosed = false) {
             break;
         case 'summary':
             url = `student-summary-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
+            break;
+        case 'code_order':
+            url = `student-code-order-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
         case 'iot':
             url = `student-iot-detail.html?id=${problemId}&classId=${classId}${extraParams}`;

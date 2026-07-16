@@ -1,0 +1,429 @@
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header.dark-theme {
+    background: #1a1a1a;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.main-logo {
+    height: 60px;
+    width: auto;
+}
+
+.brand-text {
+    color: white;
+}
+
+.brand-text h1 {
+    margin: 0;
+    font-size: 2em;
+}
+
+.tagline {
+    margin: 5px 0 0;
+    color: #888;
+}
+
+.platform-logos {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.python-logo,
+.firebase-logo {
+    height: 40px;
+    width: auto;
+}
+
+.sub-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 0;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.sub-header h1 {
+    margin: 0;
+    flex-grow: 1;
+    text-align: center;
+    font-size: 24px;
+    color: #333;
+}
+
+.back-btn {
+    padding: 8px 16px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.back-btn:hover {
+    background-color: #1976D2;
+}
+
+.problem-description {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.problem-image {
+    margin: 15px 0;
+    text-align: center;
+    position: relative;
+    display: block;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.problem-image img {
+    max-width: 100%;
+    max-height: 300px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.problem-image.collapsed img {
+    max-height: 80px;
+    max-width: 150px;
+    opacity: 0.7;
+}
+
+.problem-image.collapsed img:hover {
+    opacity: 1;
+}
+
+.image-toggle-btn {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.image-toggle-btn:hover {
+    background: #1557b0;
+}
+
+.code-order-hint {
+    background: #eef4ff;
+    border: 1px solid #c7dcff;
+    color: #1a4fa0;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ============ รายการบัตรบรรทัดโค้ด ============ */
+.code-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.code-order-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.code-order-card:hover {
+    border-color: #1a73e8;
+}
+
+.code-order-card.dragging {
+    opacity: 0.4;
+}
+
+.code-order-card.drag-over {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+
+.code-order-card .drag-handle {
+    cursor: grab;
+    color: #9aa0a6;
+    font-size: 1.1em;
+    flex-shrink: 0;
+    touch-action: none;
+    padding: 4px;
+}
+
+.code-order-card .drag-handle:active {
+    cursor: grabbing;
+}
+
+.code-order-card .position-badge {
+    flex-shrink: 0;
+    min-width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #1a73e8;
+    color: white;
+    font-weight: 700;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.code-order-card img {
+    flex: 1;
+    max-height: 42px;
+    min-height: 24px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.code-order-card .order-move-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.code-order-card .order-move-buttons button {
+    width: 28px;
+    height: 22px;
+    border: 1px solid #d0d7de;
+    background: #f6f8fa;
+    color: #333;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.code-order-card .order-move-buttons button:hover:not(:disabled) {
+    background: #e8f0fe;
+    border-color: #1a73e8;
+    color: #1a73e8;
+}
+
+.code-order-card .order-move-buttons button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ผลตรวจคำตอบ: แสดงถูก/ผิดรายบรรทัด */
+.code-order-card.result-correct {
+    border-color: #34a853;
+    background: #f0fdf4;
+}
+
+.code-order-card.result-incorrect {
+    border-color: #ea4335;
+    background: #fef2f2;
+}
+
+.code-order-card .result-mark {
+    flex-shrink: 0;
+    font-size: 1.1em;
+}
+
+/* ============ ปุ่มด้านล่าง ============ */
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.reset-btn,
+.submit-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reset-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.reset-btn:hover {
+    background-color: #d32f2f;
+}
+
+.submit-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.submit-btn:hover {
+    background-color: #388E3C;
+}
+
+/* ============ Modal สรุปผล ============ */
+.results-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.results-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.summary-box {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid #1a73e8;
+}
+
+.summary-box.perfect-score {
+    background-color: #e8f5e9;
+    border-left-color: #28a745;
+}
+
+.summary-box h4 {
+    margin: 0 0 10px 0;
+    color: #1a73e8;
+}
+
+.summary-box.perfect-score h4 {
+    color: #28a745;
+}
+
+.summary-box p {
+    margin: 5px 0;
+    font-size: 1.1em;
+}
+
+.results-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.results-modal .primary-btn {
+    font-size: 1.1em;
+    padding: 12px 24px;
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.results-modal .secondary-btn {
+    font-size: 1.1em;
+    padding: 12px 24px;
+    background-color: #f8f9fa;
+    color: #1a73e8;
+    border: 1px solid #1a73e8;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .header.dark-theme {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .logo-section {
+        flex-direction: column;
+    }
+
+    .platform-logos {
+        justify-content: center;
+    }
+
+    .sub-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .back-btn {
+        align-self: center;
+    }
+
+    .button-group {
+        flex-direction: column;
+        padding: 0 20px;
+    }
+
+    .reset-btn,
+    .submit-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .code-order-card img {
+        max-height: 34px;
+    }
+}

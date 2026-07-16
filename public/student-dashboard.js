@@ -706,6 +706,9 @@ function viewProblem(problemId, type = 'python') {
         case 'summary':
             window.location.href = `student-summary-detail.html?id=${problemId}`;
             break;
+        case 'code_order':
+            window.location.href = `student-code-order-detail.html?id=${problemId}`;
+            break;
         case 'iot':
             window.location.href = `student-iot-detail.html?id=${problemId}`;
             break;
