@@ -36,23 +36,34 @@
             <h1 id="problemTitle"></h1>
         </div>
 
-        <div id="problemDescription" class="problem-description"></div>
+        <main class="main-content">
+            <!-- คอลัมซ้าย: โจทย์ คำอธิบาย รูปภาพประกอบ -->
+            <div class="problem-panel">
+                <h2>คำอธิบายโจทย์</h2>
+                <div id="problemDescription" class="problem-description"></div>
+            </div>
 
-        <div class="code-order-hint">
-            <i class="fas fa-arrows-alt-v"></i>
-            ลากบัตรเพื่อจัดเรียงลำดับคำสั่ง หรือใช้ปุ่ม ▲ ▼ ที่ขอบบัตรก็ได้ (เรียงจากบนลงล่าง)
-        </div>
+            <!-- คอลัมขวา: พื้นที่เรียงลำดับภาพคำสั่ง -->
+            <div class="answer-panel">
+                <h2>เรียงลำดับคำสั่ง</h2>
 
-        <div id="codeOrderList" class="code-order-list"></div>
+                <div class="code-order-hint">
+                    <i class="fas fa-arrows-alt-v"></i>
+                    ลากบัตรเพื่อจัดเรียงลำดับคำสั่ง หรือใช้ปุ่ม ▲ ▼ ที่ขอบบัตรก็ได้ (เรียงจากบนลงล่าง)
+                </div>
 
-        <div class="button-group">
-            <button onclick="resetCodeOrder()" class="reset-btn">
-                <i class="fas fa-undo"></i> สลับลำดับใหม่
-            </button>
-            <button onclick="submitAnswer()" class="submit-btn">
-                <i class="fas fa-paper-plane"></i> ส่งคำตอบ
-            </button>
-        </div>
+                <div id="codeOrderList" class="code-order-list"></div>
+
+                <div class="button-group">
+                    <button onclick="resetCodeOrder()" class="reset-btn">
+                        <i class="fas fa-undo"></i> สลับลำดับใหม่
+                    </button>
+                    <button onclick="submitAnswer()" class="submit-btn">
+                        <i class="fas fa-paper-plane"></i> ส่งคำตอบ
+                    </button>
+                </div>
+            </div>
+        </main>
     </div>
 
     <!-- Firebase -->

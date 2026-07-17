@@ -1,5 +1,6 @@
 .container {
-    max-width: 900px;
+    width: 98%;
+    max-width: 1800px; /* กว้างเท่าโจทย์ GUI */
     margin: 0 auto;
     padding: 20px;
 }
@@ -85,11 +86,58 @@
     background-color: #1976D2;
 }
 
-.problem-description {
+/* ============ เลย์เอาต์ 2 คอลัม (ขนาดเท่าโจทย์ GUI) ============ */
+.problem-panel,
+.answer-panel {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.problem-panel h2,
+.answer-panel h2 {
+    margin: 0 0 15px 0;
+    color: #1a73e8;
+    font-size: 1.2em;
+}
+
+/* จอใหญ่ (เดสก์ท็อป) ถึงจะแบ่ง 2 คอลัม เหมือนหน้าโจทย์ GUI */
+@media (min-width: 1024px) {
+    .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    /* สำคัญ: ต้องตั้ง min-width: 0 ให้ grid item ทั้งสองฝั่ง
+       ไม่งั้นถ้าฝั่งขวามีรูปภาพบรรทัดโค้ดที่กว้าง (เนื้อหาที่บีบไม่ได้ตามธรรมชาติ)
+       เบราว์เซอร์จะขยายคอลัมนั้นเกิน 1fr ที่ตั้งใจไว้ ทำให้ไม่เป็น 50/50 */
+    .problem-panel,
+    .answer-panel {
+        min-width: 0;
+    }
+
+    .problem-panel {
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        margin-bottom: 0 !important;
+    }
+
+    .answer-panel {
+        margin-bottom: 0 !important;
+    }
+}
+
+.problem-description {
+    padding: 15px;
     background: #f8f9fa;
     border-radius: 8px;
-    margin-bottom: 20px;
 }
 
 .problem-image {
@@ -160,6 +208,7 @@
     flex-direction: column;
     gap: 10px;
     margin-bottom: 25px;
+    min-width: 0;
 }
 
 .code-order-card {
@@ -170,6 +219,7 @@
     border: 2px solid #e5e7eb;
     border-radius: 8px;
     padding: 10px 12px;
+    min-width: 0; /* กันไม่ให้รูปภาพในการ์ดดันความกว้าง card/panel เกินที่ตั้งใจ */
     transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 
@@ -215,6 +265,8 @@
 
 .code-order-card img {
     flex: 1;
+    min-width: 0;
+    max-width: 100%;
     max-height: 42px;
     min-height: 24px;
     object-fit: contain;
