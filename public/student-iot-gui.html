@@ -31,7 +31,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js" defer></script>
+    <!-- pyodide.js ถูกย้ายไปโหลดแบบ dynamic ใน initPyodide() แทน — ไม่บล็อกการเริ่มหน้า -->
+
 </head>
 
 <body>
@@ -64,18 +65,61 @@
         <div id="errorMessage" class="error-message"></div>
         <div id="successMessage" class="success-message"></div>
 
-        <div class="split-layout">
+        <!-- แท็บหลัก: สลับระหว่างส่วนฮาร์ดแวร์ IoT กับส่วนเขียนโปรแกรม GUI -->
+        <div id="mainTabBar" style="display:flex; gap:8px; margin-top:10px;">
+            <button type="button" id="mainTabHwBtn" onclick="mainSwitchTab('hw')" style="padding:10px 22px; border:none; border-radius:8px 8px 0 0; cursor:pointer; font-weight:bold; font-size:1rem; background:#1a5276; color:#fff;">🔌 1. จำลองฮาร์ดแวร์ IoT (ESP32)</button>
+            <button type="button" id="mainTabSwBtn" onclick="mainSwitchTab('sw')" style="padding:10px 22px; border:none; border-radius:8px 8px 0 0; cursor:pointer; font-weight:bold; font-size:1rem; background:#e8eef3; color:#333;">🖥️ 2. เขียนโปรแกรม Python GUI</button>
+            <button type="button" id="mainTabMqttBtn" onclick="mainSwitchTab('mqtt')" style="padding:10px 22px; border:none; border-radius:8px 8px 0 0; cursor:pointer; font-weight:bold; font-size:1rem; background:#e8eef3; color:#333;">📡 3. การส่งข้อมูล MQTT</button>
+        </div>
+        <div class="split-layout" style="display:block; position:relative;">
             <!-- Left Panel: IoT Hardware (Wokwi) -->
-            <div class="panel hardware-panel">
+            <div class="panel hardware-panel" style="width:100%;">
                 <div class="panel-header">
                     <h2>1. จำลองฮาร์ดแวร์ IoT (Wokwi)</h2>
                 </div>
                 <div class="panel-content">
-                    <div id="problemDescription" class="problem-description"></div>
-                    <div class="wokwi-wrapper" style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-top: 10px;">
+                    <h3 id="problemTitle" style="margin: 0 0 10px; color: #1a5276;"></h3>
+                    <div id="problemDescription" class="problem-description">⏳ กำลังโหลดโจทย์...</div>
+                    <!-- ซ่อนไว้ก่อน — JS จะเปิดให้เมื่อโจทย์มี Wokwi Project ID เท่านั้น -->
+                    <div class="wokwi-wrapper" style="display: none; width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-top: 10px;">
                         <div id="wokwiContainer" class="wokwi-container" style="width: 100%; height: 100%;">
                             <!-- Wokwi iframe will be injected here -->
                         </div>
+                    </div>
+
+                    <!-- ESP32 MicroPython Simulator (iot-sim-engine) -->
+                    <div id="iotSimSection" style="display:none; margin-top: 20px;">
+                        <h3>จำลอง ESP32 (MicroPython)</h3>
+                        <div id="iotSimBoard" style="display:flex; gap:20px; align-items:center; justify-content:center; flex-wrap:wrap; padding:14px 8px; background:#17202a; border-radius:8px; margin-bottom:10px;">
+                            <div style="text-align:center; color:#dde; font-size:.75rem;">
+                                <div id="iotSimLed" style="width:40px;height:40px;border-radius:50%;margin:0 auto 5px;background:#444;border:3px solid #666;transition:background .08s, box-shadow .08s;"></div>
+                                LED<br><span id="iotSimLedPin">GPIO2</span>
+                            </div>
+                            <div style="text-align:center; color:#dde; font-size:.75rem;">
+                                <div id="iotSimSwitch" onclick="window.iotSimToggleSwitch && iotSimToggleSwitch()" style="width:52px;height:24px;border-radius:13px;background:#555;margin:8px auto 5px;position:relative;cursor:pointer;transition:background .15s;">
+                                    <div id="iotSimSwitchKnob" style="width:20px;height:20px;border-radius:50%;background:#eee;position:absolute;top:2px;left:2px;transition:left .15s;"></div>
+                                </div>
+                                Switch<br><span id="iotSimSwitchPin">GPIO4</span> (คลิก)
+                            </div>
+                            <div style="text-align:center; color:#dde; font-size:.75rem;">
+                                <div style="width:60px;padding:5px 4px;background:#2874a6;border-radius:6px;margin:0 auto 5px;color:#fff;font-size:.7rem;line-height:1.5;">
+                                    🌡 <span id="iotSimDhtT">–</span>°C<br>💧 <span id="iotSimDhtH">–</span>%
+                                </div>
+                                DHT22
+                            </div>
+                            <div style="text-align:center; color:#dde; font-size:.75rem; min-width:100px;">
+                                <div style="margin-bottom:4px;"><span id="iotSimMqttLight" style="width:12px;height:12px;border-radius:50%;display:inline-block;background:#555;margin-right:4px;vertical-align:-1px;"></span>MQTT</div>
+                                <div id="iotSimMqttLast" style="font-size:.68rem;max-width:120px;word-break:break-all;">–</div>
+                            </div>
+                        </div>
+                        <textarea id="iotSimCode" spellcheck="false" placeholder="# เขียนโค้ด MicroPython สำหรับ ESP32 ที่นี่&#10;from machine import Pin&#10;import time" style="width:100%;height:180px;font-family:Consolas,monospace;font-size:13px;border:1px solid #ccd;border-radius:6px;padding:10px;resize:vertical;"></textarea>
+                        <div style="margin-top:8px;">
+                            <button id="iotSimRunBtn" class="action-btn" disabled>▶ รันจำลอง ESP32</button>
+                            <button id="iotSimCheckBtn" class="action-btn" disabled style="display:none;">✔ ตรวจ IoT Test Cases</button>
+                            <span id="iotSimStatus" style="font-size:.85rem;color:#666;margin-left:6px;"></span>
+                        </div>
+                        <div id="iotSimSerial" style="display:none;background:#17202a;color:#7dcea0;font-family:Consolas,monospace;font-size:12px;padding:10px;border-radius:6px;max-height:120px;overflow-y:auto;white-space:pre-wrap;margin-top:8px;"></div>
+                        <div id="iotSimResults" style="margin-top:8px;"></div>
                     </div>
                     <div class="requirements-section" style="margin-top: 20px;">
                       <h3>ข้อกำหนดของ GUI</h3>
@@ -89,7 +133,7 @@
             </div>
 
             <!-- Right Panel: Python GUI Software -->
-            <div class="panel software-panel">
+            <div class="panel software-panel" style="width:100%;">
                 <div class="panel-header">
                     <h2>2. เขียนโปรแกรม Python GUI</h2>
                 </div>
@@ -115,6 +159,67 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Panel 3: MQTT Flow Visualization -->
+            <div class="panel mqtt-panel" style="width:100%; display:none;">
+                <div class="panel-header">
+                    <h2>3. การส่งข้อมูลผ่าน MQTT</h2>
+                </div>
+                <div class="panel-content">
+                    <p style="font-size:0.9rem; color:#555; margin:0 0 12px;">
+                        แผนภาพนี้แสดงการไหลของข้อมูลจริง — รันจำลอง ESP32 ในแท็บ 1 (ตัวส่ง) และกด "แสดง GUI" ในแท็บ 2 (ตัวรับ) แล้วกลับมาดูข้อความวิ่งที่นี่
+                    </p>
+                    <div style="display:flex; align-items:stretch; gap:0; background:#17202a; border-radius:10px; padding:22px 14px; color:#dde;">
+                        <!-- ตัวส่ง -->
+                        <div style="text-align:center; font-size:0.78rem; min-width:130px;">
+                            <div style="font-size:2rem;">📟</div>
+                            <b>ESP32 (ตัวส่ง)</b><br>
+                            <span id="mqttFlowSenderStatus" style="color:#e74c3c;">● ยังไม่เชื่อมต่อ</span>
+                            <div id="mqttFlowPubTopics" style="margin-top:6px;"></div>
+                        </div>
+                        <!-- เลน 1 -->
+                        <div id="mqttFlowLane1" style="flex:1; position:relative; margin:0 8px; min-width:80px;">
+                            <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:#3b4a5a;"></div>
+                        </div>
+                        <!-- broker -->
+                        <div style="text-align:center; font-size:0.78rem; min-width:120px;">
+                            <div style="font-size:2rem;">☁️</div>
+                            <b>MQTT Broker</b><br>
+                            <span id="mqttFlowBrokerHost" style="color:#9ab;">broker.hivemq.com</span>
+                        </div>
+                        <!-- เลน 2 -->
+                        <div id="mqttFlowLane2" style="flex:1; position:relative; margin:0 8px; min-width:80px;">
+                            <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:#3b4a5a;"></div>
+                        </div>
+                        <!-- ตัวรับ -->
+                        <div style="text-align:center; font-size:0.78rem; min-width:130px;">
+                            <div style="font-size:2rem;">🖥️</div>
+                            <b>Dashboard (ตัวรับ)</b><br>
+                            <span id="mqttFlowRecvStatus" style="color:#e74c3c;">● ยังไม่เชื่อมต่อ</span>
+                            <div id="mqttFlowSubTopics" style="margin-top:6px;"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3 style="margin:0;">Message Log</h3>
+                            <button type="button" class="secondary-btn" onclick="mqttFlowClearLog()" style="font-size:0.85rem;">ล้าง Log</button>
+                        </div>
+                        <table style="width:100%; font-size:0.85rem; margin-top:8px; border-collapse:collapse;">
+                            <thead>
+                                <tr style="text-align:left; color:#666; border-bottom:1px solid #ddd;">
+                                    <th style="padding:6px; width:90px;">เวลา</th>
+                                    <th style="padding:6px; width:110px;">ทิศทาง</th>
+                                    <th style="padding:6px;">Topic</th>
+                                    <th style="padding:6px;">Payload</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mqttFlowLog">
+                                <tr><td colspan="4" style="padding:10px 6px; color:#999;">ยังไม่มีข้อความ — รันจำลอง ESP32 หรือรัน GUI ก่อน</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -126,8 +231,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js" defer></script>
 
     <!-- Load Paho MQTT library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" defer></script>
 
+    <script src="iot-sim-engine.js" defer></script>
     <script src="student-iot-gui.js" defer></script>
 
     <script src="./session-timeout.js"></script>

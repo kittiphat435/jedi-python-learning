@@ -342,6 +342,8 @@
         const GRID = 20; // 20x20 ช่อง
 
         let score = 0;
+        let foodEaten = 0;
+        let snakeLevel = 1;
         let snake = [];
         snake[0] = { x: 9 * box, y: 10 * box }; // จุดเริ่มต้นงู
 
@@ -746,14 +748,17 @@
             // ตรวจสอบการกินอาหาร
             let poppedTail = null;
             if (snakeX == food.x && snakeY == food.y) {
-                score += 10 * scoreMultiplier;
+                foodEaten++;
+                // เลเวลขยับทุก 5 อาหาร ทำให้คะแนนเร่งขึ้นใกล้เคียงเกม tetris
+                snakeLevel = Math.floor(foodEaten / 5) + 1;
+                score += 10 * snakeLevel * scoreMultiplier;
                 document.getElementById('score').textContent = score;
                 playEatSound();
                 // สุ่มอาหารใหม่
                 food = randomFreeCell();
 
-                // เพิ่มระเบิดใหม่ 1 ลูก ทุกๆ 30 คะแนน (กินอาหาร 3 ตัว)
-                if (score % 30 === 0) {
+                // เพิ่มระเบิดใหม่ 1 ลูก ทุกๆ 3 อาหารที่กิน
+                if (foodEaten % 3 === 0) {
                     spawnBomb();
                 }
                 maybeSpawnPowerup();

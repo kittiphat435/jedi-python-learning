@@ -322,6 +322,11 @@ class Client:
         if port == 1883:
             console.warn('Browser environment requires WebSocket port. Changing port 1883 to 8000 automatically.')
             port = 8000
+        # หน้าเว็บ https ต้องใช้ Secure WebSocket (wss) — อัปเกรดเป็นพอร์ต 8884 อัตโนมัติ
+        secure_page = str(window.location.protocol) == 'https:'
+        if secure_page and port == 8000:
+            console.warn('HTTPS page requires secure WebSocket. Changing port 8000 to 8884 (wss) automatically.')
+            port = 8884
         self.js_client = Paho.MQTT.Client(host, port, "/mqtt", self.client_id)
 
         def on_connection_lost(responseObject):
@@ -329,6 +334,10 @@ class Client:
                 console.log('Connection Lost: ' + responseObject.errorMessage)
         
         def on_message_arrived(message):
+            try:
+                window.mqttFlowGuiEvent('receive', message.destinationName, message.payloadString)
+            except Exception:
+                pass
             if self.on_message:
                 # Mock a message object
                 class Msg:
@@ -339,6 +348,10 @@ class Client:
 
         def on_success(*args):
             console.log('MQTT Connected successfully')
+            try:
+                window.mqttFlowGuiEvent('connect', host)
+            except Exception:
+                pass
             if self.on_connect:
                 self.on_connect(self, None, None, 0)
 
@@ -347,19 +360,27 @@ class Client:
 
         options = {
             'onSuccess': on_success,
-            'useSSL': host == 'broker.hivemq.com' and port == 8884 or False
+            'useSSL': (port == 8884) or (host == 'broker.hivemq.com' and port == 8884) or False
         }
         self.js_client.connect(options)
 
     def subscribe(self, topic):
         if self.js_client:
             self.js_client.subscribe(topic)
+            try:
+                window.mqttFlowGuiEvent('subscribe', topic)
+            except Exception:
+                pass
 
     def publish(self, topic, payload):
         if self.js_client:
             message = Paho.MQTT.Message(str(payload))
             message.destinationName = topic
             self.js_client.send(message)
+            try:
+                window.mqttFlowGuiEvent('gui-publish', topic, str(payload))
+            except Exception:
+                pass
 
     def loop_start(self):
         pass # Handled by browser event loop
@@ -415,7 +436,14 @@ async function initPyodide() {
         pyodideInstance = await loadPyodide();
         await pyodideInstance.runPythonAsync(MOCK_TKINTER_CODE);
         await pyodideInstance.runPythonAsync(MOCK_MQTT_CODE);
-        
+
+        // ✅ IoT Sim Engine (mock machine/dht/umqtt สำหรับจำลอง ESP32)
+        if (window.IotSim) {
+            await IotSim.init(pyodideInstance);
+            iotSimEnableButtons();
+            console.log("✅ IoT Sim Engine Ready!");
+        }
+
         updateStatusUI("✅ Ready (PC)", "pyodide");
         console.log("✅ Pyodide & Mock Tkinter Ready!");
     } catch (err) {
@@ -728,6 +756,14 @@ function setupEditor() {
         .code-input {
             padding-bottom: 10px !important;
         }
+        /* หน้า IoT: ลดความสูง editor หลักให้เท่ากล่อง ESP32 (~20 บรรทัด)
+           override เฉพาะหน้านี้ ไม่แตะ student-gui.css ที่หน้าอื่นใช้ร่วม */
+        .code-editor-container {
+            height: 420px;
+        }
+        .code-editor-container.readonly-mode {
+            min-height: 420px;
+        }
     `;
     document.head.appendChild(styleFix);
 
@@ -850,8 +886,12 @@ function setupEditor() {
 }
 
 async function loadProblemConfig(problemId) {
-    const snap = await db.collection('problems').doc(problemId).get();
-    const data = snap.data();
+    // ⚡ ใช้ข้อมูลโจทย์ที่โหลดมาแล้ว (problemData) แทนการดึงเอกสารเดิมซ้ำจาก Firestore
+    let data = (problemData && Object.keys(problemData).length > 0) ? problemData : null;
+    if (!data) {
+        const snap = await db.collection('problems').doc(problemId).get();
+        data = snap.data();
+    }
     window.guiTestCases = data.testCases || [];
     window.problemTestCases = data.testCases || []; // เพิ่มบรรทัดนี้
     window.widgetDefinitions = data.widgets || [];
@@ -2731,14 +2771,34 @@ function updateScoreDisplay(currentScore = 0, maxScore = null) {
 
 async function loadGUIProblem(problemId, userId, classId, viewMode) {
     try {
-        const problemDoc = await db.collection('problems').doc(problemId).get();
+        // ⚡ Cache โจทย์ใน sessionStorage: เปิดโจทย์เดิมซ้ำในแท็บเดียวกัน → แสดงทันที
+        //    แล้วดึงเวอร์ชันล่าสุดเบื้องหลังเก็บไว้ใช้ครั้งถัดไป (ปิดแท็บ = ล้าง cache)
+        const problemCacheKey = 'iotProblemCache_' + problemId;
+        let cachedProblem = null;
+        try {
+            cachedProblem = JSON.parse(sessionStorage.getItem(problemCacheKey) || 'null');
+        } catch (e) { cachedProblem = null; }
 
-        if (!problemDoc.exists) {
-            showError('ไม่พบโจทย์ที่ต้องการ');
-            return;
+        const problemFetch = db.collection('problems').doc(problemId).get();
+
+        if (cachedProblem) {
+            problemData = cachedProblem;
+            problemFetch.then(snap => {
+                if (snap.exists) {
+                    try { sessionStorage.setItem(problemCacheKey, JSON.stringify(snap.data())); } catch (e) {}
+                }
+            }).catch(() => {});
+        } else {
+            const problemDoc = await problemFetch;
+
+            if (!problemDoc.exists) {
+                showError('ไม่พบโจทย์ที่ต้องการ');
+                return;
+            }
+
+            problemData = problemDoc.data(); // เก็บข้อมูลโจทย์ทั้งหมดในตัวแปร global
+            try { sessionStorage.setItem(problemCacheKey, JSON.stringify(problemData)); } catch (e) {}
         }
-
-        problemData = problemDoc.data(); // เก็บข้อมูลโจทย์ทั้งหมดในตัวแปร global
         problemTestCases = problemData.testCases || []; // เก็บ Test Cases โดยให้เป็น array ว่างถ้าไม่มี
 
         // เรียกใช้ loadProblemConfig เพื่อตั้งค่า window.widgetDefinitions และ window.guiTestCases
@@ -2808,14 +2868,22 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
             }
             const wokwiContainer = document.getElementById('wokwiContainer');
             if (wokwiContainer) {
-                wokwiContainer.innerHTML = `<iframe 
-                    src="https://wokwi.com/projects/${projectId}?embed=1" 
-                    width="100%" 
-                    height="100%" 
-                    frameborder="0" 
+                wokwiContainer.innerHTML = `<iframe
+                    src="https://wokwi.com/projects/${projectId}?embed=1"
+                    width="100%"
+                    height="100%"
+                    frameborder="0"
                     allowfullscreen>
                 </iframe>`;
+                // กล่อง Wokwi ถูกซ่อนไว้ใน HTML — เปิดเฉพาะเมื่อโจทย์มี Project ID จริง
+                const wokwiWrapper = document.querySelector('.wokwi-wrapper');
+                if (wokwiWrapper) wokwiWrapper.style.display = 'block';
             }
+        }
+
+        // ✅ เปิดส่วนจำลอง ESP32 (iot-sim-engine) สำหรับโจทย์ iot_gui
+        if (problemData.type === 'iot_gui') {
+            initIotSimSection();
         }
 
         // แสดงคะแนนเต็มทันทีหลังโหลดโจทย์
@@ -2828,7 +2896,8 @@ async function loadGUIProblem(problemId, userId, classId, viewMode) {
         updateScoreDisplay(0, maxScore);
 
         // Display basic problem info
-        document.getElementById('problemTitle').textContent = problemData.title || 'ไม่มีชื่อโจทย์';
+        const problemTitleEl = document.getElementById('problemTitle');
+        if (problemTitleEl) problemTitleEl.textContent = problemData.title || 'ไม่มีชื่อโจทย์';
         
         // Display problem description with additional content
         const descriptionElement = document.getElementById('problemDescription');
@@ -6166,3 +6235,536 @@ window.addEventListener('unhandledrejection', function(e) {
         alert(errorMsg);
     }
 });
+
+/* =========================================================================
+ * 🔌 ESP32 IoT SIMULATOR (iot-sim-engine.js)
+ * จำลอง MicroPython (machine/dht/umqtt) + ตรวจ IoT Test Cases — ฟรี ไม่พึ่ง Wokwi CI
+ * ข้อมูลโจทย์ที่ใช้ (ตั้งได้จากฝั่ง admin):
+ *   problemData.iotStarterCode  — โค้ดตั้งต้นในกล่อง ESP32
+ *   problemData.iotTestCases    — [{type, params, inputs, score, explanation}]
+ *   problemData.iotLedPin / iotSwitchPin — เลขขาที่แสดงบนบอร์ดจำลอง (default 2 / 4)
+ * ========================================================================= */
+let iotSimSwitchState = 0;
+let iotSimReplayTimer = null;
+let iotSimResult = { score: 0, maxScore: 0, passed: false };
+
+/* --- สะพาน MQTT: ส่ง publish จากการจำลอง ESP32 ขึ้น broker จริง (HiveMQ)
+ *     เพื่อให้ GUI Dashboard (tkinter ฝั่งขวา) ที่ subscribe อยู่รับค่าได้จริง
+ *     ใช้เฉพาะตอน "รันจำลอง" (replay) — การตรวจ Test Cases ไม่ส่งขึ้น broker --- */
+let iotSimMqttBridge = null;
+let iotSimMqttBridgeReady = false;
+
+function iotSimEnsureMqttBridge() {
+    return new Promise((resolve) => {
+        if (iotSimMqttBridgeReady && iotSimMqttBridge) return resolve(true);
+        if (typeof Paho === 'undefined' || !Paho.MQTT) return resolve(false);
+        try {
+            const secure = window.location.protocol === 'https:';
+            const clientId = 'jedicode-sim-' + Math.random().toString(16).slice(2, 10);
+            iotSimMqttBridge = new Paho.MQTT.Client('broker.hivemq.com', secure ? 8884 : 8000, '/mqtt', clientId);
+            iotSimMqttBridge.onConnectionLost = function () { iotSimMqttBridgeReady = false; };
+            iotSimMqttBridge.connect({
+                useSSL: secure,
+                timeout: 8,
+                onSuccess: function () { iotSimMqttBridgeReady = true; resolve(true); },
+                onFailure: function () { iotSimMqttBridgeReady = false; resolve(false); }
+            });
+        } catch (e) {
+            console.warn('MQTT bridge connect error:', e);
+            resolve(false);
+        }
+    });
+}
+
+function iotSimBridgePublish(topic, payload) {
+    if (!iotSimMqttBridgeReady || !iotSimMqttBridge) return;
+    try {
+        const msg = new Paho.MQTT.Message(String(payload));
+        msg.destinationName = String(topic);
+        iotSimMqttBridge.send(msg);
+    } catch (e) {
+        console.warn('MQTT bridge publish failed:', e);
+    }
+}
+
+function iotSimEnableButtons() {
+    const runBtn = document.getElementById('iotSimRunBtn');
+    const checkBtn = document.getElementById('iotSimCheckBtn');
+    if (runBtn) runBtn.disabled = false;
+    if (checkBtn) checkBtn.disabled = false;
+}
+
+function iotSimToggleSwitch() {
+    iotSimSwitchState = iotSimSwitchState ? 0 : 1;
+    const body = document.getElementById('iotSimSwitch');
+    const knob = document.getElementById('iotSimSwitchKnob');
+    if (body) body.style.background = iotSimSwitchState ? '#1e8449' : '#555';
+    if (knob) knob.style.left = iotSimSwitchState ? '30px' : '2px';
+}
+window.iotSimToggleSwitch = iotSimToggleSwitch;
+
+function initIotSimSection() {
+    const section = document.getElementById('iotSimSection');
+    if (!section || !window.IotSim) return;
+    section.style.display = 'block';
+
+    // เลขขาที่แสดงบนบอร์ด
+    const ledPin = problemData.iotLedPin || 2;
+    const swPin = problemData.iotSwitchPin || 4;
+    const ledPinEl = document.getElementById('iotSimLedPin');
+    const swPinEl = document.getElementById('iotSimSwitchPin');
+    if (ledPinEl) ledPinEl.textContent = 'GPIO' + ledPin;
+    if (swPinEl) swPinEl.textContent = 'GPIO' + swPin;
+
+    // โค้ดตั้งต้น
+    const codeEl = document.getElementById('iotSimCode');
+    if (codeEl && problemData.iotStarterCode && !codeEl.value.trim()) {
+        codeEl.value = problemData.iotStarterCode;
+    }
+
+    // ปุ่มตรวจ แสดงเมื่อครูกำหนด iotTestCases ไว้
+    const checkBtn = document.getElementById('iotSimCheckBtn');
+    const hasTestCases = Array.isArray(problemData.iotTestCases) && problemData.iotTestCases.length > 0;
+    if (checkBtn && hasTestCases) {
+        checkBtn.style.display = 'inline-block';
+    }
+
+    // ผูก event ครั้งเดียว
+    const runBtn = document.getElementById('iotSimRunBtn');
+    if (runBtn && !runBtn.dataset.bound) {
+        runBtn.dataset.bound = '1';
+        runBtn.addEventListener('click', iotSimRunClick);
+    }
+    if (checkBtn && !checkBtn.dataset.bound) {
+        checkBtn.dataset.bound = '1';
+        checkBtn.addEventListener('click', iotSimCheckClick);
+    }
+
+    if (pyodideInstance) iotSimEnableButtons();
+
+    // อัปเกรดกล่องโค้ดเป็น editor แบบเดียวกับฝั่งขวา (เลขบรรทัด + Python highlight)
+    iotSimSetupEditor();
+}
+
+/* แปลง textarea #iotSimCode เป็น code editor: เลขบรรทัด + Prism highlight + Tab indent
+ * ใช้เทคนิคเดียวกับ editor หลัก (textarea ตัวอักษรโปร่งใสซ้อนบน <pre> ที่ highlight แล้ว)
+ * แต่แยก element/style เป็นของตัวเองทั้งหมด ไม่ยุ่งกับ .code-editor-container ของฝั่งขวา */
+function iotSimSetupEditor() {
+    const ta = document.getElementById('iotSimCode');
+    if (!ta || ta.dataset.enhanced === '1') return;
+    ta.dataset.enhanced = '1';
+
+    const MONO = "Consolas, 'Courier New', monospace";
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; height:420px; border:1px solid #444; border-radius:6px; overflow:hidden; background:#2d2d2d; margin-top:4px;';
+
+    const nums = document.createElement('div');
+    nums.id = 'iotSimLineNums';
+    nums.style.cssText = 'width:44px; padding:10px 8px 10px 0; text-align:right; color:#858585; background:#1e1e1e; font-family:' + MONO + '; font-size:13px; line-height:1.5; overflow:hidden; user-select:none; white-space:pre; flex-shrink:0;';
+    nums.textContent = '1';
+
+    const inner = document.createElement('div');
+    inner.style.cssText = 'position:relative; flex:1; min-width:0;';
+
+    const pre = document.createElement('pre');
+    pre.setAttribute('aria-hidden', 'true');
+    pre.style.cssText = 'position:absolute; top:0; left:0; right:0; bottom:0; margin:0; padding:10px; overflow:hidden; pointer-events:none; background:transparent; font-family:' + MONO + '; font-size:13px; line-height:1.5;';
+    const codeEl = document.createElement('code');
+    codeEl.className = 'language-python';
+    codeEl.style.cssText = 'font-family:inherit; font-size:inherit; line-height:inherit; background:transparent; white-space:pre; display:block; padding:0; margin:0;';
+    pre.appendChild(codeEl);
+
+    ta.parentNode.insertBefore(wrap, ta);
+    inner.appendChild(pre);
+    inner.appendChild(ta);
+    wrap.appendChild(nums);
+    wrap.appendChild(inner);
+
+    ta.wrap = 'off';
+    ta.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; padding:10px; margin:0; border:0; resize:none; outline:none; background:transparent; color:transparent; caret-color:#fff; font-family:' + MONO + '; font-size:13px; line-height:1.5; white-space:pre; overflow:auto; box-sizing:border-box;';
+
+    const phStyle = document.createElement('style');
+    phStyle.textContent = '#iotSimCode::placeholder { color: #6a737d; opacity: 1; }';
+    document.head.appendChild(phStyle);
+
+    function sync() {
+        pre.scrollTop = ta.scrollTop;
+        pre.scrollLeft = ta.scrollLeft;
+        nums.scrollTop = ta.scrollTop;
+    }
+
+    function render() {
+        const code = ta.value;
+        const lineCount = Math.max(code.split('\n').length, 1);
+        nums.textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
+        codeEl.textContent = code.endsWith('\n') ? code + ' ' : code;
+        if (window.Prism && Prism.highlightElement) {
+            Prism.highlightElement(codeEl);
+        }
+        sync();
+    }
+
+    ta.addEventListener('input', render);
+    ta.addEventListener('scroll', sync);
+    ta.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const s = ta.selectionStart, ep = ta.selectionEnd;
+            ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(ep);
+            ta.selectionStart = ta.selectionEnd = s + 4;
+            render();
+        }
+    });
+    ta.addEventListener('paste', function () {
+        requestAnimationFrame(render);
+    });
+
+    render();
+}
+
+/* =========================================================================
+ * 🗂 แท็บหลักของหน้า: สลับระหว่างแผงฮาร์ดแวร์ IoT กับแผงเขียนโปรแกรม GUI
+ * แท็บ 1 (hw): จำลอง ESP32 → ข้อกำหนด GUI → Test Cases
+ * แท็บ 2 (sw): code editor → ปุ่มคำสั่ง → หน้าจอแสดงผล GUI
+ * หมายเหตุ: แผง GUI ถูกซ่อนแบบ off-screen (ไม่ใช่ display:none) เพื่อให้ iframe
+ * result-frame ยังมี layout — การตรวจคำตอบอ่านค่าจาก iframe ได้ปกติทุกแท็บ
+ * ========================================================================= */
+function mainSwitchTab(which) {
+    const hwPanel = document.querySelector('.hardware-panel');
+    const swPanel = document.querySelector('.software-panel');
+    const mqttPanel = document.querySelector('.mqtt-panel');
+    const hwBtn = document.getElementById('mainTabHwBtn');
+    const swBtn = document.getElementById('mainTabSwBtn');
+    const mqttBtn = document.getElementById('mainTabMqttBtn');
+    if (!hwPanel || !swPanel) return;
+
+    const setActive = (btn, active) => {
+        if (!btn) return;
+        btn.style.background = active ? '#1a5276' : '#e8eef3';
+        btn.style.color = active ? '#fff' : '#333';
+    };
+
+    // แผง GUI ซ่อนแบบ off-screen เสมอ (iframe ต้องมี layout เพื่อการตรวจคะแนน)
+    const hideSw = () => {
+        swPanel.style.position = 'absolute';
+        swPanel.style.left = '-200vw';
+        swPanel.style.top = '0';
+        swPanel.style.visibility = 'hidden';
+    };
+    const showSw = () => {
+        swPanel.style.position = '';
+        swPanel.style.left = '';
+        swPanel.style.top = '';
+        swPanel.style.visibility = '';
+    };
+
+    hwPanel.style.display = which === 'hw' ? '' : 'none';
+    if (mqttPanel) mqttPanel.style.display = which === 'mqtt' ? 'block' : 'none';
+    if (which === 'sw') { showSw(); } else { hideSw(); }
+
+    setActive(hwBtn, which === 'hw');
+    setActive(swBtn, which === 'sw');
+    setActive(mqttBtn, which === 'mqtt');
+}
+window.mainSwitchTab = mainSwitchTab;
+
+/* =========================================================================
+ * 📡 แท็บ 3: จำลองการส่งข้อมูล MQTT (view อ่านอย่างเดียว ไม่เกี่ยวกับคะแนน)
+ * ฝั่งส่ง: hook จาก event replay ของตัวจำลอง ESP32 (iotSimApplyEvent)
+ * ฝั่งรับ: hook จาก Paho mock ของ GUI tkinter (window.mqttFlowGuiEvent)
+ * ========================================================================= */
+const mqttFlowPubSet = new Set();
+const mqttFlowSubSet = new Set();
+let mqttFlowLogCount = 0;
+
+function mqttFlowChip(topic, color) {
+    return '<span style="display:inline-block; background:' + color + '; color:#fff; padding:1px 8px; border-radius:10px; font-size:0.7rem; margin:2px;">' + topic + '</span>';
+}
+
+function mqttFlowRenderTopics() {
+    const pubEl = document.getElementById('mqttFlowPubTopics');
+    const subEl = document.getElementById('mqttFlowSubTopics');
+    if (pubEl) pubEl.innerHTML = [...mqttFlowPubSet].map(t => mqttFlowChip('▶ ' + t, '#1e8449')).join('');
+    if (subEl) subEl.innerHTML = [...mqttFlowSubSet].map(t => mqttFlowChip('◀ ' + t, '#2874a6')).join('');
+}
+
+function mqttFlowSetStatus(id, connected) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.textContent = connected ? '● เชื่อมต่อแล้ว' : '● ยังไม่เชื่อมต่อ';
+        el.style.color = connected ? '#2ecc71' : '#e74c3c';
+    }
+}
+
+/** จุดข้อความวิ่งในเลน (dir: 'right' = ซ้าย→ขวา, 'left' = ขวา→ซ้าย) */
+function mqttFlowAnimate(laneId, payload, color, dir) {
+    const lane = document.getElementById(laneId);
+    if (!lane) return;
+    const dot = document.createElement('div');
+    const short = String(payload).length > 12 ? String(payload).slice(0, 12) + '…' : String(payload);
+    dot.textContent = short;
+    dot.style.cssText = 'position:absolute; top:50%; transform:translateY(-50%); background:' + color +
+        '; color:#fff; padding:2px 8px; border-radius:10px; font-size:0.7rem; white-space:nowrap;' +
+        'transition:left 0.7s linear, right 0.7s linear;' +
+        (dir === 'left' ? 'right:0;' : 'left:0;');
+    lane.appendChild(dot);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            if (dir === 'left') dot.style.right = 'calc(100% - 10px)';
+            else dot.style.left = 'calc(100% - 10px)';
+        });
+    });
+    setTimeout(() => dot.remove(), 1000);
+}
+
+function mqttFlowAddLog(dirLabel, dirColor, topic, payload) {
+    const tbody = document.getElementById('mqttFlowLog');
+    if (!tbody) return;
+    if (mqttFlowLogCount === 0) tbody.innerHTML = '';
+    mqttFlowLogCount++;
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid #eee';
+    const time = new Date().toLocaleTimeString('th-TH');
+    tr.innerHTML = '<td style="padding:5px 6px; color:#888;">' + time + '</td>' +
+        '<td style="padding:5px 6px; color:' + dirColor + '; font-weight:bold;">' + dirLabel + '</td>' +
+        '<td style="padding:5px 6px;"></td><td style="padding:5px 6px;"></td>';
+    tr.children[2].textContent = topic;
+    tr.children[3].textContent = payload;
+    tbody.insertBefore(tr, tbody.firstChild);
+    while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
+}
+
+function mqttFlowClearLog() {
+    const tbody = document.getElementById('mqttFlowLog');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="padding:10px 6px; color:#999;">ยังไม่มีข้อความ</td></tr>';
+    mqttFlowLogCount = 0;
+}
+window.mqttFlowClearLog = mqttFlowClearLog;
+
+/** เรียกจาก event replay ฝั่ง ESP32 */
+function mqttFlowSenderEvent(type, topic, payload) {
+    if (type === 'connect') {
+        mqttFlowSetStatus('mqttFlowSenderStatus', true);
+    } else if (type === 'publish') {
+        mqttFlowSetStatus('mqttFlowSenderStatus', true);
+        mqttFlowPubSet.add(topic);
+        mqttFlowRenderTopics();
+        mqttFlowAnimate('mqttFlowLane1', payload, '#1e8449', 'right');
+        mqttFlowAddLog('ESP32 ส่ง ▶', '#1e8449', topic, payload);
+    }
+}
+
+/** เรียกจาก Python Paho mock ฝั่ง GUI tkinter (ผ่าน window) */
+window.mqttFlowGuiEvent = function (type, a, b) {
+    try {
+        if (type === 'connect') {
+            mqttFlowSetStatus('mqttFlowRecvStatus', true);
+            const hostEl = document.getElementById('mqttFlowBrokerHost');
+            if (hostEl && a) hostEl.textContent = String(a);
+        } else if (type === 'subscribe') {
+            mqttFlowSubSet.add(String(a));
+            mqttFlowRenderTopics();
+        } else if (type === 'receive') {
+            mqttFlowAnimate('mqttFlowLane2', b, '#2874a6', 'right');
+            mqttFlowAddLog('◀ Dashboard รับ', '#2874a6', String(a), String(b));
+        } else if (type === 'gui-publish') {
+            mqttFlowAnimate('mqttFlowLane2', b, '#b7950b', 'left');
+            mqttFlowAddLog('Dashboard ส่ง ◀', '#b7950b', String(a), String(b));
+        }
+    } catch (e) {
+        console.warn('mqttFlowGuiEvent error:', e);
+    }
+};
+
+// เริ่มต้นที่แท็บ 1 (ฮาร์ดแวร์ IoT)
+document.addEventListener('DOMContentLoaded', () => {
+    mainSwitchTab('hw');
+});
+
+function iotSimSetStatus(msg) {
+    const el = document.getElementById('iotSimStatus');
+    if (el) el.textContent = msg;
+}
+
+function iotSimBuildConfig() {
+    const swPin = problemData.iotSwitchPin || 4;
+    return {
+        pins: { [String(swPin)]: iotSimSwitchState },
+        dht: (problemData.iotDht || { temp: 25.0, hum: 60.0 }),
+        maxVirtualMs: 10000
+    };
+}
+
+async function iotSimEnsureReady() {
+    if (!window.IotSim) {
+        alert('ไม่พบ iot-sim-engine.js (กรุณาแจ้งครูผู้สอน)');
+        return false;
+    }
+    if (!pyodideInstance) {
+        if (isMobileDevice()) {
+            alert('การจำลอง ESP32 รองรับเฉพาะบนคอมพิวเตอร์ (PC) เท่านั้น');
+            return false;
+        }
+        iotSimSetStatus('⏳ กำลังโหลดตัวจำลอง...');
+        await initPyodide();
+        if (!pyodideInstance) {
+            iotSimSetStatus('❌ โหลดตัวจำลองไม่สำเร็จ');
+            return false;
+        }
+    }
+    return true;
+}
+
+function iotSimStopReplay() {
+    if (iotSimReplayTimer) {
+        clearTimeout(iotSimReplayTimer);
+        iotSimReplayTimer = null;
+    }
+    const led = document.getElementById('iotSimLed');
+    if (led) { led.style.background = '#444'; led.style.boxShadow = 'none'; }
+}
+
+function iotSimApplyEvent(e) {
+    const ledPin = problemData.iotLedPin || 2;
+    if (e.type === 'pin' && Number(e.pin) === Number(ledPin)) {
+        const led = document.getElementById('iotSimLed');
+        if (led) {
+            if (e.value === 1) {
+                led.style.background = '#ff3b30';
+                led.style.boxShadow = '0 0 20px 5px rgba(255,59,48,.75)';
+            } else {
+                led.style.background = '#444';
+                led.style.boxShadow = 'none';
+            }
+        }
+    } else if (e.type === 'dht-temp') {
+        const el = document.getElementById('iotSimDhtT');
+        if (el) el.textContent = e.value;
+    } else if (e.type === 'dht-hum') {
+        const el = document.getElementById('iotSimDhtH');
+        if (el) el.textContent = e.value;
+    } else if (e.type === 'mqtt-publish') {
+        const light = document.getElementById('iotSimMqttLight');
+        const last = document.getElementById('iotSimMqttLast');
+        if (light) {
+            light.style.background = '#f4d03f';
+            light.style.boxShadow = '0 0 8px rgba(244,208,63,.9)';
+            setTimeout(() => { light.style.background = '#555'; light.style.boxShadow = 'none'; }, 250);
+        }
+        if (last) last.textContent = '→ ' + e.topic + ': ' + e.payload;
+        // 📡 ส่งขึ้น broker จริง → Dashboard tkinter ฝั่งขวาที่ subscribe อยู่จะได้รับ
+        iotSimBridgePublish(e.topic, e.payload);
+        // อัปเดตแผนภาพแท็บ 3
+        mqttFlowSenderEvent('publish', e.topic, e.payload);
+    } else if (e.type === 'mqtt-connect') {
+        mqttFlowSenderEvent('connect');
+    } else if (e.type === 'mqtt-receive') {
+        const last = document.getElementById('iotSimMqttLast');
+        if (last) last.textContent = '← ' + e.topic + ': ' + e.payload;
+    } else if (e.type === 'print') {
+        const serial = document.getElementById('iotSimSerial');
+        if (serial) {
+            serial.style.display = 'block';
+            serial.textContent += e.text + '\n';
+            serial.scrollTop = serial.scrollHeight;
+        }
+    }
+}
+
+function iotSimReplay(events, speed) {
+    speed = speed || 4; // เร่ง 4 เท่าให้ดูไม่นานเกินไป
+    let i = 0;
+    const startWall = performance.now();
+    function step() {
+        const simNow = (performance.now() - startWall) * speed;
+        while (i < events.length && events[i].t <= simNow) {
+            iotSimApplyEvent(events[i]);
+            i++;
+        }
+        if (i < events.length) {
+            iotSimReplayTimer = setTimeout(step, 30);
+        } else {
+            iotSimSetStatus('✅ จำลองจบ');
+        }
+    }
+    step();
+}
+
+async function iotSimRunClick() {
+    const runBtn = document.getElementById('iotSimRunBtn');
+    const codeEl = document.getElementById('iotSimCode');
+    const serial = document.getElementById('iotSimSerial');
+    if (!codeEl || !codeEl.value.trim()) {
+        alert('กรุณาเขียนโค้ด MicroPython ก่อนรันจำลอง');
+        return;
+    }
+    if (!(await iotSimEnsureReady())) return;
+    iotSimStopReplay();
+    if (serial) { serial.textContent = ''; serial.style.display = 'none'; }
+    if (runBtn) runBtn.disabled = true;
+    iotSimSetStatus('⚙️ กำลังจำลอง...');
+    try {
+        const r = await IotSim.run(pyodideInstance, codeEl.value, iotSimBuildConfig());
+        if (r.error) {
+            iotSimSetStatus('❌ โค้ดมีข้อผิดพลาด');
+            if (serial) {
+                serial.style.display = 'block';
+                serial.textContent = '❌ ' + r.error;
+            }
+        } else {
+            // ถ้ามีการ publish MQTT → เชื่อม broker จริงก่อน replay เพื่อส่งให้ Dashboard ฝั่งขวา
+            let bridgeOk = false;
+            const hasMqtt = r.events.some(e => e.type === 'mqtt-publish');
+            if (hasMqtt) {
+                iotSimSetStatus('📡 กำลังเชื่อมต่อ MQTT broker...');
+                bridgeOk = await iotSimEnsureMqttBridge();
+            }
+            iotSimSetStatus('▶ กำลังแสดงผล (' + (r.virtualMs / 1000).toFixed(1) + 's เสมือน)' +
+                (hasMqtt ? (bridgeOk ? ' 📡 ส่งขึ้น MQTT จริง' : ' ⚠️ MQTT ออฟไลน์ (แสดงผลอย่างเดียว)') : '') + '...');
+            iotSimReplay(r.events);
+        }
+    } catch (err) {
+        iotSimSetStatus('❌ ' + err.message);
+    } finally {
+        if (runBtn) runBtn.disabled = false;
+    }
+}
+
+async function iotSimCheckClick() {
+    const checkBtn = document.getElementById('iotSimCheckBtn');
+    const codeEl = document.getElementById('iotSimCode');
+    const resultsEl = document.getElementById('iotSimResults');
+    const testCases = problemData.iotTestCases || [];
+    if (!codeEl || !codeEl.value.trim()) {
+        alert('กรุณาเขียนโค้ด MicroPython ก่อนตรวจ');
+        return;
+    }
+    if (testCases.length === 0) return;
+    if (!(await iotSimEnsureReady())) return;
+    iotSimStopReplay();
+    if (checkBtn) checkBtn.disabled = true;
+    iotSimSetStatus('🔎 กำลังตรวจ...');
+    try {
+        const { results, totalScore, maxScore } = await IotSim.runTestCases(pyodideInstance, codeEl.value, testCases);
+        iotSimResult = { score: totalScore, maxScore: maxScore, passed: totalScore >= maxScore };
+        if (resultsEl) {
+            let html = '';
+            results.forEach((r, idx) => {
+                const color = r.passed ? '#1e8449' : '#c0392b';
+                const bg = r.passed ? '#eafaf1' : '#fdedec';
+                html += '<div style="border-left:4px solid ' + color + ';background:' + bg + ';padding:8px 10px;margin:6px 0;border-radius:0 6px 6px 0;font-size:.85rem;">' +
+                    '<b>' + (r.passed ? '✅' : '❌') + ' ข้อ ' + (idx + 1) + ': ' +
+                    (r.explanation || r.type) + ' (' + r.earned + '/' + (r.score || 1) + ' คะแนน)</b><br>' +
+                    (r.detail || '') + '</div>';
+            });
+            html += '<div style="font-weight:700;margin-top:6px;">คะแนน IoT: ' + totalScore + ' / ' + maxScore + '</div>';
+            resultsEl.innerHTML = html;
+        }
+        iotSimSetStatus(iotSimResult.passed ? '✅ ผ่านทุกข้อ!' : '⚠️ ยังไม่ผ่านบางข้อ');
+    } catch (err) {
+        iotSimSetStatus('❌ ' + err.message);
+        if (resultsEl) resultsEl.innerHTML = '❌ ' + err.message;
+    } finally {
+        if (checkBtn) checkBtn.disabled = false;
+    }
+}

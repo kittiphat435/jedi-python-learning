@@ -97,6 +97,7 @@
                         <option value="quiz">ปรนัย (Multiple Choice)</option>
                         <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
                         <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
+                        <option value="esp32_iot">ESP32+IoT (ต่อวงจรเอง)</option>
                     </select>
                     <button id="createProblemBtn" class="primary-btn" style="margin-top: 0;">สร้างโจทย์ใหม่</button>
                 </div>
@@ -143,6 +144,7 @@
                             <option value="summary">สรุปผลการเรียน (กระดานสรุปความรู้สไตล์ Padlet)</option>
                             <option value="iot">โจทย์ IoT (ESP32/Wokwi)</option>
                             <option value="iot_gui">IoT + GUI Dashboard (Advanced)</option>
+                        <option value="esp32_iot">ESP32+IoT (ต่อวงจรเอง)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -485,18 +487,27 @@
                                 placeholder="คำแนะนำหรือหมายเหตุสำหรับผู้ตรวจในการพิจารณาให้คะแนน"></textarea>
                         </div>
                     </div>
+                    <!-- Section: ESP32+IoT (ต่อวงจรเอง) -->
+                    <div id="esp32IotSection" style="display: none;">
+                        <div class="form-group">
+                            <label>คำอธิบายโจทย์ *</label>
+                            <textarea id="esp32IotDescription" class="input-field" rows="3" placeholder="เช่น ต่อวงจร LED เข้ากับ GPIO2 แล้วเขียนโค้ดให้ไฟกระพริบทุก 1 วินาที"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <h3>🔧 วงจรเฉลย (ต่อวงจรที่ถูกต้องไว้ให้ระบบใช้ตรวจ)</h3>
+                            <p class="help-text" style="font-size:0.85rem; color:#666;">คลิกอุปกรณ์เพื่อวางลง canvas • ลากเพื่อย้าย • คลิกจุดขา (วงกลมฟ้า) แล้วคลิกขาปลายทางเพื่อเดินสายไฟ • คลิกสายแล้วกด Delete เพื่อลบสาย • ดับเบิลคลิกอุปกรณ์เพื่อลบ • ESC ยกเลิกสายที่ค้าง</p>
+                            <div id="esp32IotPalette"></div>
+                            <div id="esp32IotCanvas" style="position:relative; height:480px; border:2px solid #b0bec5; border-radius:8px; background:#f4f7f6;"></div>
+                        </div>
+                    </div>
+
                     <!-- เพิ่ม Section สำหรับโจทย์ IoT -->
                     <div id="iotSection" style="display: none;">
                         <div class="form-group">
-                            <label>Wokwi Project ID *</label>
-                            <input type="text" id="iotWokwiId" class="input-field" placeholder="เช่น 322577683855704658" required>
-                            <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 5px;">สามารถก็อปปี้เฉพาะตัวเลข ID หรือลิงก์เต็มมาวางได้ แล้วกดปุ่มเช็คความถูกต้อง</p>
+                            <label>Wokwi Project ID (ไม่บังคับ)</label>
+                            <input type="text" id="iotWokwiId" class="input-field" placeholder="เช่น 322577683855704658">
+                            <p class="help-text" style="font-size: 0.85rem; color: #666; margin-top: 5px;">ไม่บังคับ — ถ้าใส่ นักเรียนจะเห็นวงจร Wokwi ประกอบด้วย ถ้าเว้นว่าง นักเรียนจะใช้บอร์ดจำลอง ESP32 ของระบบอย่างเดียว | ก็อปปี้เฉพาะตัวเลข ID หรือลิงก์เต็มมาวางได้ แล้วกดปุ่มเช็คความถูกต้อง</p>
                             <button type="button" class="secondary-btn" onclick="validateWokwiId()" style="margin-top: 10px; font-size: 0.9rem;">ตรวจสอบ Wokwi ID</button>
-                        </div>
-
-                        <div class="form-group">
-                            <label>โค้ดเฉลย (IoT)</label>
-                            <textarea id="iotSolution" class="code-editor input-field" rows="6" placeholder="import network\n..."></textarea>
                         </div>
                         <div class="form-group">
                             <div class="test-cases-header">
@@ -504,6 +515,25 @@
                                 <button type="button" class="primary-btn" onclick="addIotCodeCheck()">+ เพิ่มเงื่อนไข</button>
                             </div>
                             <div id="iotCodeChecksList"></div>
+                        </div>
+
+                        <!-- การจำลอง ESP32 (iot-sim-engine) -->
+                        <div class="form-group" style="border-top: 2px dashed #ccc; padding-top: 15px;">
+                            <h3>🔌 การจำลอง ESP32 (ตรวจอัตโนมัติจากการจำลอง — ฟรี)</h3>
+                            <p class="help-text" style="font-size: 0.85rem; color: #666;">นักเรียนจะเห็นบอร์ดจำลอง LED / Slide Switch / DHT22 / MQTT ในหน้าโจทย์ เขียนโค้ด MicroPython แล้วระบบตรวจผลลัพธ์จากการจำลองให้อัตโนมัติ</p>
+                            <label>โค้ดตั้งต้น MicroPython (แสดงในกล่องโค้ดของนักเรียน)</label>
+                            <textarea id="iotStarterCode" class="code-editor input-field" rows="5" placeholder="from machine import Pin&#10;import time&#10;&#10;# เขียนโค้ดของคุณที่นี่"></textarea>
+                            <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; align-items:center; font-size:0.9rem;">
+                                <label style="display:flex; align-items:center; gap:6px;">ขา LED <input type="number" id="iotLedPin" class="input-field" value="2" min="0" max="39" style="width:70px;"></label>
+                                <label style="display:flex; align-items:center; gap:6px;">ขา Switch <input type="number" id="iotSwitchPin" class="input-field" value="4" min="0" max="39" style="width:70px;"></label>
+                                <label style="display:flex; align-items:center; gap:6px;">🌡 DHT อุณหภูมิ <input type="number" id="iotDhtTemp" class="input-field" value="25" step="0.5" style="width:80px;">°C</label>
+                                <label style="display:flex; align-items:center; gap:6px;">💧 DHT ความชื้น <input type="number" id="iotDhtHum" class="input-field" value="60" step="1" style="width:80px;">%</label>
+                            </div>
+                            <div class="test-cases-header" style="margin-top:15px;">
+                                <h3>IoT Test Cases</h3>
+                                <button type="button" class="primary-btn" onclick="addIotSimTestCase()">+ เพิ่ม IoT Test Case</button>
+                            </div>
+                            <div id="iotSimTestCasesList"></div>
                         </div>
                     </div>
 
@@ -641,6 +671,8 @@ root.mainloop()
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js" defer></script>
     <script src="flowchart-editor.js" defer></script>
+    <script src="circuit-canvas.js" defer></script>
+    <script src="iot-sim-admin.js" defer></script>
     <script src="teacher-dashboard.js" defer></script>
 
     <script src="./session-timeout.js" defer></script>

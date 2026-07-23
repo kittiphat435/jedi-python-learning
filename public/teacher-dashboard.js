@@ -427,7 +427,7 @@ root.mainloop()`);
 
 window.toggleProblemTypeFields = function () {
     const problemType = document.getElementById('problemType').value;
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection', 'codeOrderSection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection', 'codeOrderSection', 'esp32IotSection'];
 
     sections.forEach(section => {
         const element = document.getElementById(section);
@@ -474,6 +474,12 @@ window.toggleProblemTypeFields = function () {
                 addSaveWidgetButton();
             }, 100);
         }
+    } else if (problemType === 'esp32_iot') {
+        const esp32Section = document.getElementById('esp32IotSection');
+        if (esp32Section) esp32Section.style.display = 'block';
+        const iotSection = document.getElementById('iotSection');
+        if (iotSection) iotSection.style.display = 'block';
+        if (typeof initEsp32IotSection === 'function') initEsp32IotSection();
     }
 };
 
@@ -1399,7 +1405,16 @@ async function editProblem(problemId) {
             imageInput.value = problemData.image;
         }
 
-        switch (problemData.type) {
+        // 🔌 เติมค่าฟิลด์ IoT (Wokwi ID, การจำลอง ESP32) ตอนแก้ไขโจทย์ iot/iot_gui
+        if ((problemData.type === 'iot' || problemData.type === 'iot_gui') &&
+            typeof loadIotSimFields === 'function') {
+            loadIotSimFields(problemData);
+        }
+        if (problemData.type === 'esp32_iot' && typeof loadEsp32IotFields === 'function') {
+            loadEsp32IotFields(problemData);
+        }
+
+        switch (problemData.type === 'iot_gui' ? 'gui' : problemData.type) {
             case 'gui':
                 if (document.getElementById('guiDescription')) {
                     document.getElementById('guiDescription').value = problemData.description || '';
@@ -2255,11 +2270,7 @@ async function saveProblem(event) {
             if (problemType === 'iot_gui') {
                 const iotWokwiId = document.getElementById('iotWokwiId')?.value?.trim() || '';
                 const iotSolution = document.getElementById('iotSolution')?.value || '';
-                
-                if (!iotWokwiId) {
-                    alert('กรุณากรอก Wokwi Project ID สำหรับโจทย์ IoT');
-                    return;
-                }
+                // Wokwi ID ไม่บังคับแล้ว — ถ้าเว้นว่าง นักเรียนใช้บอร์ดจำลอง ESP32 ของระบบแทน
 
                 const codeChecks = Array.from(document.querySelectorAll('#iotCodeChecksList .iot-code-check')).map(checkEntry => {
                     const keyword = checkEntry.querySelector('.iot-keyword')?.value?.trim();
@@ -2270,9 +2281,17 @@ async function saveProblem(event) {
                 Object.assign(problemData, {
                     iotWokwiId,
                     iotSolution,
-                    codeChecks
+                    codeChecks,
+                    ...(typeof collectIotSimFields === 'function' ? collectIotSimFields() : {})
                 });
             }
+        } else if (problemType === 'esp32_iot') {
+            const fields = collectEsp32IotFields();
+            if (!fields.description) {
+                alert('กรุณากรอกคำอธิบายโจทย์');
+                return;
+            }
+            Object.assign(problemData, fields);
         } else if (problemType === 'python' || problemType === 'iot') {
             const description = document.getElementById('problemDescription')?.value?.trim() || '';
             const templateCode = document.getElementById('templateCode')?.value || '';
@@ -3043,6 +3062,7 @@ function renderProblemList(problems) {
             'summary': 'กระดานสรุปผล',
             'iot': 'โจทย์ IoT (ESP32/Wokwi)',
             'iot_gui': 'IoT + GUI Dashboard',
+            'esp32_iot': 'ESP32+IoT (ต่อวงจรเอง)',
             'code_order': 'เรียงลำดับ Code (จากรูปภาพ)'
         };
 

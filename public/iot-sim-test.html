@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Sim Engine — หน้าทดสอบ</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f0f4f8; color: #223; }
+    header { background: #1a5276; color: #fff; padding: 12px 20px; }
+    header h1 { margin: 0; font-size: 1.2rem; }
+    header p { margin: 4px 0 0; font-size: .85rem; opacity: .85; }
+    .wrap { display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; }
+    .col { flex: 1 1 420px; min-width: 320px; }
+    .card { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.12); margin-bottom: 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 1rem; color: #1a5276; }
+    textarea { width: 100%; height: 300px; font-family: Consolas, monospace; font-size: 13px; border: 1px solid #ccd; border-radius: 6px; padding: 10px; resize: vertical; }
+    button { background: #1a5276; color: #fff; border: 0; border-radius: 6px; padding: 9px 18px; font-size: .95rem; cursor: pointer; margin: 6px 6px 0 0; }
+    button:hover { background: #21618c; }
+    button:disabled { background: #aab; cursor: wait; }
+    button.green { background: #1e8449; } button.green:hover { background: #239b56; }
+    #status { font-size: .85rem; margin-left: 6px; color: #666; }
+    /* board panel */
+    .board { display: flex; gap: 24px; align-items: center; justify-content: center; padding: 18px 8px; background: #17202a; border-radius: 8px; flex-wrap: wrap; }
+    .device { text-align: center; color: #dde; font-size: .78rem; }
+    .led-dot { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 6px; background: #444; border: 3px solid #666; transition: background .08s, box-shadow .08s; }
+    .led-dot.on { background: #ff3b30; box-shadow: 0 0 22px 6px rgba(255,59,48,.75); border-color: #ff6b60; }
+    .switch-body { width: 56px; height: 26px; border-radius: 14px; background: #555; margin: 10px auto 6px; position: relative; cursor: pointer; transition: background .15s; }
+    .switch-body.on { background: #1e8449; }
+    .switch-knob { width: 22px; height: 22px; border-radius: 50%; background: #eee; position: absolute; top: 2px; left: 2px; transition: left .15s; }
+    .switch-body.on .switch-knob { left: 32px; }
+    .dht-box { width: 62px; padding: 6px 4px; background: #2874a6; border-radius: 6px; margin: 0 auto 6px; color: #fff; font-size: .72rem; line-height: 1.5; }
+    .mqtt-light { width: 14px; height: 14px; border-radius: 50%; display: inline-block; background: #555; margin-right: 4px; vertical-align: -2px; }
+    .mqtt-light.on { background: #f4d03f; box-shadow: 0 0 8px rgba(244,208,63,.9); }
+    .cfg { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: .85rem; margin-top: 10px; }
+    .cfg label { display: flex; gap: 5px; align-items: center; }
+    .cfg input[type=number] { width: 64px; padding: 4px; border: 1px solid #ccd; border-radius: 4px; }
+    /* results */
+    .tc { border-left: 4px solid #ccc; padding: 8px 10px; margin: 8px 0; background: #f8f9fa; border-radius: 0 6px 6px 0; font-size: .88rem; }
+    .tc.pass { border-color: #1e8449; background: #eafaf1; }
+    .tc.fail { border-color: #c0392b; background: #fdedec; }
+    .tc b { display: block; margin-bottom: 3px; }
+    .score-line { font-size: 1.05rem; font-weight: 700; margin-top: 8px; }
+    #serial { background: #17202a; color: #7dcea0; font-family: Consolas, monospace; font-size: 12px; padding: 10px; border-radius: 6px; height: 130px; overflow-y: auto; white-space: pre-wrap; }
+    #eventsRaw { max-height: 160px; overflow-y: auto; font-family: Consolas, monospace; font-size: 11px; background: #f4f6f7; padding: 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<header>
+    <h1>🔬 IoT Sim Engine — หน้าทดสอบ (ESP32 MicroPython จำลองด้วย Pyodide)</h1>
+    <p>ทดสอบ engine ก่อนต่อเข้ากับ student-iot-gui.js — LED (GPIO2) + Slide Switch (GPIO4) + DHT22 (GPIO15) + MQTT</p>
+</header>
+<div class="wrap">
+    <div class="col">
+        <div class="card">
+            <h2>โค้ด MicroPython ของนักเรียน</h2>
+            <select id="examples" style="margin-bottom:8px;padding:5px;">
+                <option value="blink">ตัวอย่าง: ไฟกระพริบ (ถูกต้อง)</option>
+                <option value="blink_bad">ตัวอย่าง: กระพริบผิดจังหวะ</option>
+                <option value="switch">ตัวอย่าง: สวิตช์ควบคุม LED</option>
+                <option value="dht">ตัวอย่าง: อ่าน DHT22 + MQTT</option>
+                <option value="error">ตัวอย่าง: โค้ดมี error</option>
+            </select>
+            <textarea id="code" spellcheck="false"></textarea>
+            <div>
+                <button id="runBtn" disabled>▶ รันจำลอง (ดูแอนิเมชัน)</button>
+                <button id="checkBtn" class="green" disabled>✔ ตรวจ Test Cases</button>
+                <span id="status">⏳ กำลังโหลด Pyodide...</span>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Serial Monitor (print)</h2>
+            <div id="serial"></div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <h2>วงจรจำลอง</h2>
+            <div class="board">
+                <div class="device">
+                    <div class="led-dot" id="ledDot"></div>
+                    LED<br>GPIO2
+                </div>
+                <div class="device">
+                    <div class="switch-body" id="swBody" onclick="toggleSwitch()"><div class="switch-knob"></div></div>
+                    Slide Switch<br>GPIO4 (คลิกเพื่อสลับ)
+                </div>
+                <div class="device">
+                    <div class="dht-box">🌡 <span id="dhtT">–</span>°C<br>💧 <span id="dhtH">–</span>%</div>
+                    DHT22<br>GPIO15
+                </div>
+                <div class="device" style="min-width:110px;">
+                    <div style="margin-bottom:6px;"><span class="mqtt-light" id="mqttLight"></span>MQTT</div>
+                    <div id="mqttLast" style="font-size:.7rem;max-width:130px;word-break:break-all;">–</div>
+                </div>
+            </div>
+            <div class="cfg">
+                <label>🌡 อุณหภูมิ <input type="number" id="cfgTemp" value="28.5" step="0.5">°C</label>
+                <label>💧 ความชื้น <input type="number" id="cfgHum" value="65" step="1">%</label>
+                <label>ความเร็ว replay <select id="speed"><option value="1">1x</option><option value="4" selected>4x</option><option value="10">10x</option><option value="0">ทันที</option></select></label>
+            </div>
+        </div>
+        <div class="card">
+            <h2>ผลการตรวจ Test Cases</h2>
+            <div id="results">ยังไม่ได้ตรวจ</div>
+        </div>
+        <div class="card">
+            <h2>Event Log (ดิบ)</h2>
+            <div id="eventsRaw">–</div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+<script src="iot-sim-engine.js"></script>
+<script>
+const EXAMPLES = {
+    blink: `from machine import Pin
+import time
+
+led = Pin(2, Pin.OUT)
+while True:
+    led.value(1)
+    time.sleep(0.5)
+    led.value(0)
+    time.sleep(0.5)`,
+    blink_bad: `from machine import Pin
+import time
+
+led = Pin(2, Pin.OUT)
+while True:
+    led.value(1)
+    time.sleep(0.1)
+    led.value(0)
+    time.sleep(0.1)`,
+    switch: `from machine import Pin
+import time
+
+sw = Pin(4, Pin.IN)
+led = Pin(2, Pin.OUT)
+while True:
+    led.value(sw.value())
+    time.sleep(0.2)`,
+    dht: `from machine import Pin
+import dht, time
+from umqtt.simple import MQTTClient
+
+d = dht.DHT22(Pin(15))
+client = MQTTClient('esp32', 'broker.hivemq.com')
+client.connect()
+
+while True:
+    d.measure()
+    t = d.temperature()
+    h = d.humidity()
+    print('Temp:', t, 'Hum:', h)
+    client.publish('esp32/temp', str(t))
+    time.sleep(2)`,
+    error: `led = Pin(2, Pin.OUT)  # ลืม import!
+led.value(1)`
+};
+
+// test cases ตัวอย่าง (โครงสร้างเดียวกับที่จะเก็บใน Firebase)
+const TEST_CASES = [
+    { type: 'blink', params: { pin: 2, minToggles: 4, periodMs: 500, toleranceMs: 150 },
+      inputs: { maxVirtualMs: 8000 }, score: 2,
+      explanation: 'LED ที่ GPIO2 ต้องกระพริบคาบ ~0.5 วินาที อย่างน้อย 4 ครั้ง' },
+    { type: 'dht-read', params: { minReads: 1, requireTemp: true },
+      inputs: { dht: { temp: 28.5, hum: 65 }, maxVirtualMs: 8000 }, score: 1,
+      explanation: 'ต้องอ่านค่าอุณหภูมิจาก DHT22 (measure + temperature)' },
+    { type: 'mqtt-publish', params: { topic: 'esp32/temp', payloadIncludes: '28.5' },
+      inputs: { dht: { temp: 28.5, hum: 65 }, maxVirtualMs: 8000 }, score: 2,
+      explanation: 'ต้อง publish ค่าอุณหภูมิไปยัง topic esp32/temp' },
+];
+
+let pyodide = null;
+let switchState = 0;
+let replayTimer = null;
+
+const $ = id => document.getElementById(id);
+
+$('examples').onchange = () => { $('code').value = EXAMPLES[$('examples').value]; };
+$('code').value = EXAMPLES.blink;
+
+function toggleSwitch() {
+    switchState = switchState ? 0 : 1;
+    $('swBody').classList.toggle('on', !!switchState);
+}
+
+function buildConfig() {
+    return {
+        pins: { '4': switchState },
+        dht: { temp: parseFloat($('cfgTemp').value) || 25, hum: parseFloat($('cfgHum').value) || 60 },
+        maxVirtualMs: 10000
+    };
+}
+
+async function main() {
+    pyodide = await loadPyodide();
+    await IotSim.init(pyodide);
+    $('status').textContent = '✅ พร้อมใช้งาน';
+    $('runBtn').disabled = false;
+    $('checkBtn').disabled = false;
+}
+main().catch(e => { $('status').textContent = '❌ โหลดไม่สำเร็จ: ' + e; });
+
+/* ---------- รัน + replay แอนิเมชัน ---------- */
+$('runBtn').onclick = async () => {
+    stopReplay();
+    $('runBtn').disabled = true;
+    $('status').textContent = '⚙️ กำลังจำลอง...';
+    $('serial').textContent = '';
+    try {
+        const r = await IotSim.run(pyodide, $('code').value, buildConfig());
+        $('eventsRaw').textContent = JSON.stringify(r.events, null, 1);
+        if (r.error) {
+            $('status').textContent = '❌ โค้ด error';
+            $('serial').textContent = '❌ ' + r.error;
+        } else {
+            $('status').textContent = `✅ จำลองจบ (${(r.virtualMs/1000).toFixed(1)}s เสมือน, ${r.events.length} events) — กำลัง replay...`;
+            replayEvents(r.events);
+        }
+    } finally {
+        $('runBtn').disabled = false;
+    }
+};
+
+function stopReplay() {
+    if (replayTimer) { clearTimeout(replayTimer); replayTimer = null; }
+    $('ledDot').classList.remove('on');
+    $('mqttLight').classList.remove('on');
+}
+
+function applyEvent(e) {
+    if (e.type === 'pin' && Number(e.pin) === 2) {
+        $('ledDot').classList.toggle('on', e.value === 1);
+    } else if (e.type === 'dht-temp') {
+        $('dhtT').textContent = e.value;
+    } else if (e.type === 'dht-hum') {
+        $('dhtH').textContent = e.value;
+    } else if (e.type === 'dht-measure') {
+        $('dhtT').textContent = '...';
+    } else if (e.type === 'mqtt-publish') {
+        $('mqttLight').classList.add('on');
+        $('mqttLast').textContent = `→ ${e.topic}: ${e.payload}`;
+        setTimeout(() => $('mqttLight').classList.remove('on'), 250);
+    } else if (e.type === 'mqtt-receive') {
+        $('mqttLast').textContent = `← ${e.topic}: ${e.payload}`;
+    } else if (e.type === 'print') {
+        $('serial').textContent += e.text + '\n';
+        $('serial').scrollTop = $('serial').scrollHeight;
+    }
+}
+
+function replayEvents(events) {
+    const speed = parseFloat($('speed').value);
+    if (speed === 0) { events.forEach(applyEvent); $('status').textContent = '✅ เสร็จ'; return; }
+    let i = 0;
+    const startWall = performance.now();
+    function step() {
+        const simNow = (performance.now() - startWall) * speed;
+        while (i < events.length && events[i].t <= simNow) {
+            applyEvent(events[i]); i++;
+        }
+        if (i < events.length) {
+            replayTimer = setTimeout(step, 30);
+        } else {
+            $('status').textContent = '✅ replay จบ';
+        }
+    }
+    step();
+}
+
+/* ---------- ตรวจ test cases ---------- */
+$('checkBtn').onclick = async () => {
+    stopReplay();
+    $('checkBtn').disabled = true;
+    $('status').textContent = '🔎 กำลังตรวจ...';
+    try {
+        const { results, totalScore, maxScore } = await IotSim.runTestCases(pyodide, $('code').value, TEST_CASES);
+        let html = '';
+        results.forEach((r, idx) => {
+            html += `<div class="tc ${r.passed ? 'pass' : 'fail'}">
+                <b>${r.passed ? '✅' : '❌'} ข้อ ${idx + 1}: ${r.explanation} (${r.earned}/${r.score} คะแนน)</b>
+                ${r.detail}
+            </div>`;
+        });
+        html += `<div class="score-line">รวม: ${totalScore} / ${maxScore} คะแนน</div>`;
+        $('results').innerHTML = html;
+        $('status').textContent = '✅ ตรวจเสร็จ';
+    } catch (e) {
+        $('results').innerHTML = '❌ ' + e;
+        $('status').textContent = '❌ ตรวจไม่สำเร็จ';
+    } finally {
+        $('checkBtn').disabled = false;
+    }
+};
+</script>
+</body>
+</html>

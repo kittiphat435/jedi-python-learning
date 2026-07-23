@@ -1041,6 +1041,9 @@ function viewProblem(problemId, type, isViewMode = false, isClosed = false) {
         case 'iot_gui':
             url = `student-iot-gui.html?id=${problemId}&classId=${classId}${extraParams}`;
             break;
+        case 'esp32_iot':
+            url = `student-esp32-iot.html?id=${problemId}&classId=${classId}${extraParams}`;
+            break;
         default:
             url = `student-quiz-detail.html?id=${problemId}&classId=${classId}${extraParams}`;
     }

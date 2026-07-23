@@ -310,6 +310,7 @@
         const GROUND_Y = 190;
 
         let score = 0;
+        let dinoLevel = 1;
         let userHighScore = 0;
         let gameLoop;
         let isPlaying = false;
@@ -656,15 +657,16 @@
                 if (c.x < -40) c.x = canvas.width + 20;
             });
 
-            // เพิ่มคะแนนตามระยะทางที่วิ่ง (ปรับอัตราให้ใกล้เคียงกับเกมงู/Tetris)
+            // เพิ่มคะแนนตามระยะทางที่วิ่ง (คูณด้วยเลเวลให้คะแนนเร่งขึ้นใกล้เคียงเกม tetris)
             if (frameCount % 50 === 0) {
-                score += 4 * scoreMultiplier;
+                score += 4 * dinoLevel * scoreMultiplier;
                 document.getElementById('score').textContent = score;
             }
 
-            // เพิ่มความเร็วเกมตามเวลาจริงที่รอด (ไม่ผูกกับคะแนน เพื่อคงจังหวะความยากเดิมไว้)
+            // เพิ่มความเร็วเกมตามเวลาจริงที่รอด และขยับเลเวลคะแนนไปพร้อมกัน
             if (frameCount % 5000 === 0 && frameCount > 0) {
                 obstacleSpeed += 0.5;
+                dinoLevel++;
                 playScoreMilestoneSound();
             }
 

@@ -394,7 +394,7 @@ root.mainloop()`);
 
 window.toggleProblemTypeFields = function () {
     const problemType = document.getElementById('problemType').value;
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection'];
+    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'guiSection', 'freeGuiSection', 'summarySection', 'iotSection', 'esp32IotSection'];
 
     sections.forEach(section => {
         const element = document.getElementById(section);
@@ -439,6 +439,13 @@ window.toggleProblemTypeFields = function () {
                 addSaveWidgetButton();
             }, 100);
         }
+    } else if (problemType === 'esp32_iot') {
+        // 🎛️ ESP32+IoT (ต่อวงจรเอง): canvas วงจร + ส่วนจำลอง ESP32 (โค้ดตั้งต้น + IoT Test Cases)
+        const esp32Section = document.getElementById('esp32IotSection');
+        if (esp32Section) esp32Section.style.display = 'block';
+        const iotSection = document.getElementById('iotSection');
+        if (iotSection) iotSection.style.display = 'block';
+        if (typeof initEsp32IotSection === 'function') initEsp32IotSection();
     }
 };
 
@@ -1351,7 +1358,18 @@ async function editProblem(problemId) {
             }
         }
 
-        switch (problemData.type) {
+        // 🔌 เติมค่าฟิลด์ IoT (Wokwi ID, เฉลย, การจำลอง ESP32) ตอนแก้ไขโจทย์
+        // หมายเหตุ: switch ด้านล่างไม่มี case 'iot_gui' — โหลดส่วน GUI ของ iot_gui ผ่าน case 'gui' ไม่ได้
+        // จึงจัดการฟิลด์ IoT แยกตรงนี้
+        if (problemData.type === 'iot' || problemData.type === 'iot_gui') {
+            loadIotSimFields(problemData);
+        }
+        // 🎛️ ESP32+IoT: โหลดคำอธิบาย + วงจร + ฟิลด์การจำลองกลับเข้าฟอร์ม
+        if (problemData.type === 'esp32_iot' && typeof loadEsp32IotFields === 'function') {
+            loadEsp32IotFields(problemData);
+        }
+
+        switch (problemData.type === 'iot_gui' ? 'gui' : problemData.type) {
             case 'gui':
                 if (document.getElementById('guiDescription')) {
                     document.getElementById('guiDescription').value = problemData.description || '';
@@ -1710,10 +1728,10 @@ async function editProblem(problemId) {
                         
                         const tagsStr = q.tags ? q.tags.join(', ') : '';
                         
-                        questionItem.innerHTML = \`
+                        questionItem.innerHTML = `
                             <div class="left-panel" style="flex: 1; border-right: 1px solid #555; padding-right: 20px;">
                                 <div class="question-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <h4 style="margin: 0; color: #fff;">คำถามที่ \${q.number || 1}</h4>
+                                    <h4 style="margin: 0; color: #fff;">คำถามที่ ${q.number || 1}</h4>
                                     <button type="button" onclick="removeComprehensionQuestion(this)" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">
                                         ลบคำถาม
                                     </button>
@@ -1721,21 +1739,21 @@ async function editProblem(problemId) {
 
                                 <div class="form-group">
                                     <label>คำถาม *</label>
-                                    <textarea class="question-text input-field" required style="height: 80px;">\${q.question || ''}</textarea>
+                                    <textarea class="question-text input-field" required style="height: 80px;">${q.question || ''}</textarea>
                                 </div>
 
                                 <div class="form-group">
                                     <label>รูปภาพประกอบคำถาม (ถ้ามี)</label>
                                     <input type="file" class="question-image-upload input-field" accept="image/*" onchange="handleQuestionImageUpload(this)">
-                                    <input type="hidden" class="question-image-url" value="\${q.imageUrl || ''}">
-                                    <div class="question-image-preview" style="margin-top: 10px; \${q.imageUrl ? 'display: block;' : 'display: none;'} text-align: center;">
-                                        <img src="\${q.imageUrl || ''}" style="max-width: 100%; max-height: 150px; border-radius: 4px; border: 1px solid #555;">
+                                    <input type="hidden" class="question-image-url" value="${q.imageUrl || ''}">
+                                    <div class="question-image-preview" style="margin-top: 10px; ${q.imageUrl ? 'display: block;' : 'display: none;'} text-align: center;">
+                                        <img src="${q.imageUrl || ''}" style="max-width: 100%; max-height: 150px; border-radius: 4px; border: 1px solid #555;">
                                     </div>
                                 </div>
 
                                 <div class="form-group">
                                     <label>Tag (ป้ายกำกับ) คั่นด้วยลูกน้ำ</label>
-                                    <input type="text" class="question-tags input-field" placeholder="เช่น logic, loop, variable" value="\${tagsStr}">
+                                    <input type="text" class="question-tags input-field" placeholder="เช่น logic, loop, variable" value="${tagsStr}">
                                 </div>
                             </div>
 
@@ -1744,20 +1762,20 @@ async function editProblem(problemId) {
                                 
                                 <div class="form-group">
                                     <label>คำตอบที่ถูกต้อง *</label>
-                                    <textarea class="correct-answer input-field" required style="height: 80px;">\${q.correctAnswer || ''}</textarea>
+                                    <textarea class="correct-answer input-field" required style="height: 80px;">${q.correctAnswer || ''}</textarea>
                                 </div>
 
                                 <div class="form-group">
                                     <label>คะแนน</label>
-                                    <input type="number" class="question-score input-field" value="\${q.score || 1}" min="1" max="10">
+                                    <input type="number" class="question-score input-field" value="${q.score || 1}" min="1" max="10">
                                 </div>
 
                                 <div class="form-group">
                                     <label>คำอธิบายเพิ่มเติม</label>
-                                    <textarea class="question-explanation input-field" style="height: 60px;">\${q.explanation || ''}</textarea>
+                                    <textarea class="question-explanation input-field" style="height: 60px;">${q.explanation || ''}</textarea>
                                 </div>
                             </div>
-                        \`;
+                        `;
                         questionsList.appendChild(questionItem);
                     });
                 }
@@ -2241,7 +2259,7 @@ async function handleQuestionImageUpload(inputElement) {
 
     try {
         const compressedFile = await compressImage(file, 800, 800, 0.7);
-        const fileName = \`problem_images/q_\${Date.now()}_\${Math.random().toString(36).substring(7)}.jpg\`;
+        const fileName = `problem_images/q_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
         const storageRef = firebase.storage().ref();
         const imageRef = storageRef.child(fileName);
 
@@ -2416,11 +2434,7 @@ async function saveProblem(event) {
             if (problemType === 'iot_gui') {
                 const iotWokwiId = document.getElementById('iotWokwiId')?.value?.trim() || '';
                 const iotSolution = document.getElementById('iotSolution')?.value || '';
-                
-                if (!iotWokwiId) {
-                    alert('กรุณากรอก Wokwi Project ID สำหรับโจทย์ IoT');
-                    return;
-                }
+                // Wokwi ID ไม่บังคับแล้ว — ถ้าเว้นว่าง นักเรียนใช้บอร์ดจำลอง ESP32 ของระบบแทน
 
                 const codeChecks = Array.from(document.querySelectorAll('#iotCodeChecksList .iot-code-check')).map(checkEntry => {
                     const keyword = checkEntry.querySelector('.iot-keyword')?.value?.trim();
@@ -2431,9 +2445,18 @@ async function saveProblem(event) {
                 Object.assign(problemData, {
                     iotWokwiId,
                     iotSolution,
-                    codeChecks
+                    codeChecks,
+                    ...collectIotSimFields()   // 🔌 iotStarterCode, iotLedPin, iotSwitchPin, iotDht, iotTestCases
                 });
             }
+        } else if (problemType === 'esp32_iot') {
+            // 🎛️ ESP32+IoT (ต่อวงจรเอง)
+            const fields = collectEsp32IotFields();
+            if (!fields.description) {
+                alert('กรุณากรอกคำอธิบายโจทย์');
+                return;
+            }
+            Object.assign(problemData, fields);
         } else if (problemType === 'python' || problemType === 'iot') {
             const description = document.getElementById('problemDescription')?.value?.trim() || '';
             const templateCode = document.getElementById('templateCode')?.value || '';
@@ -2934,7 +2957,8 @@ async function loadProblems() {
                 'gui': 'ส่วนต่อประสานกราฟิก', // เพิ่ม gui
                 'summary': 'กระดานสรุปผล',
                 'iot': 'โจทย์ IoT (ESP32/Wokwi)',
-                'iot_gui': 'IoT + GUI Dashboard'
+                'iot_gui': 'IoT + GUI Dashboard',
+                'esp32_iot': 'ESP32+IoT (ต่อวงจรเอง)'
             };
 
             // เลือกไอคอนตามประเภทโจทย์

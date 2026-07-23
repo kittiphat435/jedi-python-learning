@@ -715,6 +715,9 @@ function viewProblem(problemId, type = 'python') {
         case 'iot_gui':
             window.location.href = `student-iot-gui.html?id=${problemId}`;
             break;
+        case 'esp32_iot':
+            window.location.href = `student-esp32-iot.html?id=${problemId}`;
+            break;
         default:
             window.location.href = `student-problem-detail.html?id=${problemId}`;
     }

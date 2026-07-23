@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JediCode — ESP32+IoT</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js" defer></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Sarabun', sans-serif; margin: 0; background: #eef2f5; color: #223; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; background: #1a5276; color: #fff; padding: 10px 18px; }
+        .topbar h1 { margin: 0; font-size: 1.1rem; }
+        .topbar .score { background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 8px; font-weight: bold; }
+        .topbar button { background: #fff; color: #1a5276; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-weight: bold; }
+        .wrap { padding: 14px 18px; }
+        .card { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 14px; }
+        .card h2 { margin: 0 0 8px; font-size: 1.05rem; color: #1a5276; }
+        .action-btn { background: #1a5276; color: #fff; border: 0; border-radius: 6px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; margin: 6px 6px 0 0; }
+        .action-btn:hover { background: #21618c; }
+        .action-btn:disabled { background: #aab; cursor: wait; }
+        .action-btn.green { background: #1e8449; }
+        .action-btn.green:hover { background: #239b56; }
+        #serial { display: none; background: #17202a; color: #7dcea0; font-family: Consolas, monospace; font-size: 12px; padding: 10px; border-radius: 6px; max-height: 140px; overflow-y: auto; white-space: pre-wrap; margin-top: 8px; }
+        #wireWarnings { margin-top: 8px; }
+        .warn-item { background: #fdf2e9; border-left: 4px solid #e67e22; padding: 6px 10px; margin: 4px 0; border-radius: 0 6px 6px 0; font-size: 0.85rem; }
+        .ok-item { background: #eafaf1; border-left: 4px solid #1e8449; padding: 6px 10px; margin: 4px 0; border-radius: 0 6px 6px 0; font-size: 0.85rem; }
+        #statusMsg { font-size: 0.85rem; color: #666; margin-left: 8px; }
+        .err-banner { display: none; background: #fdedec; color: #922b21; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🎛️ JediCode — ESP32+IoT (ต่อวงจรเอง)</h1>
+        <div style="display:flex; gap:12px; align-items:center;">
+            <div class="score">คะแนน <span id="currentScore">0</span>/<span id="maxScore">0</span></div>
+            <button id="backBtn">กลับหน้าห้องเรียน</button>
+        </div>
+    </div>
+    <div class="wrap">
+        <div id="errBanner" class="err-banner"></div>
+
+        <div class="card">
+            <h2 id="problemTitle">⏳ กำลังโหลดโจทย์...</h2>
+            <div id="problemDescription" style="font-size:0.95rem; color:#444;"></div>
+        </div>
+
+        <div class="card">
+            <h2>1. ต่อวงจร</h2>
+            <p style="font-size:0.85rem; color:#666; margin:0 0 8px;">คลิกอุปกรณ์เพื่อวาง • ลากเพื่อย้าย • คลิกจุดขา (วงกลมฟ้า) แล้วคลิกขาปลายทางเพื่อเดินสาย • คลิกสาย+Delete ลบสาย • ดับเบิลคลิกอุปกรณ์เพื่อลบ • คลิกตัว Slide Switch เพื่อเปิด/ปิดตอนจำลอง</p>
+            <div id="circuitPalette"></div>
+            <div id="circuitCanvas" style="position:relative; height:460px; border:2px solid #b0bec5; border-radius:8px; background:#f4f7f6;"></div>
+            <div id="wireWarnings"></div>
+        </div>
+
+        <div class="card">
+            <h2>2. เขียนโค้ด MicroPython</h2>
+            <textarea id="codeArea" spellcheck="false" placeholder="from machine import Pin&#10;import time&#10;&#10;# เขียนโค้ดของคุณที่นี่"></textarea>
+            <div style="margin-top:8px;">
+                <button id="runBtn" class="action-btn" disabled>▶ รันจำลอง</button>
+                <span id="statusMsg">⏳ กำลังเตรียมตัวจำลอง...</span>
+            </div>
+            <div id="serial"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js" defer></script>
+    <script src="circuit-canvas.js" defer></script>
+    <script src="iot-sim-engine.js" defer></script>
+    <script src="student-esp32-iot.js" defer></script>
+    <script src="./session-timeout.js"></script>
+</body>
+</html>
