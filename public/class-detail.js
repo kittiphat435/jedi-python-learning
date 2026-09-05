@@ -388,15 +388,18 @@ function renderProblemsPage() {
         let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
         if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
             displayTitle += ' (ระบบกลุ่ม)';
-        } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
-            displayTitle += ' (ข้อสอบ)';
         }
+
+        const examBadge = problem.assignmentType === 'exam'
+            ? `<span style="background:#ef4444; color:#fff; font-size:0.72em; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:8px; vertical-align:middle;">📋 ข้อสอบ</span>`
+            : '';
 
         div.innerHTML = `
             ${dragHandleHtml}
             <div class="problem-info" style="flex-grow: 1;">
                 <div class="problem-header">
                     <span class="problem-type">${problemTypeIcon} ${problemTypeText}</span>
+                    ${examBadge}
                 </div>
                 <h3>${displayTitle}</h3>
                 <p>${problem.description || 'ไม่มีคำอธิบาย'}</p>
@@ -1441,11 +1444,11 @@ async function viewProgress(studentId) {
             let maxScore = 0;
 
             if (data.type === 'python' && data.testCases) {
-                maxScore = data.testCases.reduce((sum, test) => sum + (test.score || 1), 0);
+                maxScore = data.testCases.reduce((sum, test) => sum + (parseInt(test.score) || 1), 0);
             } else if (data.type === 'comprehension' && data.questions) {
-                maxScore = data.questions.reduce((sum, q) => sum + (q.score || 1), 0);
+                maxScore = data.questions.reduce((sum, q) => sum + (parseInt(q.score) || 1), 0);
             } else if (data.type === 'matching' && data.pairs) {
-                maxScore = data.pairs.reduce((sum, pair) => sum + (pair.score || 1), 0);
+                maxScore = data.pairs.reduce((sum, pair) => sum + (parseInt(pair.score) || 1), 0);
             } else if (data.type === 'flowchart') {
                 maxScore = data.maxScore || 10; // ใช้ maxScore จาก problemData ก่อน ถ้าไม่มีจึงใช้ค่า default 10
                 console.log('Problem data for flowchart:', {
@@ -1454,11 +1457,24 @@ async function viewProgress(studentId) {
                     maxScore: data.maxScore,
                     finalMaxScore: maxScore
                 });
-            } else if (data.type === 'gui' || data.type === 'quiz' || data.type === 'comprehension') {
-                maxScore = data.maxScore || 0;
-                if ((data.type === 'quiz' || data.type === 'comprehension') && !maxScore && data.questions) {
-                    maxScore = data.questions.reduce((sum, q) => sum + (q.score || 1), 0);
+            } else if (data.type === 'gui') {
+                if (data.maxScore) {
+                    maxScore = data.maxScore;
+                } else {
+                    const wScore = (data.widgets || []).reduce((s, w) => s + (w.score || 1), 0);
+                    const oScore = (data.widgets?.length >= 2) ? 5 : 0;
+                    const tScore = (data.testCases || []).reduce((s, t) => s + (t.score || 1), 0);
+                    maxScore = wScore + oScore + tScore;
                 }
+            } else if (data.type === 'quiz' || data.type === 'comprehension') {
+                maxScore = data.maxScore || 0;
+                if (!maxScore && data.questions) {
+                    maxScore = data.questions.reduce((sum, q) => sum + (parseInt(q.score) || 1), 0);
+                }
+            } else if (data.type === 'free_gui') {
+                maxScore = data.maxScore || 10;
+            } else {
+                maxScore = data.maxScore || 0;
             }
 
             console.log(`Problem ${data.problemId}:`, {
@@ -1472,50 +1488,89 @@ async function viewProgress(studentId) {
             });
         }
 
-        // คำนวณคะแนนรวมและจำนวนโจทย์ที่ทำสำเร็จ
-        let completedCount = 0;
-        let totalScore = 0;
-        let totalMaxScore = 0;
+        // แยกโจทย์และข้อสอบ
+        const practiceProblems = [];
+        const examProblems = [];
 
         problemDetails.forEach((problem, problemId) => {
             const submission = latestSubmissions.get(problemId);
             
-            // ใช้ maxScore จาก submission ถ้ามี (เผื่อกรณีครูแก้โจทย์ทีหลัง)
-            const actualMaxScore = (submission && submission.maxScore) ? submission.maxScore : problem.maxScore;
+            // ให้เหมือนฝั่งนักเรียน: ใช้ maxScore จาก submission เฉพาะโจทย์ GUI เพื่อป้องกันคะแนนเต็มไม่ตรงกัน
+            let actualMaxScore = problem.maxScore;
+            if (submission && submission.maxScore && (problem.type === 'gui' || problem.type === 'free_gui')) {
+                actualMaxScore = submission.maxScore;
+            }
             problem.displayMaxScore = actualMaxScore;
             
-            totalMaxScore += actualMaxScore;
-        
-            // ตรวจสอบ submission ของแต่ละโจทย์
-            if (submission && submission.score && submission.status === 'completed') {
-                // นับคะแนนเฉพาะ status completed เท่านั้น
-                completedCount++;
-                totalScore += submission.score;
-                console.log(`Adding score for ${problemId}:`, {
-                    score: submission.score,
-                    status: submission.status
-                });
+            // เพิ่ม score/status ที่เกี่ยวข้องเข้าไปใน object เพื่อเอาไป render ง่ายๆ
+            const score = submission?.status === 'completed' 
+                ? ((submission.score !== undefined) ? Number(submission.score) : problem.displayMaxScore) 
+                : 0;
+            let statusText = 'ยังไม่ส่ง';
+            if (submission && submission.status !== 'draft') {
+                switch(submission.status) {
+                    case 'completed': statusText = 'ส่งแล้ว'; break;
+                    case 'inProgress': statusText = 'กำลังตรวจ'; break;
+                    default: statusText = 'รอตรวจ';
+                }
+            }
+            problem.submissionScore = score;
+            problem.submissionStatusText = statusText;
+            problem.hasSubmission = submission && submission.status !== 'draft';
+
+            if (problem.assignmentType === 'exam') {
+                examProblems.push(problem);
+            } else {
+                practiceProblems.push(problem);
             }
         });
 
-        console.log('Processing submissions...', {
-            completedCount,
-            totalScore,
-            totalMaxScore
+        // คำนวณคะแนนรวมและจำนวนโจทย์ที่ทำสำเร็จ (เฉพาะแบบฝึกหัด)
+        let completedCount = 0;
+        let totalScore = 0;
+        let totalMaxScore = 0;
+
+        practiceProblems.forEach(problem => {
+            totalMaxScore += problem.displayMaxScore;
+            const submission = latestSubmissions.get(problem.problemId);
+            if (submission && submission.status === 'completed') {
+                completedCount++;
+                // ใช้คะแนนจริงที่ได้ (ถ้ามี) ถ้าไม่มีใช้เต็ม (เผื่อข้อมูลเก่า)
+                const currentScore = (submission.score !== undefined) ? Number(submission.score) : problem.displayMaxScore;
+                totalScore += currentScore;
+            }
         });
 
-        const totalProblems = problemDetails.size;
+        const totalProblems = practiceProblems.length;
         const progressPercentage = totalProblems > 0 ? Math.round((completedCount / totalProblems) * 100) : 0;
         const scorePercentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
 
-        console.log('Final calculations:', {
-            totalProblems,
-            completedCount,
-            totalScore,
-            totalMaxScore,
-            progressPercentage,
-            scorePercentage
-        });
+        // Helper สำหรับสร้าง HTML ของโจทย์
+        const renderProblemItem = (problem) => {
+            let viewLink = '';
+            if (problem.hasSubmission && problem.type) {
+                viewLink = `
+                    <button onclick="viewProblem('${problem.problemId}', '${studentId}')" 
+                       class="view-answer-btn" 
+                       style="margin-left: 10px; font-size: 0.9em; color: #3498db; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0;">
+                       <i class="fas fa-search"></i> ดูคำตอบ
+                    </button>
+                `;
+            }
+            return `
+                <div class="problem-item">
+                    <div class="problem-title"${problem.submissionStatusText === 'ยังไม่ส่ง' ? ' style="color: #e67e22;"' : ''}>${problem.title}</div>
+                    <div class="problem-info">
+                        <span class="problem-type">${problem.type}</span>
+                        <span class="problem-score ${problem.submissionStatusText === 'ส่งแล้ว' ? 'completed' : ''}">
+                            ${problem.submissionScore}/${problem.displayMaxScore || problem.maxScore}
+                            (${problem.submissionStatusText})
+                            ${viewLink}
+                        </span>
+                    </div>
+                </div>
+            `;
+        };
 
         // อัพเดท Modal content
         const modalContent = document.querySelector('#progressModal .modal-body');
@@ -1538,7 +1593,7 @@ async function viewProgress(studentId) {
                 </div>
                 <div class="progress-stat">
                     <div class="stat-value">${totalProblems}</div>
-                    <div class="stat-label">โจทย์ทั้งหมด</div>
+                    <div class="stat-label">แบบฝึกหัดทั้งหมด</div>
                 </div>
                 <div class="progress-stat">
                     <div class="stat-value">${progressPercentage}%</div>
@@ -1550,53 +1605,23 @@ async function viewProgress(studentId) {
                 </div>
             </div>
 
+            <!-- Tabs สำหรับเลือกดูแบบฝึกหัดหรือข้อสอบ -->
+            <div class="tabs" style="margin-top: 20px; margin-bottom: 15px; border-bottom: 1px solid #ddd;">
+                <div id="tabBtn-prog-practice" class="tab active" onclick="switchProgressTab('practice')" style="padding: 10px 20px; cursor: pointer; display: inline-block; border-bottom: 3px solid #3b82f6; font-weight: bold; color: #3b82f6;">
+                    แบบฝึกหัด (${practiceProblems.length})
+                </div>
+                <div id="tabBtn-prog-exam" class="tab" onclick="switchProgressTab('exam')" style="padding: 10px 20px; cursor: pointer; display: inline-block; border-bottom: 3px solid transparent; color: #64748b;">
+                    ข้อสอบ (${examProblems.length})
+                </div>
+            </div>
+
             <!-- แสดงรายละเอียดของแต่ละโจทย์ -->
             <div class="problem-details">
-                <h3>รายละเอียดแต่ละโจทย์</h3>
-                <div class="problems-list">
-                    ${Array.from(problemDetails.entries()).map(([problemId, problem]) => {
-                        const submission = latestSubmissions.get(problemId);
-                        const score = submission?.status === 'completed' ? submission.score : 0;
-                        let statusText = 'ยังไม่ส่ง';
-                        let viewLink = '';
-                        
-                        // ถ้าสถานะเป็น draft ให้ถือว่ายังไม่ส่ง
-                        if (submission && submission.status !== 'draft') {
-                            switch(submission.status) {
-                                case 'completed':
-                                    statusText = 'ส่งแล้ว';
-                                    break;
-                                case 'inProgress':
-                                    statusText = 'กำลังตรวจ';
-                                    break;
-                                default:
-                                    statusText = 'รอตรวจ';
-                            }
-                            
-                            if (problem.type) {
-                                viewLink = `
-                                    <button onclick="viewProblem('${problemId}', '${studentId}')" 
-                                       class="view-answer-btn" 
-                                       style="margin-left: 10px; font-size: 0.9em; color: #3498db; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0;">
-                                       <i class="fas fa-search"></i> ดูคำตอบ
-                                    </button>
-                                `;
-                            }
-                        }
-                        return `
-                            <div class="problem-item">
-                                <div class="problem-title"${statusText === 'ยังไม่ส่ง' ? ' style="color: #e67e22;"' : ''}>${problem.title}</div>
-                                <div class="problem-info">
-                                    <span class="problem-type">${problem.type}</span>
-                                    <span class="problem-score ${submission?.status === 'completed' ? 'completed' : ''}">
-                                        ${score}/${problem.displayMaxScore || problem.maxScore}
-                                        (${statusText})
-                                        ${viewLink}
-                                    </span>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
+                <div id="prog-practice-content" class="problems-list" style="display: block;">
+                    ${practiceProblems.length > 0 ? practiceProblems.map(renderProblemItem).join('') : '<p style="text-align: center; color: #888;">ไม่มีแบบฝึกหัด</p>'}
+                </div>
+                <div id="prog-exam-content" class="problems-list" style="display: none;">
+                    ${examProblems.length > 0 ? examProblems.map(renderProblemItem).join('') : '<p style="text-align: center; color: #888;">ไม่มีข้อสอบ</p>'}
                 </div>
             </div>
         `;
@@ -1604,6 +1629,39 @@ async function viewProgress(studentId) {
     } catch (error) {
         console.error('Error viewing progress:', error);
         alert('เกิดข้อผิดพลาดในการโหลดข้อมูลความคืบหน้า');
+    }
+}
+
+window.switchProgressTab = function(tab) {
+    const btnPractice = document.getElementById('tabBtn-prog-practice');
+    const btnExam = document.getElementById('tabBtn-prog-exam');
+    const contentPractice = document.getElementById('prog-practice-content');
+    const contentExam = document.getElementById('prog-exam-content');
+
+    if (!btnPractice || !btnExam || !contentPractice || !contentExam) return;
+
+    if (tab === 'practice') {
+        btnPractice.style.borderBottom = '3px solid #3b82f6';
+        btnPractice.style.color = '#3b82f6';
+        btnPractice.style.fontWeight = 'bold';
+        
+        btnExam.style.borderBottom = '3px solid transparent';
+        btnExam.style.color = '#64748b';
+        btnExam.style.fontWeight = 'normal';
+
+        contentPractice.style.display = 'block';
+        contentExam.style.display = 'none';
+    } else {
+        btnExam.style.borderBottom = '3px solid #ef4444'; // Use red for exams to distinguish
+        btnExam.style.color = '#ef4444';
+        btnExam.style.fontWeight = 'bold';
+        
+        btnPractice.style.borderBottom = '3px solid transparent';
+        btnPractice.style.color = '#64748b';
+        btnPractice.style.fontWeight = 'normal';
+
+        contentPractice.style.display = 'none';
+        contentExam.style.display = 'block';
     }
 }
 
@@ -1984,13 +2042,15 @@ function renderProblemBankList(problems) {
         let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
         if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
             displayTitle += ' (ระบบกลุ่ม)';
-        } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
-            displayTitle += ' (ข้อสอบ)';
         }
+
+        const examBankBadge = problem.assignmentType === 'exam'
+            ? `<span style="background:#ef4444; color:#fff; font-size:0.72em; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; vertical-align:middle;">📋 ข้อสอบ</span>`
+            : '';
         
         div.innerHTML = `
             <div class="problem-info">
-                <h3><span title="${typeInfo.text}">${typeInfo.icon}</span> ${displayTitle}</h3>
+                <h3><span title="${typeInfo.text}">${typeInfo.icon}</span> ${displayTitle}${examBankBadge}</h3>
                 <p>${problem.description ? problem.description.substring(0, 100) + (problem.description.length > 100 ? '...' : '') : ''}</p>
                 ${problem.classNames && problem.classNames.length > 0 ?
                 `<p class="used-in">ใช้ในห้อง: ${problem.classNames.join(', ')}</p>` :

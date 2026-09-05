@@ -2561,11 +2561,9 @@ async function saveProblem(event) {
             });
         }
 
-        // เพิ่มคำต่อท้ายสำหรับกระดานสรุปแบบกลุ่ม และข้อสอบ
+        // เพิ่มคำต่อท้ายสำหรับกระดานสรุปแบบกลุ่ม
         if (problemType === 'summary' && problemData.isGroupWork && !problemData.title.endsWith('(ระบบกลุ่ม)')) {
             problemData.title += ' (ระบบกลุ่ม)';
-        } else if (problemType === 'comprehension' && !problemData.title.endsWith('(ข้อสอบ)')) {
-            problemData.title += ' (ข้อสอบ)';
         }
 
         console.log('กำลังบันทึกข้อมูลโจทย์:', problemData);
@@ -3082,6 +3080,10 @@ function renderProblemList(problems) {
         const typeIcon = iconMapping[problem.type] || '📄';
         const typeText = typeMapping[problem.type] || 'ไม่ระบุประเภท';
 
+        const examBadge = problem.assignmentType === 'exam'
+            ? `<span style="background:#ef4444; color:#fff; font-size:0.72em; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:8px; vertical-align:middle;">📋 ข้อสอบ</span>`
+            : '';
+
         let contentPreview = '';
         let countText = '';
 
@@ -3163,6 +3165,7 @@ function renderProblemList(problems) {
             <div class="problem-info">
                 <div class="problem-header">
                     <span class="problem-type">${typeIcon} ${typeText}</span>
+                    ${examBadge}
                 </div>
                 <h3>${problem.title || 'ไม่มีชื่อ'}</h3>
                 <p>${contentPreview}</p>

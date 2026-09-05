@@ -109,6 +109,9 @@
             <button onclick="switchClassTab('problems')" id="tabBtn-problems" class="class-tab-btn active" style="background: none; border: none; font-size: 16px; font-weight: 600; padding: 8px 16px; cursor: pointer; color: #3b82f6; border-bottom: 3px solid #3b82f6; transition: all 0.2s; font-family: inherit;">
                 <i class="fas fa-tasks"></i> แบบฝึกหัด
             </button>
+            <button onclick="switchClassTab('exam')" id="tabBtn-exam" class="class-tab-btn" style="background: none; border: none; font-size: 16px; font-weight: 600; padding: 8px 16px; cursor: pointer; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; font-family: inherit;">
+                <i class="fas fa-file-alt"></i> ข้อสอบ
+            </button>
             <button onclick="switchClassTab('analysis')" id="tabBtn-analysis" class="class-tab-btn" style="background: none; border: none; font-size: 16px; font-weight: 600; padding: 8px 16px; cursor: pointer; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; font-family: inherit;">
                 <i class="fas fa-chart-pie"></i> วิเคราะห์ตนเอง
             </button>
@@ -121,12 +124,27 @@
         <div id="problemsTabContent" class="tab-content">
             <div class="section">
                 <div class="section-header">
-                    <h2>โจทย์ในห้องเรียน</h2>
+                    <h2>แบบฝึกหัดในห้องเรียน</h2>
                     <div class="search-box">
-                        <input type="text" id="searchProblem" placeholder="ค้นหาโจทย์...">
+                        <input type="text" id="searchProblem" placeholder="ค้นหาแบบฝึกหัด...">
                     </div>
                 </div>
                 <div id="problemList" class="problem-list">
+                    <!-- จะถูกเติมด้วย JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Exam Tab Content -->
+        <div id="examTabContent" class="tab-content" style="display: none;">
+            <div class="section">
+                <div class="section-header">
+                    <h2>ข้อสอบในห้องเรียน</h2>
+                    <div class="search-box">
+                        <input type="text" id="searchExam" placeholder="ค้นหาข้อสอบ...">
+                    </div>
+                </div>
+                <div id="examList" class="problem-list">
                     <!-- จะถูกเติมด้วย JavaScript -->
                 </div>
             </div>
@@ -265,15 +283,29 @@
 
             <!-- Leaderboard Section -->
             <div class="section leaderboard-section" id="arcadeLeaderboardSection" style="margin-top: 30px; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0; color: #f39c12; display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-crown"></i> ทำเนียบเซียน (คะแนนเกมรวมสูงสุดในห้อง)
+                        <i class="fas fa-crown"></i> ทำเนียบเซียน
                     </h2>
+                    <div class="leaderboard-tabs" style="display: flex; gap: 10px; background: #f1f5f9; padding: 5px; border-radius: 8px;">
+                        <button id="btn-lb-class" onclick="switchLeaderboardTab('class')" style="background: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; color: #f39c12; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s;">ในห้องเรียน</button>
+                        <button id="btn-lb-global" onclick="switchLeaderboardTab('global')" style="background: transparent; border: none; padding: 8px 16px; border-radius: 6px; font-weight: normal; color: #64748b; cursor: pointer; transition: all 0.2s;">ระดับโลก</button>
+                    </div>
                 </div>
+                
+                <!-- Class Leaderboard -->
                 <div class="leaderboard-container" id="arcadeLeaderboardList">
                     <div style="text-align: center; color: #64748b; padding: 20px;">
                         <i class="fas fa-spinner fa-spin fa-2x"></i>
-                        <p style="margin-top: 10px;">กำลังโหลดทำเนียบเซียน...</p>
+                        <p style="margin-top: 10px;">กำลังโหลดทำเนียบเซียนในห้องเรียน...</p>
+                    </div>
+                </div>
+
+                <!-- Global Leaderboard -->
+                <div class="leaderboard-container" id="globalLeaderboardList" style="display: none;">
+                    <div style="text-align: center; color: #64748b; padding: 20px;">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p style="margin-top: 10px;">กำลังโหลดทำเนียบเซียนระดับโลก...</p>
                     </div>
                 </div>
             </div>

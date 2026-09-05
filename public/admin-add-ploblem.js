@@ -2686,10 +2686,7 @@ async function saveProblem(event) {
             });
         }
 
-        // เพิ่มคำต่อท้ายสำหรับข้อสอบ
-        if (problemType === 'comprehension' && !problemData.title.endsWith('(ข้อสอบ)')) {
-            problemData.title += ' (ข้อสอบ)';
-        }
+        // (ไม่ต้องต่อ suffix "(ข้อสอบ)" ในชื่อ เพราะใช้ assignmentType field แทนแล้ว)
 
         console.log('กำลังบันทึกข้อมูลโจทย์:', problemData);
 

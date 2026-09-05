@@ -63,6 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
             searchProblems(e.target.value);
         });
     }
+
+    const searchExamInput = document.getElementById('searchExam');
+    if (searchExamInput) {
+        searchExamInput.addEventListener('input', (e) => {
+            searchExams(e.target.value);
+        });
+    }
 });
 
 // ตรวจสอบการลงทะเบียน
@@ -346,6 +353,7 @@ function getGravatarUrl(email) {
 
 // โหลดโจทย์ทั้งหมด
 let allProblems = [];
+let allExams = [];
 
 // โหลดโจทย์ทั้งหมด (ฉบับแก้ไข: อ่านสถานะ completed และ timestamp ให้แม่นยำ)
 // [student-class-detail.js]
@@ -456,10 +464,13 @@ async function loadProblems(classId, userId, sharedClassData = null) {
             return timeA - timeB;
         });
         
-        allProblems = problemsData;
+        // 6. แยก ข้อสอบ (assignmentType === 'exam') ออกจาก แบบฝึกหัด
+        allExams = problemsData.filter(p => p.assignmentType === 'exam');
+        allProblems = problemsData.filter(p => p.assignmentType !== 'exam');
         
-        // แสดงผล
+        // แสดงผลแต่ละ list
         displayProblems(allProblems);
+        displayExams(allExams);
 
     } catch (error) {
         console.error("Error loading problems:", error);
@@ -468,113 +479,146 @@ async function loadProblems(classId, userId, sharedClassData = null) {
 }
 
 // ใน student-class-detail.js
+// helper ที่ใช้ร่วมกันระหว่าง displayProblems และ displayExams
+function buildProblemCard(problem) {
+    const div = document.createElement('div');
+    div.className = 'problem-card';
+
+    let statusText, buttonText, isViewMode;
+    if (problem.status === 'completed') {
+        statusText = '✅ ทำเสร็จแล้ว';
+        buttonText = 'ดูผลลัพธ์';
+        isViewMode = true;
+    } else if (problem.status === 'inProgress') {
+        statusText = '⚠️ ยังทำไม่เสร็จ';
+        buttonText = 'ทำโจทย์ต่อ';
+        isViewMode = false;
+    } else {
+        statusText = '❌ ยังไม่ได้ทำ';
+        buttonText = 'เริ่มทำโจทย์';
+        isViewMode = false;
+    }
+
+    // แก้ไขส่วนกำหนดไอคอนและข้อความตามประเภทโจทย์
+    let typeIcon, typeText;
+    switch (problem.type) {
+        case 'python':
+            typeIcon = '💻';
+            typeText = 'โจทย์เขียนโปรแกรม';
+            break;
+        case 'comprehension':
+            typeIcon = '📝';
+            typeText = 'คำถามความเข้าใจ';
+            break;
+        case 'matching':
+            typeIcon = '🔄';
+            typeText = 'จับคู่';
+            break;
+        case 'flowchart':
+            typeIcon = '📊';
+            typeText = 'ผังงาน';
+            break;
+        case 'gui':
+            typeIcon = '🪟';
+            typeText = 'โจทย์สร้าง GUI';
+            break;
+        case 'free_gui':
+            typeIcon = '🎨';
+            typeText = 'โจทย์ GUI (อิสระ)';
+            break;
+        case 'summary':
+            typeIcon = '📋';
+            typeText = 'สรุปผลการเรียน';
+            break;
+        case 'code_order':
+            typeIcon = '🧩';
+            typeText = 'เรียงลำดับ Code';
+            break;
+        default:
+            typeIcon = '❓';
+            typeText = 'ไม่ระบุประเภท';
+    }
+
+    // badge สำหรับข้อสอบ
+    const examBadge = problem.assignmentType === 'exam'
+        ? '<span style="background:#ef4444; color:#fff; font-size:0.75em; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:8px;">📋 ข้อสอบ</span>'
+        : '';
+
+    // แก้ไขส่วนเลือกเนื้อหาที่จะแสดง
+    let contentToShow;
+    if (problem.type === 'python' || problem.type === 'gui' || problem.type === 'free_gui' || problem.type === 'summary') {
+        contentToShow = problem.description || 'ไม่มีคำอธิบาย';
+    } else if (problem.type === 'comprehension') {
+        contentToShow = problem.content || problem.passage || 'ไม่มีคำอธิบาย';
+    } else if (problem.type === 'matching') {
+        contentToShow = problem.description || 'ไม่มีคำอธิบาย';
+    } else if (problem.type === 'flowchart') {
+        contentToShow = problem.description || 'ไม่มีคำอธิบาย';
+    } else {
+        contentToShow = problem.description || 'ไม่มีคำอธิบาย';
+    }
+
+    let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
+    if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
+        displayTitle += ' (ระบบกลุ่ม)';
+    }
+
+    // ถ้าโจทย์ปิดรับคำตอบแล้ว และยังไม่ได้ทำเสร็จ ให้ disable ปุ่ม
+    const isDisabled = problem.isClosed && !isViewMode;
+    const finalButtonText = isDisabled ? 'ปิดรับคำตอบแล้ว' : buttonText;
+
+    div.innerHTML = `
+        <div class="problem-info">
+            <div class="problem-header">
+                <span class="problem-type">${typeIcon} ${typeText}</span>
+                ${examBadge}
+                <span class="status-badge status-${problem.status}">${statusText}</span>
+                ${problem.isClosed ? '<span style="color: #e74c3c; font-weight: bold; font-size: 0.9em; margin-left: 10px;">(ปิดรับคำตอบ)</span>' : ''}
+            </div>
+            <h3>${displayTitle}</h3>
+            <p>${contentToShow}</p>
+        </div>
+        <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn" ${isDisabled ? 'disabled style="background-color: #ccc; cursor: not-allowed;"' : ''}>
+            ${finalButtonText}
+        </button>
+    `;
+
+    return div;
+}
+
+// แสดงรายการแบบฝึกหัด (ไม่รวมข้อสอบ)
 function displayProblems(problems) {
     const problemList = document.getElementById('problemList');
     problemList.innerHTML = '';
 
+    if (problems.length === 0) {
+        problemList.innerHTML = '<p style="color:#64748b; text-align:center; padding:20px;">ไม่มีแบบฝึกหัดในห้องเรียนนี้</p>';
+        return;
+    }
+
     problems.forEach(problem => {
-        const div = document.createElement('div');
-        div.className = 'problem-card';
+        problemList.appendChild(buildProblemCard(problem));
+    });
+}
 
-        let statusText, buttonText, isViewMode;
-        if (problem.status === 'completed') {
-            statusText = '✅ ทำเสร็จแล้ว';
-            buttonText = 'ดูผลลัพธ์';
-            isViewMode = true;
-        } else if (problem.status === 'inProgress') {
-            statusText = '⚠️ ยังทำไม่เสร็จ';
-            buttonText = 'ทำโจทย์ต่อ';
-            isViewMode = false;
-        } else {
-            statusText = '❌ ยังไม่ได้ทำ';
-            buttonText = 'เริ่มทำโจทย์';
-            isViewMode = false;
-        }
+// แสดงรายการข้อสอบ (assignmentType === 'exam')
+function displayExams(exams) {
+    const examList = document.getElementById('examList');
+    if (!examList) return;
+    examList.innerHTML = '';
 
-        // แก้ไขส่วนกำหนดไอคอนและข้อความตามประเภทโจทย์
-        let typeIcon, typeText;
-        switch (problem.type) {
-            case 'python':
-                typeIcon = '💻';
-                typeText = 'โจทย์เขียนโปรแกรม';
-                break;
-            case 'comprehension':
-                typeIcon = '📝';
-                typeText = 'คำถามความเข้าใจ';
-                break;
-            case 'matching':
-                typeIcon = '🔄';
-                typeText = 'จับคู่';
-                break;
-            case 'flowchart':
-                typeIcon = '📊';
-                typeText = 'ผังงาน';
-                break;
-            case 'gui':
-                typeIcon = '🪟';
-                typeText = 'โจทย์สร้าง GUI';
-                break;
-            case 'free_gui':
-                typeIcon = '🎨';
-                typeText = 'โจทย์ GUI (อิสระ)';
-                break;
-            case 'summary':
-                typeIcon = '📋';
-                typeText = 'สรุปผลการเรียน';
-                break;
-            case 'code_order':
-                typeIcon = '🧩';
-                typeText = 'เรียงลำดับ Code';
-                break;
-            default:
-                typeIcon = '❓';
-                typeText = 'ไม่ระบุประเภท';
-        }
+    if (exams.length === 0) {
+        examList.innerHTML = '<p style="color:#64748b; text-align:center; padding:20px;">ยังไม่มีข้อสอบในห้องเรียนนี้</p>';
+        return;
+    }
 
-        // แก้ไขส่วนเลือกเนื้อหาที่จะแสดง
-        let contentToShow;
-        if (problem.type === 'python' || problem.type === 'gui' || problem.type === 'free_gui' || problem.type === 'summary') {
-            contentToShow = problem.description || 'ไม่มีคำอธิบาย';
-        } else if (problem.type === 'comprehension') {
-            contentToShow = problem.content || problem.passage || 'ไม่มีคำอธิบาย';
-        } else if (problem.type === 'matching') {
-            contentToShow = problem.description || 'ไม่มีคำอธิบาย';
-        } else if (problem.type === 'flowchart') {
-            contentToShow = problem.description || 'ไม่มีคำอธิบาย';
-        }
-
-        let displayTitle = problem.title || 'ไม่มีชื่อโจทย์';
-        if (problem.type === 'summary' && problem.isGroupWork && !displayTitle.endsWith('(ระบบกลุ่ม)')) {
-            displayTitle += ' (ระบบกลุ่ม)';
-        } else if (problem.type === 'comprehension' && !displayTitle.endsWith('(ข้อสอบ)')) {
-            displayTitle += ' (ข้อสอบ)';
-        }
-
-        // ถ้าโจทย์ปิดรับคำตอบแล้ว และยังไม่ได้ทำเสร็จ ให้ disable ปุ่ม
-        const isDisabled = problem.isClosed && !isViewMode;
-        const finalButtonText = isDisabled ? 'ปิดรับคำตอบแล้ว' : buttonText;
-
-        div.innerHTML = `
-            <div class="problem-info">
-                <div class="problem-header">
-                    <span class="problem-type">${typeIcon} ${typeText}</span>
-                    <span class="status-badge status-${problem.status}">${statusText}</span>
-                    ${problem.isClosed ? '<span style="color: #e74c3c; font-weight: bold; font-size: 0.9em; margin-left: 10px;">(ปิดรับคำตอบ)</span>' : ''}
-                </div>
-                <h3>${displayTitle}</h3>
-                <p>${contentToShow}</p>
-            </div>
-            <button onclick="viewProblem('${problem.id}', '${problem.type}', ${isViewMode}, ${problem.isClosed || false})" class="primary-btn" ${isDisabled ? 'disabled style="background-color: #ccc; cursor: not-allowed;"' : ''}>
-                ${finalButtonText}
-            </button>
-        `;
-
-        problemList.appendChild(div);
+    exams.forEach(exam => {
+        examList.appendChild(buildProblemCard(exam));
     });
 }
 
 
-// ค้นหาโจทย์
+// ค้นหาแบบฝึกหัด
 function searchProblems(searchText) {
     if (!searchText) {
         displayProblems(allProblems);
@@ -583,12 +627,29 @@ function searchProblems(searchText) {
 
     const searchLower = searchText.toLowerCase();
     const filteredProblems = allProblems.filter(problem =>
-        problem.title.toLowerCase().includes(searchLower) ||
-        problem.description.toLowerCase().includes(searchLower)
+        (problem.title || '').toLowerCase().includes(searchLower) ||
+        (problem.description || '').toLowerCase().includes(searchLower)
     );
 
     displayProblems(filteredProblems);
 }
+
+// ค้นหาข้อสอบ
+function searchExams(searchText) {
+    if (!searchText) {
+        displayExams(allExams);
+        return;
+    }
+
+    const searchLower = searchText.toLowerCase();
+    const filteredExams = allExams.filter(exam =>
+        (exam.title || '').toLowerCase().includes(searchLower) ||
+        (exam.content || exam.passage || exam.description || '').toLowerCase().includes(searchLower)
+    );
+
+    displayExams(filteredExams);
+}
+
 
 // โหลดสถิติ
 // ใน student-class-detail.js
@@ -656,21 +717,25 @@ async function loadStats(classId, userId, sharedClassData = null) {
         let totalScore = 0;
         let totalMaxScore = 0;
         let completedProblems = 0;
+        let practiceProblemsCount = 0; // นับเฉพาะแบบฝึกหัด (ไม่รวม comprehension)
 
         for (let problemId of uniqueProblemIds) {
             const problemDoc = problemDocsMap.get(problemId);
             if (!problemDoc || !problemDoc.exists) continue; // กันเหนียว
 
             const problemData = problemDoc.data();
+
+            // ✅ ข้ามข้อสอบ (assignmentType === 'exam') ออกจากการคิดสถิติทั้งหมด
+            if (problemData.assignmentType === 'exam') continue;
+
+            practiceProblemsCount++;
             let maxScore = 0;
 
             // กำหนดคะแนนเต็มตามประเภทโจทย์
             if (problemData.type === 'flowchart') {
                 maxScore = problemData.maxScore || 10;
             } else if (problemData.type === 'python' && problemData.testCases) {
-                maxScore = problemData.testCases.reduce((sum, test) => sum + (test.score || 1), 0);
-            } else if (problemData.type === 'comprehension' && problemData.questions) {
-                maxScore = problemData.questions.reduce((sum, q) => sum + (q.score || 1), 0);
+                maxScore = problemData.testCases.reduce((sum, test) => sum + (parseInt(test.score) || 1), 0);
             } else if (problemData.type === 'matching' && problemData.pairs) {
                 // ใส่ parseInt เพื่อป้องกันการเอา string มาต่อกัน
                 maxScore = problemData.pairs.reduce((sum, pair) => sum + (parseInt(pair.score) || 1), 0);
@@ -688,6 +753,13 @@ async function loadStats(classId, userId, sharedClassData = null) {
                 }
             } else if (problemData.type === 'free_gui') {
                 maxScore = problemData.maxScore || 10; // กำหนด 10 เป็นค่าเริ่มต้นถ้าไม่มี
+            } else if (problemData.type === 'quiz' || problemData.type === 'comprehension') {
+                maxScore = problemData.maxScore || 0;
+                if (!maxScore && problemData.questions) {
+                    maxScore = problemData.questions.reduce((sum, q) => sum + (parseInt(q.score) || 1), 0);
+                }
+            } else {
+                maxScore = problemData.maxScore || 0;
             }
 
             // ตรวจสอบ submission 
@@ -712,10 +784,11 @@ async function loadStats(classId, userId, sharedClassData = null) {
             totalMaxScore += maxScore;
         }
 
-        const progress = totalProblems > 0 ? Math.round((completedProblems / totalProblems) * 100) : 0;
+        // คิด progress และ % คะแนน จากแบบฝึกหัดเท่านั้น
+        const progress = practiceProblemsCount > 0 ? Math.round((completedProblems / practiceProblemsCount) * 100) : 0;
         const scorePercentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
 
-        document.getElementById('totalProblems').textContent = totalProblems;
+        document.getElementById('totalProblems').textContent = practiceProblemsCount;
         document.getElementById('completedProblems').textContent = completedProblems;
         document.getElementById('problemProgress').textContent = `${progress}%`;
         document.getElementById('totalScore').textContent = `${totalScore}/${totalMaxScore}`;
@@ -1098,13 +1171,13 @@ async function renderArcadeLeaderboard() {
             const jumpScore = arcadeHighscores.jump || 0;
             const totalScore = tetrisScore + snakeScore + dinoScore + jumpScore;
 
-            if (totalScore > 0) {
-                leaderboardData.push({
-                    name: data.displayName || data.email || 'นักเรียนลึกลับ',
-                    totalScore: totalScore,
-                    photoURL: data.photoURL || defaultAvatar
-                });
-            }
+            // นำนักเรียนทุกคนเข้าตาราง ไม่ว่าจะคะแนนเป็น 0 หรือไม่
+            leaderboardData.push({
+                id: studentId,
+                name: data.displayName || data.email || 'นักเรียนลึกลับ',
+                totalScore: totalScore,
+                photoURL: data.photoURL || defaultAvatar
+            });
         });
 
         leaderboardData.sort((a, b) => b.totalScore - a.totalScore);
@@ -1114,9 +1187,164 @@ async function renderArcadeLeaderboard() {
             return;
         }
 
+        const user = firebase.auth().currentUser;
+        const currentUserId = user ? user.uid : null;
+
         let html = `<div class="leaderboard-list">`;
         
         leaderboardData.forEach((student, index) => {
+            const rank = index + 1;
+            let rankClass = '';
+            let rankIcon = rank;
+            
+            if (rank === 1 && student.totalScore > 0) {
+                rankClass = 'rank-1';
+                rankIcon = '👑';
+            } else if (rank === 2 && student.totalScore > 0) {
+                rankClass = 'rank-2';
+            } else if (rank === 3 && student.totalScore > 0) {
+                rankClass = 'rank-3';
+            }
+
+            const isCurrentUser = student.id === currentUserId;
+            const itemStyle = isCurrentUser ? 'background: #fff8e1; border: 1px solid #ffd54f;' : '';
+
+            html += `
+                <div class="leaderboard-item ${rankClass}" style="${itemStyle}">
+                    <div class="leaderboard-rank">${rankIcon}</div>
+                    <img src="${student.photoURL}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #fff;" onerror="this.src='${defaultAvatar}'">
+                    <div class="leaderboard-name">${student.name} ${isCurrentUser ? '(คุณ)' : ''}</div>
+                    <div class="leaderboard-score">${student.totalScore} 🏆</div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        leaderboardContainer.innerHTML = html;
+
+    } catch (error) {
+        console.error("Error rendering arcade leaderboard:", error);
+        leaderboardContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">เกิดข้อผิดพลาดในการโหลดทำเนียบเซียน</div>`;
+    }
+}
+
+window.switchLeaderboardTab = function(tab) {
+    const btnClass = document.getElementById('btn-lb-class');
+    const btnGlobal = document.getElementById('btn-lb-global');
+    const listClass = document.getElementById('arcadeLeaderboardList');
+    const listGlobal = document.getElementById('globalLeaderboardList');
+
+    if (tab === 'class') {
+        btnClass.style.background = '#fff';
+        btnClass.style.color = '#f39c12';
+        btnClass.style.fontWeight = 'bold';
+        btnClass.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+        
+        btnGlobal.style.background = 'transparent';
+        btnGlobal.style.color = '#64748b';
+        btnGlobal.style.fontWeight = 'normal';
+        btnGlobal.style.boxShadow = 'none';
+
+        listClass.style.display = 'block';
+        listGlobal.style.display = 'none';
+    } else {
+        btnGlobal.style.background = '#fff';
+        btnGlobal.style.color = '#f39c12';
+        btnGlobal.style.fontWeight = 'bold';
+        btnGlobal.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+        
+        btnClass.style.background = 'transparent';
+        btnClass.style.color = '#64748b';
+        btnClass.style.fontWeight = 'normal';
+        btnClass.style.boxShadow = 'none';
+
+        listClass.style.display = 'none';
+        listGlobal.style.display = 'block';
+
+        renderGlobalLeaderboard();
+    }
+}
+
+let globalLeaderboardLoaded = false;
+async function renderGlobalLeaderboard() {
+    if (globalLeaderboardLoaded) return;
+    
+    const leaderboardContainer = document.getElementById('globalLeaderboardList');
+    if (!leaderboardContainer) return;
+
+    try {
+        const user = firebase.auth().currentUser;
+        const currentUserId = user ? user.uid : null;
+        
+        // Fetch ALL enrollments to get max scores for each user globally
+        // Note: For a very large platform this might be slow, but it works for now
+        const enrollmentsSnapshot = await db.collection('class_enrollments').get();
+        
+        const globalScoresMap = {};
+        
+        enrollmentsSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.studentId) {
+                const arcadeHighscores = data.arcadeHighscores || {};
+                const tetrisScore = arcadeHighscores.tetris || 0;
+                const snakeScore = arcadeHighscores.snake || 0;
+                const dinoScore = arcadeHighscores.dino || 0;
+                const jumpScore = arcadeHighscores.jump || 0;
+                const totalScore = tetrisScore + snakeScore + dinoScore + jumpScore;
+
+                if (totalScore > 0) {
+                    if (!globalScoresMap[data.studentId] || totalScore > globalScoresMap[data.studentId]) {
+                        globalScoresMap[data.studentId] = totalScore;
+                    }
+                }
+            }
+        });
+        
+        const studentIds = Object.keys(globalScoresMap);
+        
+        if (studentIds.length === 0) {
+            leaderboardContainer.innerHTML = `<div style="text-align: center; color: #64748b; padding: 20px;">ยังไม่มีใครเล่นเกมเพื่อสะสมคะแนนบนแพลตฟอร์มนี้</div>`;
+            return;
+        }
+
+        // We could fetch all users, but to avoid too many reads, maybe we can fetch in chunks or just all
+        const studentPromises = studentIds.map(id => db.collection('users').doc(id).get());
+        const studentDocs = await Promise.all(studentPromises);
+
+        let leaderboardData = [];
+        studentDocs.forEach(doc => {
+            if (!doc.exists) return;
+            const data = doc.data();
+            const studentId = doc.id;
+            
+            leaderboardData.push({
+                id: studentId,
+                name: data.displayName || data.email || 'นักเรียนลึกลับ',
+                totalScore: globalScoresMap[studentId],
+                photoURL: data.photoURL || defaultAvatar
+            });
+        });
+
+        // Sort globally
+        leaderboardData.sort((a, b) => b.totalScore - a.totalScore);
+        
+        // Find current user's rank
+        let currentUserRank = -1;
+        let currentUserData = null;
+        if (currentUserId) {
+            const index = leaderboardData.findIndex(s => s.id === currentUserId);
+            if (index !== -1) {
+                currentUserRank = index + 1;
+                currentUserData = leaderboardData[index];
+            }
+        }
+
+        // Top 10
+        const top10 = leaderboardData.slice(0, 10);
+        
+        let html = `<div class="leaderboard-list">`;
+        
+        top10.forEach((student, index) => {
             const rank = index + 1;
             let rankClass = '';
             let rankIcon = rank;
@@ -1130,22 +1358,51 @@ async function renderArcadeLeaderboard() {
                 rankClass = 'rank-3';
             }
 
+            const isCurrentUser = student.id === currentUserId;
+            const itemStyle = isCurrentUser ? 'background: #fff8e1; border: 1px solid #ffd54f;' : '';
+
             html += `
-                <div class="leaderboard-item ${rankClass}">
+                <div class="leaderboard-item ${rankClass}" style="${itemStyle}">
                     <div class="leaderboard-rank">${rankIcon}</div>
                     <img src="${student.photoURL}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #fff;" onerror="this.src='${defaultAvatar}'">
-                    <div class="leaderboard-name">${student.name}</div>
+                    <div class="leaderboard-name">${student.name} ${isCurrentUser ? '(คุณ)' : ''}</div>
                     <div class="leaderboard-score">${student.totalScore} 🏆</div>
                 </div>
             `;
         });
         
+        // Add current user at the bottom if not in top 10
+        if (currentUserRank > 10 && currentUserData) {
+            html += `
+                <div style="text-align: center; color: #94a3b8; margin: 10px 0;">
+                    <i class="fas fa-ellipsis-v"></i>
+                </div>
+                <div class="leaderboard-item" style="background: #fff8e1; border: 1px solid #ffd54f; border-radius: 12px; margin-top: 10px;">
+                    <div class="leaderboard-rank" style="font-size: 0.9em; width: 40px;">อันดับ ${currentUserRank}</div>
+                    <img src="${currentUserData.photoURL}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #fff;" onerror="this.src='${defaultAvatar}'">
+                    <div class="leaderboard-name">${currentUserData.name} (คุณ)</div>
+                    <div class="leaderboard-score">${currentUserData.totalScore} 🏆</div>
+                </div>
+            `;
+        } else if (currentUserRank === -1 && currentUserId) {
+            // User hasn't played games
+            html += `
+                <div style="text-align: center; color: #94a3b8; margin: 10px 0;">
+                    <i class="fas fa-ellipsis-v"></i>
+                </div>
+                <div class="leaderboard-item" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; margin-top: 10px; justify-content: center;">
+                    <div class="leaderboard-name" style="color: #64748b;">คุณยังไม่มีคะแนนเกมสะสมบนแพลตฟอร์ม</div>
+                </div>
+            `;
+        }
+        
         html += `</div>`;
         leaderboardContainer.innerHTML = html;
+        globalLeaderboardLoaded = true;
 
     } catch (error) {
-        console.error("Error rendering arcade leaderboard:", error);
-        leaderboardContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">เกิดข้อผิดพลาดในการโหลดทำเนียบเซียน</div>`;
+        console.error("Error rendering global leaderboard:", error);
+        leaderboardContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">เกิดข้อผิดพลาดในการโหลดทำเนียบเซียนระดับโลก</div>`;
     }
 }
 
@@ -1169,6 +1426,8 @@ window.addEventListener('beforeunload', () => {
 // Export functions
 window.viewProblem = viewProblem;
 window.searchProblems = searchProblems;
+window.searchExams = searchExams;
+window.displayExams = displayExams;
 
 
 // ==========================================
@@ -1188,7 +1447,7 @@ const TAGS_LIST = [
 ];
 
 function switchClassTab(tabName) {
-    const tabs = ['problems', 'analysis', 'arcade'];
+    const tabs = ['problems', 'exam', 'analysis', 'arcade'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tabBtn-${t}`);
         const content = document.getElementById(`${t}TabContent`);
