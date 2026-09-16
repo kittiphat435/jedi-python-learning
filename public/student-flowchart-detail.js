@@ -230,14 +230,22 @@ async function loadExistingSubmission(problemId, classId, userId) {
             .where('problemId', '==', problemId)
             .where('classId', '==', classId)
             .where('studentId', '==', userId)
-            .orderBy('submittedAt', 'desc')
-            .limit(1)
             .get();
 
-        if (!snapshot.empty && isViewMode) {
-            const submission = snapshot.docs[0].data();
+        let submission = null;
+        if (!snapshot.empty) {
+            let submissions = snapshot.docs.map(doc => doc.data());
+            submissions.sort((a, b) => {
+                const timeA = (a.timestamp || a.submittedAt)?.toDate?.()?.getTime?.() || (a.submittedAt?.toMillis?.() || 0);
+                const timeB = (b.timestamp || b.submittedAt)?.toDate?.()?.getTime?.() || (b.submittedAt?.toMillis?.() || 0);
+                return timeB - timeA;
+            });
+            submission = submissions[0];
+        }
 
-            if (window.problemData?.assignmentType === 'exam') {
+        if (submission && isViewMode) {
+            const isCompleted = submission.status === 'completed';
+            if (window.problemData?.assignmentType === 'exam' && isCompleted) {
                 const canvas = document.getElementById('flowchartCanvas');
                 if (canvas) {
                     canvas.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 1.2em;">ข้อสอบถูกส่งแล้ว ไม่สามารถดู Flowchart ย้อนหลังได้</div>';
@@ -262,27 +270,41 @@ async function loadExistingSubmission(problemId, classId, userId) {
             }
 
             // ทำให้ไม่สามารถแก้ไขได้ในโหมด view เท่านั้น
-            if (isViewMode) {
-                const svg = document.querySelector('#flowchartCanvas svg');
-                if (svg) svg.style.pointerEvents = 'none';
+            const svg = document.querySelector('#flowchartCanvas svg');
+            if (svg) svg.style.pointerEvents = 'none';
 
-                // ปิดการใช้งานปุ่มตรวจคำตอบและล้าง canvas แทนการซ่อน
-                ['checkAnswerBtn', 'clearCanvasBtn'].forEach(id => {
-                    const btn = document.getElementById(id);
-                    if (btn) {
-                        btn.disabled = true;
-                        btn.style.opacity = '0.5';
-                        btn.style.cursor = 'not-allowed';
-                    }
-                });
+            // ปิดการใช้งานปุ่มตรวจคำตอบและล้าง canvas
+            ['checkAnswerBtn', 'clearCanvasBtn'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                }
+            });
+
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) submitBtn.style.display = 'none';
+        } else {
+            // โหมดทำโจทย์: ปลดล็อกให้วาดและกดปุ่มได้
+            const svg = document.querySelector('#flowchartCanvas svg');
+            if (svg) svg.style.pointerEvents = 'auto';
+
+            ['checkAnswerBtn', 'clearCanvasBtn'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+            });
+
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.style.display = '';
+                submitBtn.disabled = true;
+                submitBtn.classList.add('disabled');
             }
-        }
-
-        // เพิ่ม: ทำให้ปุ่มส่งคำตอบ disabled เป็นค่าเริ่มต้น
-        const submitBtn = document.getElementById('submitBtn');
-        if (submitBtn && !isViewMode) {
-            submitBtn.disabled = true;
-            submitBtn.classList.add('disabled');
         }
 
         // --- เพิ่มระบบกู้คืนข้อมูล Auto Save (ถ้ามี) ---

@@ -101,12 +101,16 @@ async function loadStudentSubmission() {
             .where('problemId', '==', currentProblemId)
             .where('studentId', '==', auth.currentUser.uid)
             .where('classId', '==', currentClassId)
-            .orderBy('submittedAt', 'desc')
-            .limit(1)
             .get();
 
         if (!snapshot.empty) {
-            studentSubmission = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+            let submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            submissions.sort((a, b) => {
+                const timeA = (a.timestamp || a.submittedAt)?.toDate?.()?.getTime?.() || (a.submittedAt?.toMillis?.() || 0);
+                const timeB = (b.timestamp || b.submittedAt)?.toDate?.()?.getTime?.() || (b.submittedAt?.toMillis?.() || 0);
+                return timeB - timeA;
+            });
+            studentSubmission = submissions[0];
             populateEditor(studentSubmission);
         } else if (currentProblem && currentProblem.isGroupWork) {
             showGroupSelectionModal();

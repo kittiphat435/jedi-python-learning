@@ -266,97 +266,156 @@ function handleImageError(img) {
     console.error('Failed to load problem image');
 }
 
+let isEditorLocked = false;
+
+function setupLockListeners() {
+    const codeEditor = document.getElementById('codeEditor');
+    const codeHighlight = document.querySelector('.code-highlight');
+    const codeEditorContainer = document.querySelector('.code-editor-container');
+
+    if (codeEditorContainer && !codeEditorContainer._lockListenersAttached) {
+        codeEditorContainer._lockListenersAttached = true;
+        codeEditorContainer.addEventListener('contextmenu', e => {
+            if (isEditorLocked) e.preventDefault();
+        });
+        codeEditorContainer.addEventListener('copy', e => {
+            if (isEditorLocked) {
+                e.preventDefault();
+                alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+            }
+        });
+        codeEditorContainer.addEventListener('keydown', e => {
+            if (isEditorLocked && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                e.preventDefault();
+                alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
+            }
+        });
+    }
+
+    if (codeEditor && !codeEditor._lockListenersAttached) {
+        codeEditor._lockListenersAttached = true;
+        codeEditor.addEventListener('contextmenu', e => {
+            if (isEditorLocked) e.preventDefault();
+        });
+        codeEditor.addEventListener('copy', e => {
+            if (isEditorLocked) e.preventDefault();
+        });
+        codeEditor.addEventListener('cut', e => {
+            if (isEditorLocked) e.preventDefault();
+        });
+        codeEditor.addEventListener('keydown', e => {
+            if (isEditorLocked && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    if (codeHighlight && !codeHighlight._lockListenersAttached) {
+        codeHighlight._lockListenersAttached = true;
+        codeHighlight.addEventListener('contextmenu', e => {
+            if (isEditorLocked) e.preventDefault();
+        });
+        codeHighlight.addEventListener('copy', e => {
+            if (isEditorLocked) e.preventDefault();
+        });
+        codeHighlight.addEventListener('keydown', e => {
+            if (isEditorLocked && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
+                e.preventDefault();
+            }
+        });
+    }
+}
+
 async function loadLastSubmission(problemId, userId) {
     try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isViewMode = urlParams.get('mode') === 'view';
+        let classId = urlParams.get('classId');
+        if (!classId && currentProblem?.classId) {
+            classId = currentProblem.classId;
+        }
+
         const snapshot = await db.collection('submissions')
             .where('problemId', '==', problemId)
             .where('studentId', '==', userId)
             .get();
 
-        if (!snapshot.empty) {
-            let lastSubmission = null;
-            let lastTime = 0;
+        let lastSubmission = null;
+        let lastTime = 0;
 
+        if (!snapshot.empty) {
             snapshot.forEach(doc => {
                 const data = doc.data();
-                const submissionTime = data.submittedAt?.toMillis() || 0;
-                if (submissionTime > lastTime) {
+                // กรองเฉพาะ submission ของ classId ปัจจุบันเท่านั้น
+                if (classId && data.classId !== classId) {
+                    return;
+                }
+                const submissionTime = data.submittedAt?.toMillis?.() || data.timestamp?.toMillis?.() || 0;
+                if (submissionTime >= lastTime) {
                     lastSubmission = data;
                     lastTime = submissionTime;
                 }
             });
+        }
 
-            if (lastSubmission) {
-                document.getElementById('codeEditor').value = lastSubmission.code || '';
-                updateCodeHighlight();
-                updateStatusBadge(lastSubmission.status);
-                
-                // ถ้าโจทย์ถูกส่งและตรวจเสร็จแล้ว ล็อกไม่ให้แก้ไขและ Copy โค้ด
-                if (lastSubmission.status === 'completed') {
-                    const codeEditor = document.getElementById('codeEditor');
-                    const codeHighlight = document.querySelector('.code-highlight');
-                    const codeEditorContainer = document.querySelector('.code-editor-container');
-                    const submitBtn = document.querySelector('.submit-btn');
-                    const runBtn = document.querySelector('.run-btn');
-                    
-                    if (codeEditorContainer) {
-                        codeEditorContainer.classList.add('readonly-mode');
-                        codeEditorContainer.addEventListener('contextmenu', e => e.preventDefault());
-                        codeEditorContainer.addEventListener('copy', e => {
-                            e.preventDefault();
-                            alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
-                        });
-                        codeEditorContainer.addEventListener('keydown', e => {
-                            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
-                                e.preventDefault();
-                                alert('ไม่สามารถคัดลอกโค้ดที่ส่งแล้วได้');
-                            }
-                        });
-                    }
+        const codeEditor = document.getElementById('codeEditor');
+        const codeHighlight = document.querySelector('.code-highlight');
+        const codeEditorContainer = document.querySelector('.code-editor-container');
+        setupLockListeners();
 
-                    if (codeEditor) {
-                        codeEditor.readOnly = true;
-                        codeEditor.classList.add('readonly-mode');
-                        if (currentProblem?.assignmentType === 'exam') {
-                            codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้';
-                            codeEditor.placeholder = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้";
-                        } else {
-                            codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
-                        }
-                        
-                        // ปิดการคลิกขวาและการคัดลอก
-                        codeEditor.addEventListener('contextmenu', e => e.preventDefault());
-                        codeEditor.addEventListener('copy', e => {
-                            e.preventDefault();
-                        });
-                        codeEditor.addEventListener('cut', e => e.preventDefault());
-                        codeEditor.addEventListener('keydown', e => {
-                            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
-                                e.preventDefault();
-                            }
-                        });
-                    }
-                    
-                    if (codeHighlight) {
-                        codeHighlight.classList.add('readonly-mode');
-                        // ปิดการเลือกข้อความและการคัดลอกใน highlight div ด้วย
-                        codeHighlight.addEventListener('contextmenu', e => e.preventDefault());
-                        codeHighlight.addEventListener('copy', e => e.preventDefault());
-                        codeHighlight.addEventListener('keydown', e => {
-                            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X')) {
-                                e.preventDefault();
-                            }
-                        });
-                    }
-                    
-                    const submitBtnElement = document.getElementById('submitBtn');
-                    if (submitBtnElement) submitBtnElement.style.display = 'none';
-                    if (runBtn) runBtn.style.display = 'none';
-                }
-            } else {
-                setDefaultCode();
+        // จะล็อก Editor ก็ต่อเมื่ออยู่ในโหมด View Mode (ส่งงานแล้วและกดดูผลลัพธ์) เท่านั้น
+        if (isViewMode && lastSubmission && lastSubmission.status === 'completed') {
+            isEditorLocked = true;
+
+            if (codeEditorContainer) {
+                codeEditorContainer.classList.add('readonly-mode');
             }
+
+            if (codeEditor) {
+                codeEditor.readOnly = true;
+                codeEditor.classList.add('readonly-mode');
+                if (currentProblem?.assignmentType === 'exam') {
+                    codeEditor.value = '# ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้';
+                    codeEditor.placeholder = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูรหัสต้นฉบับย้อนหลังได้";
+                } else {
+                    codeEditor.value = lastSubmission.code || '';
+                    codeEditor.placeholder = "โจทย์ข้อนี้ส่งแล้ว ไม่สามารถแก้ไขหรือคัดลอกโค้ดได้";
+                }
+            }
+
+            if (codeHighlight) {
+                codeHighlight.classList.add('readonly-mode');
+            }
+
+            updateCodeHighlight();
+            updateLineNumbers();
+            updateStatusBadge('completed');
+
+            const submitBtnElement = document.getElementById('submitBtn');
+            if (submitBtnElement) submitBtnElement.style.display = 'none';
+            const actionButtons = document.querySelectorAll('.primary-button, .success-button, .secondary-button');
+            actionButtons.forEach(btn => btn.style.display = 'none');
+        } else if (!isViewMode && lastSubmission && lastSubmission.status === 'inProgress') {
+            // กรณีเป็นงานที่กำลังทำค้างไว้ในห้องเรียนนี้
+            isEditorLocked = false;
+            if (codeEditor) {
+                codeEditor.readOnly = false;
+                codeEditor.removeAttribute('readonly');
+                codeEditor.classList.remove('readonly-mode');
+                codeEditor.placeholder = "";
+                codeEditor.value = lastSubmission.code || currentProblem?.templateCode || '# เขียนโค้ดของคุณที่นี่';
+            }
+            if (codeEditorContainer) codeEditorContainer.classList.remove('readonly-mode');
+            if (codeHighlight) codeHighlight.classList.remove('readonly-mode');
+
+            updateCodeHighlight();
+            updateLineNumbers();
+            updateStatusBadge('pending');
+
+            const actionButtons = document.querySelectorAll('.primary-button, .success-button, .secondary-button');
+            actionButtons.forEach(btn => btn.style.display = '');
         } else {
+            // ยังไม่เคยส่งในห้องเรียนนี้ หรือเริ่มต้นทำโจทย์ใหม่
             setDefaultCode();
         }
     } catch (error) {
@@ -366,14 +425,29 @@ async function loadLastSubmission(problemId, userId) {
 }
 
 function setDefaultCode() {
+    isEditorLocked = false;
     const codeEditor = document.getElementById('codeEditor');
     const templateCode = currentProblem?.templateCode || '# เขียนโค้ดของคุณที่นี่';
 
     if (codeEditor) {
+        codeEditor.readOnly = false;
+        codeEditor.removeAttribute('readonly');
+        codeEditor.classList.remove('readonly-mode');
+        codeEditor.placeholder = "";
         codeEditor.value = templateCode;
-        updateCodeHighlight(); // เรียกอัพเดท syntax highlighting
-        updateLineNumbers();   // เรียกอัพเดทเลขบรรทัด
+        updateCodeHighlight();
+        updateLineNumbers();
     }
+
+    const codeEditorContainer = document.querySelector('.code-editor-container');
+    if (codeEditorContainer) codeEditorContainer.classList.remove('readonly-mode');
+
+    const codeHighlight = document.querySelector('.code-highlight');
+    if (codeHighlight) codeHighlight.classList.remove('readonly-mode');
+
+    const actionButtons = document.querySelectorAll('.primary-button, .success-button, .secondary-button');
+    actionButtons.forEach(btn => btn.style.display = '');
+
     updateStatusBadge('pending');
 }
 
@@ -1050,6 +1124,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const urlParams = new URLSearchParams(window.location.search);
         const problemId = urlParams.get('id');
+        const classId = urlParams.get('classId');
+
+        if (classId) {
+            const backBtn = document.querySelector('.back-button');
+            if (backBtn) {
+                if (classId === 'admin') {
+                    backBtn.href = 'student-problem-admin.html';
+                } else {
+                    backBtn.href = `student-class-detail.html?id=${classId}`;
+                }
+            }
+        }
 
         if (problemId) {
             await loadProblem(problemId, user.uid);

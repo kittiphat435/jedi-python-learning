@@ -1398,3 +1398,40 @@ body.has-code-warp {
     color: rgba(255, 255, 255, 0.75);
     font-weight: 600;
 }
+
+/* Sub-filter for Problems / Exams */
+.problem-sub-filter {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.sub-filter-btn {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sub-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.sub-filter-btn.active {
+    background: var(--accent, #6366f1);
+    color: #ffffff;
+    border-color: var(--accent, #6366f1);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+}

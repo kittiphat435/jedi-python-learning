@@ -582,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // ตรวจสอบสถานะการส่งงาน
             if (!viewMode) {
-                loadingTasks.push(checkSubmissionStatus(problemId, targetStudentId));
+                loadingTasks.push(checkSubmissionStatus(problemId, targetStudentId, classId));
             }
         }
         
@@ -3748,18 +3748,28 @@ async function checkAnswer() {
 }
 // ตรวจสอบสถานะการส่งงาน (และล็อกหน้าจอถ้าส่งแล้ว)
 // ตรวจสอบสถานะการส่งงาน (แก้ไขชื่อฟิลด์เป็น studentId แล้ว)
-async function checkSubmissionStatus(problemId, userId) {
+async function checkSubmissionStatus(problemId, userId, targetClassId = null) {
     try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const classId = targetClassId || urlParams.get('classId') || (typeof currentProblem !== 'undefined' ? currentProblem?.classId : null);
+
         const submissionsRef = db.collection('submissions')
             .where('problemId', '==', problemId)
-            .where('studentId', '==', userId) // ✅ แก้เป็น studentId
+            .where('studentId', '==', userId)
             .where('type', '==', 'gui')
             .where('status', '==', 'completed');
             
         const snapshot = await submissionsRef.get();
         
         if (!snapshot.empty) {
-            const submissions = snapshot.docs.map(doc => doc.data());
+            let submissions = snapshot.docs.map(doc => doc.data());
+            // กรองเฉพาะ submission ในห้องเรียนปัจจุบัน (classId)
+            if (classId) {
+                submissions = submissions.filter(sub => sub.classId === classId);
+            }
+            if (submissions.length === 0) {
+                return false;
+            }
             // เรียงลำดับฝั่ง Client เพื่อเลี่ยง Composite Index
             submissions.sort((a, b) => {
                 const timeA = (a.timestamp || a.submittedAt)?.toDate()?.getTime() || 0;
@@ -3768,7 +3778,7 @@ async function checkSubmissionStatus(problemId, userId) {
             });
             const lastSubmission = submissions[0];
 
-            console.log("🔒 พบการส่งงานแล้ว -> ล็อกหน้าจอ (View Mode)");
+            console.log("🔒 พบการส่งงานในห้องเรียนนี้แล้ว -> ล็อกหน้าจอ (View Mode)");
             
             showSuccess(`ส่งงานแล้วเมื่อ: ${lastSubmission.timestamp?.toDate().toLocaleString('th-TH')}`);
 

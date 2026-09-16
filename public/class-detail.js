@@ -15,32 +15,31 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// ตัวแปรสำหรับ Cache ข้อมูลนักเรียนและสถานะการโหลด
+let isStudentsLoaded = false;
+let isStudentsLoading = false;
+const cachedStudentsMap = new Map();
+
 // เช็คการล็อกอิน
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         console.log('User is logged in:', user.email);
         
-        // Auto-patch email if missing
-        try {
-            const userDoc = await db.collection('users').doc(user.uid).get();
+        // Auto-patch email if missing (ทำแบบ Background Asynchronously ไม่บล็อกการโหลดห้องเรียน)
+        db.collection('users').doc(user.uid).get().then(userDoc => {
             const userData = userDoc.exists ? userDoc.data() : null;
             if (userData && !userData.email && user.email) {
-                await db.collection('users').doc(user.uid).update({
+                db.collection('users').doc(user.uid).update({
                     email: user.email,
                     photoURL: user.photoURL || null
-                });
+                }).catch(e => console.error('Error auto-patching user:', e));
             }
-        } catch (e) {
-            console.error('Error auto-patching user:', e);
-        }
+        }).catch(e => console.error('Error auto-patching user:', e));
         
         const urlParams = new URLSearchParams(window.location.search);
         const classId = urlParams.get('id');
         if (classId) {
-            loadClassDetails(classId);
-            loadClassStats(classId);
-            loadProblems(classId);
-            loadStudents(classId);
+            initTeacherClassView(classId);
         } else {
             alert('ไม่พบรหัสห้องเรียน');
             window.location.href = 'teacher-dashboard.html';
@@ -49,6 +48,44 @@ auth.onAuthStateChanged(async (user) => {
         window.location.href = 'index.html';
     }
 });
+
+// ฟังก์ชันหลักในการโหลดข้อมูลห้องเรียนแบบรวดเร็ว (Parallel Fetch & Smart Preload)
+async function initTeacherClassView(classId) {
+    try {
+        // 1. ดึงข้อมูลหลัก 3 ชุดพร้อมกันทีเดียวผ่าน Promise.all
+        const [classDoc, classProblemsSnapshot, enrollmentsSnapshot] = await Promise.all([
+            db.collection('classes').doc(classId).get(),
+            db.collection('class_problems').where('classId', '==', classId).get(),
+            db.collection('class_enrollments').where('classId', '==', classId).get()
+        ]);
+
+        if (!classDoc.exists) {
+            alert('ไม่พบห้องเรียน');
+            window.location.href = 'teacher-dashboard.html';
+            return;
+        }
+
+        // 2. แสดงข้อมูลห้องเรียนและสถิติทันที (0ms ไม่ต้องยิง Firestore ซ้ำ)
+        loadClassDetails(classId, classDoc);
+        loadClassStats(classId, {
+            studentCount: enrollmentsSnapshot.size,
+            problemCount: classProblemsSnapshot.size
+        });
+
+        // 3. โหลดและแสดงรายการโจทย์ก่อนเป็นลำดับแรก (Priority #1)
+        await loadProblems(classId, classProblemsSnapshot);
+
+        // 4. Preload รายชื่อนักเรียนแบบ Background หลังจากโจทย์แสดงผลเสร็จแล้ว
+        setTimeout(() => {
+            if (!isStudentsLoaded && !isStudentsLoading) {
+                loadStudents(classId, enrollmentsSnapshot);
+            }
+        }, 800);
+
+    } catch (error) {
+        console.error("Error initializing teacher class view:", error);
+    }
+}
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function () {
@@ -86,9 +123,9 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // โหลดข้อมูลห้องเรียน
-async function loadClassDetails(classId) {
+async function loadClassDetails(classId, cachedClassDoc = null) {
     try {
-        const classDoc = await db.collection('classes').doc(classId).get();
+        const classDoc = cachedClassDoc || await db.collection('classes').doc(classId).get();
         if (!classDoc.exists) {
             alert('ไม่พบห้องเรียน');
             window.location.href = 'teacher-dashboard.html';
@@ -96,35 +133,53 @@ async function loadClassDetails(classId) {
         }
 
         const classData = classDoc.data();
+        const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23999' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
 
-        // ดึงข้อมูลครูผู้สอน
-        const teacherDoc = await db.collection('users').doc(classData.teacherId).get();
-        const teacherData = teacherDoc.data();
-
-        // แสดงข้อมูลห้องเรียนและครูผู้สอน
+        // แสดงข้อมูลห้องเรียนทันทีก่อน
         const classInfoSection = document.querySelector('.section');
         if (classInfoSection) {
-            const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23999' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
-
             classInfoSection.innerHTML = `
                 <div class="class-header">
                     <div class="class-info">
                         <h2 id="className">${classData.name}</h2>
                         <p id="classCode" class="class-code">รหัสห้องเรียน: ${classData.code}</p>
                     </div>
-                    <div class="teacher-info">
-                        <img src="${teacherData.photoURL || defaultAvatar}" 
+                    <div class="teacher-info" id="teacherInfoCard">
+                        <img src="${defaultAvatar}" 
                              alt="รูปครูผู้สอน" 
                              class="teacher-avatar"
                              onerror="this.src='${defaultAvatar}'">
                         <div class="teacher-details">
-                            <h3 class="teacher-name">${teacherData.displayName || 'ไม่ระบุชื่อ'}</h3>
-                            <p class="teacher-email">${getDisplayEmail(teacherData) || '-'}</p>
+                            <h3 class="teacher-name">กำลังโหลด...</h3>
+                            <p class="teacher-email">-</p>
                             <span class="teacher-label">ครูผู้สอน</span>
                         </div>
                     </div>
                 </div>
             `;
+
+            // ดึงข้อมูลครูผู้สอนแบบ asynchronous เพื่อไม่ให้บล็อกการแสดงผล
+            if (classData.teacherId) {
+                db.collection('users').doc(classData.teacherId).get().then(teacherDoc => {
+                    if (teacherDoc.exists) {
+                        const teacherData = teacherDoc.data();
+                        const teacherCard = document.getElementById('teacherInfoCard');
+                        if (teacherCard) {
+                            teacherCard.innerHTML = `
+                                <img src="${teacherData.photoURL || defaultAvatar}" 
+                                     alt="รูปครูผู้สอน" 
+                                     class="teacher-avatar"
+                                     onerror="this.src='${defaultAvatar}'">
+                                <div class="teacher-details">
+                                    <h3 class="teacher-name">${teacherData.displayName || 'ไม่ระบุชื่อ'}</h3>
+                                    <p class="teacher-email">${getDisplayEmail(teacherData) || '-'}</p>
+                                    <span class="teacher-label">ครูผู้สอน</span>
+                                </div>
+                            `;
+                        }
+                    }
+                }).catch(err => console.error("Error loading teacher profile:", err));
+            }
         }
     } catch (error) {
         console.error("Error loading class details:", error);
@@ -132,8 +187,78 @@ async function loadClassDetails(classId) {
     }
 }
 
+// ฟังก์ชันช่วยดึงค่า timestamp (milliseconds) จาก submission data อย่างปลอดภัย
+function getSubmissionTimeValue(data) {
+    if (!data) return 0;
+    const t = data.submittedAt || data.timestamp || data.createdAt || data.updatedAt;
+    if (!t) return 0;
+    if (typeof t.toDate === 'function') {
+        try { return t.toDate().getTime(); } catch (e) { return 0; }
+    }
+    if (t instanceof Date) return t.getTime();
+    if (typeof t === 'number') return t;
+    if (typeof t === 'string') {
+        const parsed = Date.parse(t);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    if (t.seconds !== undefined) {
+        return t.seconds * 1000 + (t.nanoseconds ? Math.floor(t.nanoseconds / 1000000) : 0);
+    }
+    return 0;
+}
+
+// ฟังก์ชันช่วยตัดสินว่า submission ใหม่ (candidate) ควรแทนที่ submission เดิม (existing) หรือไม่
+// อ้างอิงตรรกะแบบเดียวกับ student-class-detail.js:
+// 1. สถานะ completed มีความสำคัญสูงสุด — draft หรือ inProgress จะไม่มีวันแทนที่ completed
+// 2. ถ้าเป็น completed ทั้งคู่ ให้เลือกอันที่เวลาใหม่กว่า (ถ้าเวลาเท่ากัน ให้เลือกคะแนนที่มากกว่า)
+// 3. ถ้าไม่มี completed: inProgress จะชนะ draft, หรือเลือกอันที่เวลาใหม่กว่า
+function shouldReplaceSubmission(candidateData, existingData) {
+    if (!existingData) return true;
+    if (!candidateData) return false;
+
+    const isNewCompleted = candidateData.status === 'completed';
+    const isOldCompleted = existingData.status === 'completed';
+
+    // 1. ถ้า candidate คือ completed แต่อันเดิมไม่ใช่ -> แทนที่ทันที
+    if (isNewCompleted && !isOldCompleted) {
+        return true;
+    }
+    // 2. ถ้า candidate ไม่ใช่ completed แต่อันเดิม completed -> ห้ามแทนที่เด็ดขาด (ป้องกัน draft ทับ completed)
+    if (!isNewCompleted && isOldCompleted) {
+        return false;
+    }
+
+    // 3. ถ้าทั้งคู่ completed เหมือนกัน
+    if (isNewCompleted && isOldCompleted) {
+        const newTime = getSubmissionTimeValue(candidateData);
+        const oldTime = getSubmissionTimeValue(existingData);
+        if (newTime > oldTime) return true;
+        if (newTime < oldTime) return false;
+        return (Number(candidateData.score) || 0) >= (Number(existingData.score) || 0);
+    }
+
+    // 4. ถ้าทั้งคู่ยังไม่ completed
+    const isNewDraft = candidateData.status === 'draft';
+    const isOldDraft = existingData.status === 'draft';
+    if (!isNewDraft && isOldDraft) return true;
+    if (isNewDraft && !isOldDraft) return false;
+
+    const newTime = getSubmissionTimeValue(candidateData);
+    const oldTime = getSubmissionTimeValue(existingData);
+    return newTime >= oldTime;
+}
+
 // ฟังก์ชันช่วยดึงและเรียงลำดับโจทย์ของห้องเรียน
 async function getSortedClassProblems(classId) {
+    // ถ้ามี allProblems อยู่ในหน่วยความจำแล้ว ให้ใช้ได้ทันที (0 ms ไม่ต้องยิง Firestore ซ้ำ)
+    if (allProblems && allProblems.length > 0) {
+        return allProblems.map(p => ({
+            ...p,
+            id: p.id || p.problemId,
+            problemId: p.problemId || p.id
+        }));
+    }
+
     const snapshot = await db.collection('class_problems')
         .where('classId', '==', classId)
         .get();
@@ -145,10 +270,12 @@ async function getSortedClassProblems(classId) {
             if (!problemDoc.exists) return null;
             
             return {
+                id: problemDoc.id,
                 relationId: doc.id,
-                problemId: relationData.problemId,
+                problemId: relationData.problemId || problemDoc.id,
                 orderIndex: relationData.orderIndex || 0,
                 addedAt: relationData.addedAt,
+                isClosed: relationData.isClosed || false,
                 ...problemDoc.data()
             };
         } catch (error) {
@@ -168,32 +295,34 @@ async function getSortedClassProblems(classId) {
         return timeA - timeB;
     });
 
+    allProblems = problems;
     return problems;
 }
-async function loadClassStats(classId) {
+
+async function loadClassStats(classId, preloadedCounts = null) {
     try {
-        const studentCount = await db.collection('class_enrollments')
-            .where('classId', '==', classId)
-            .get()
-            .then(snap => snap.size);
+        let studentCount = preloadedCounts ? preloadedCounts.studentCount : null;
+        let problemCount = preloadedCounts ? preloadedCounts.problemCount : null;
 
-        const problemCount = await db.collection('class_problems')
-            .where('classId', '==', classId)
-            .get()
-            .then(snap => snap.size);
+        if (studentCount === null || studentCount === undefined) {
+            studentCount = await db.collection('class_enrollments')
+                .where('classId', '==', classId)
+                .get()
+                .then(snap => snap.size);
+        }
 
-        const submissionCount = await db.collection('submissions')
-            .where('classId', '==', classId)
-            .get()
-            .then(snap => snap.size);
+        if (problemCount === null || problemCount === undefined) {
+            problemCount = await db.collection('class_problems')
+                .where('classId', '==', classId)
+                .get()
+                .then(snap => snap.size);
+        }
 
         const studentCountEl = document.getElementById('studentCount');
         const problemCountEl = document.getElementById('problemCount');
-        const submissionCountEl = document.getElementById('submissionCount');
 
         if (studentCountEl) studentCountEl.textContent = studentCount;
         if (problemCountEl) problemCountEl.textContent = problemCount;
-        if (submissionCountEl) submissionCountEl.textContent = submissionCount;
     } catch (error) {
         console.error("Error loading stats:", error);
     }
@@ -258,6 +387,7 @@ const PROBLEMS_PER_PAGE = 20;
 let currentProblemsView = [];
 let currentProblemPage = 1;
 let isProblemSearchActive = false;
+let currentProblemFilter = 'all'; // 'all' (ทั้งหมด), 'practice' (แบบฝึกหัด), 'exam' (ข้อสอบ)
 
 function getDisplayEmail(user) {
     const email = user?.email || user?.userEmail || user?.studentEmail || user?.mail || '';
@@ -265,11 +395,11 @@ function getDisplayEmail(user) {
 }
 
 // โหลดรายการโจทย์
-async function loadProblems(classId) {
+async function loadProblems(classId, preloadedSnapshot = null) {
     const problemList = document.getElementById('problemList');
     try {
-        // 1. ดึงข้อมูลความสัมพันธ์มาก่อน
-        const snapshot = await db.collection('class_problems')
+        // 1. ใช้ Snapshot ที่เตรียมไว้แล้ว หรือดึงข้อมูลความสัมพันธ์ใหม่ถ้าไม่มี
+        const snapshot = preloadedSnapshot || await db.collection('class_problems')
             .where('classId', '==', classId)
             .get();
 
@@ -277,6 +407,7 @@ async function loadProblems(classId) {
             problemList.innerHTML = '<p>ยังไม่มีโจทย์ในห้องเรียน</p>';
             allProblems = [];
             currentProblemsView = [];
+            updateProblemFilterCounts();
             renderProblemPagination();
             return;
         }
@@ -290,12 +421,12 @@ async function loadProblems(classId) {
                     .get();
 
                 if (!problemDoc.exists) {
-                    // ถ้าโจทย์ต้นทางหายไป อาจจะลบความสัมพันธ์ทิ้ง (Optional)
                     return null;
                 }
 
                 return { 
                     id: problemDoc.id,              // ID ของตัวโจทย์ (สำหรับดูรายละเอียด)
+                    problemId: relationData.problemId || problemDoc.id, // ID สำหรับเชื่อมโยงการส่งงาน
                     relationId: doc.id,             // ID ของความสัมพันธ์ (สำหรับอัพเดต orderIndex)
                     orderIndex: relationData.orderIndex || 0, // ค่าลำดับ
                     addedAt: relationData.addedAt,  // เผื่อใช้ sort fallback
@@ -324,8 +455,8 @@ async function loadProblems(classId) {
         });
 
         allProblems = problems;
-        isProblemSearchActive = false;
-        displayProblems(problems);
+        updateProblemFilterCounts();
+        applyProblemFilters();
         
     } catch (error) {
         console.error("Error loading problems:", error);
@@ -359,7 +490,7 @@ function renderProblemsPage() {
         return;
     }
 
-    const allowReorder = !isProblemSearchActive && currentProblemsView === allProblems;
+    const allowReorder = !isProblemSearchActive && currentProblemFilter === 'all' && currentProblemsView === allProblems;
 
     pageProblems.forEach((problem, pageIndex) => {
         const div = document.createElement('div');
@@ -735,13 +866,15 @@ async function viewProblem(problemId, targetStudentId = null) {
             return;
         }
 
-        // จัดการข้อมูลการส่งงาน - เก็บเฉพาะการส่งล่าสุดของแต่ละคน
+        // จัดการข้อมูลการส่งงาน - เก็บเฉพาะการส่งล่าสุดของแต่ละคน (โดยให้ completed มีลำดับความสำคัญสูงสุด ไม่โดน draft ทับ)
         const studentSubmissions = new Map();
         submissionsSnapshot.docs.forEach(doc => {
             const data = doc.data();
-            const existing = studentSubmissions.get(data.studentId);
-            if (!existing || data.submittedAt.toDate() > existing.submittedAt.toDate()) {
-                studentSubmissions.set(data.studentId, data);
+            const sId = data.studentId || data.userId;
+            if (!sId) return;
+            const existing = studentSubmissions.get(sId);
+            if (shouldReplaceSubmission(data, existing)) {
+                studentSubmissions.set(sId, data);
             }
         });
 
@@ -903,12 +1036,18 @@ async function viewProblem(problemId, targetStudentId = null) {
                             <div class="student-email">${getDisplayEmail(studentData) || '-'}</div>
                         </div>
                     </div>
-                    ${submission ? `
+                    ${submission && submission.status !== 'draft' ? `
                         <span class="submission-status status-submitted">ส่งแล้ว</span>
                         <button class="expand-btn ${targetStudentId ? 'expanded' : ''}" onclick="toggleSubmission(this)">${targetStudentId ? 'ซ่อนคำตอบ' : 'ดูคำตอบ'}</button>
                         <div class="submission-expand" style="display: ${targetStudentId ? 'block' : 'none'};">
                             <div class="submission-date">
-                                ส่งเมื่อ: ${submission.submittedAt.toDate().toLocaleString('th-TH')}
+                                ส่งเมื่อ: ${(() => {
+                                    const subTime = submission.submittedAt || submission.timestamp;
+                                    if (subTime && typeof subTime.toDate === 'function') return subTime.toDate().toLocaleString('th-TH');
+                                    if (subTime instanceof Date) return subTime.toLocaleString('th-TH');
+                                    if (subTime) return new Date(subTime).toLocaleString('th-TH');
+                                    return 'ไม่ระบุเวลา';
+                                })()}
                             </div>
                             ${submissionContent}
                         </div>
@@ -1276,113 +1415,66 @@ function toggleSubmission(button) {
 }
 
 
-// ค้นหาโจทย์
-function searchProblems(searchText) {
-    if (!searchText) {
-        isProblemSearchActive = false;
-        displayProblems(allProblems);
-        return;
-    }
-    isProblemSearchActive = true;
-    const searchLower = searchText.toLowerCase();
-    const filteredProblems = allProblems.filter(problem =>
-        problem.title.toLowerCase().includes(searchLower) ||
-        problem.description.toLowerCase().includes(searchLower)
-    );
+// อัพเดทตัวเลขนับจำนวนโจทย์บนปุ่มฟิลเตอร์
+function updateProblemFilterCounts() {
+    const total = allProblems.length;
+    const examCount = allProblems.filter(p => p.assignmentType === 'exam').length;
+    const practiceCount = total - examCount;
 
-    displayProblems(filteredProblems);
+    const countAllEl = document.getElementById('count-all');
+    const countPracticeEl = document.getElementById('count-practice');
+    const countExamEl = document.getElementById('count-exam');
+
+    if (countAllEl) countAllEl.textContent = total;
+    if (countPracticeEl) countPracticeEl.textContent = practiceCount;
+    if (countExamEl) countExamEl.textContent = examCount;
 }
 
-// โหลดรายชื่อนักเรียน
-async function loadStudents(classId) {
-    const studentList = document.getElementById('studentList');
-    if (!studentList) return;
+// นำตัวกรองประเภทโจทย์และคำค้นหามาประมวลผลพร้อมกัน
+function applyProblemFilters() {
+    const searchInput = document.getElementById('searchProblemInput');
+    const searchText = (searchInput ? searchInput.value : '').trim().toLowerCase();
 
-    try {
-        // แสดง Loading
-        studentList.innerHTML = '<p class="text-center">กำลังโหลดข้อมูล...</p>';
+    let filtered = allProblems;
 
-        // ดึงข้อมูลการลงทะเบียนพร้อมกับข้อมูลนักเรียน
-        const enrollments = await db.collection('class_enrollments')
-            .where('classId', '==', classId)
-            .orderBy('joinedAt', 'desc')  // เรียงตามวันที่เข้าร่วมล่าสุด
-            .get();
-
-        if (enrollments.empty) {
-            studentList.innerHTML = `
-                <div class="empty-state">
-                    <p>ยังไม่มีนักเรียนในห้องเรียน</p>
-                    <p class="hint">นักเรียนสามารถเข้าร่วมได้ด้วยรหัสห้องเรียน</p>
-                </div>
-            `;
-            return;
-        }
-
-        // ดึงข้อมูลนักเรียนแต่ละคน
-        const studentPromises = enrollments.docs.map(async (enrollment) => {
-            const studentDoc = await db.collection('users')
-                .doc(enrollment.data().studentId)
-                .get();
-
-            // รวมข้อมูลนักเรียนและข้อมูลการลงทะเบียน
-            return {
-                id: studentDoc.id,
-                joinedAt: enrollment.data().joinedAt,
-                ...studentDoc.data()
-            };
-        });
-
-        const students = await Promise.all(studentPromises);
-        studentList.innerHTML = ''; // เคลียร์ loading
-
-        const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23999' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
-
-        students.forEach(student => {
-            const studentDiv = document.createElement('div');
-            studentDiv.className = 'student-card';
-
-            // แปลง timestamp เป็นวันที่
-            const joinDate = student.joinedAt ? student.joinedAt.toDate().toLocaleDateString('th-TH', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }) : 'ไม่ระบุ';
-
-            studentDiv.innerHTML = `
-                <div class="student-info">
-                    <img src="${student.photoURL || defaultAvatar}" 
-                         alt="โปรไฟล์" 
-                         class="student-avatar"
-                         onerror="this.src='${defaultAvatar}'">
-                    <div class="student-details">
-                        <h3>${student.displayName || 'ไม่ระบุชื่อ'}</h3>
-                        <p class="student-email">${getDisplayEmail(student) || '-'}</p>
-                        <p class="join-date">เข้าร่วมเมื่อ: ${joinDate}</p>
-                    </div>
-                </div>
-                <div class="student-actions">
-                    <button onclick="viewProgress('${student.id}')" class="secondary-btn">
-                        <i class="fas fa-chart-line"></i> ดูความคืบหน้า
-                    </button>
-                    <button onclick="removeStudent('${student.id}')" class="delete-btn">
-                        <i class="fas fa-user-minus"></i> นำออก
-                    </button>
-                </div>
-            `;
-            studentList.appendChild(studentDiv);
-        });
-
-    } catch (error) {
-        console.error("Error loading students:", error);
-        studentList.innerHTML = `
-            <div class="error-state">
-                <p>เกิดข้อผิดพลาดในการโหลดรายชื่อนักเรียน</p>
-                <button onclick="loadStudents('${classId}')" class="retry-btn">
-                    ลองใหม่
-                </button>
-            </div>
-        `;
+    // 1. กรองตามประเภท (ทั้งหมด, แบบฝึกหัด, ข้อสอบ)
+    if (currentProblemFilter === 'practice') {
+        filtered = filtered.filter(p => p.assignmentType !== 'exam');
+    } else if (currentProblemFilter === 'exam') {
+        filtered = filtered.filter(p => p.assignmentType === 'exam');
     }
+
+    // 2. กรองตามคำค้นหา
+    if (searchText) {
+        isProblemSearchActive = true;
+        filtered = filtered.filter(problem =>
+            (problem.title && problem.title.toLowerCase().includes(searchText)) ||
+            (problem.description && problem.description.toLowerCase().includes(searchText))
+        );
+    } else {
+        isProblemSearchActive = currentProblemFilter !== 'all';
+    }
+
+    displayProblems(filtered);
+}
+
+// สลับตัวกรองโจทย์ (ทั้งหมด, แบบฝึกหัด, ข้อสอบ)
+function setProblemFilter(filterType) {
+    currentProblemFilter = filterType;
+
+    // อัพเดท active class บนปุ่มฟิลเตอร์
+    document.querySelectorAll('.sub-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.getElementById(`filterBtn-${filterType}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    applyProblemFilters();
+}
+
+// ค้นหาโจทย์
+function searchProblems(searchText) {
+    applyProblemFilters();
 }
 
 async function viewProgress(studentId) {
@@ -1408,11 +1500,14 @@ async function viewProgress(studentId) {
         `;
         document.body.appendChild(modal);
 
-        // ดึงข้อมูลนักเรียน
-        const studentDoc = await db.collection('users').doc(studentId).get();
-        const studentData = studentDoc.data();
+        // ดึงข้อมูลนักเรียน (ดึงจาก Cache ก่อน ถ้าไม่มีจึงดึง Firestore)
+        let studentData = cachedStudentsMap.get(studentId);
+        if (!studentData) {
+            const studentDoc = await db.collection('users').doc(studentId).get();
+            studentData = studentDoc.data() || {};
+        }
 
-        // ดึงข้อมูลโจทย์ทั้งหมดในห้องเรียนแบบเรียงลำดับ
+        // ดึงข้อมูลโจทย์ทั้งหมดในห้องเรียนแบบเรียงลำดับ (ดึงจากหน่วยความจำ 0ms)
         const sortedProblems = await getSortedClassProblems(classId);
         console.log('Found sorted class problems:', sortedProblems.length);
 
@@ -1421,19 +1516,33 @@ async function viewProgress(studentId) {
             .where('studentId', '==', studentId)
             .where('classId', '==', classId)
             .get();
-        console.log('Found student submissions:', submissionsSnapshot.size);
+        
+        let allDocs = [...submissionsSnapshot.docs];
+        try {
+            const legacySnapshot = await db.collection('submissions')
+                .where('userId', '==', studentId)
+                .where('classId', '==', classId)
+                .get();
+            if (!legacySnapshot.empty) {
+                const existingDocIds = new Set(allDocs.map(d => d.id));
+                legacySnapshot.docs.forEach(d => {
+                    if (!existingDocIds.has(d.id)) {
+                        allDocs.push(d);
+                    }
+                });
+            }
+        } catch (e) {
+            // ignore fallback error
+        }
+        console.log('Found student submissions:', allDocs.length);
 
-        // จัดกลุ่ม submissions ตามโจทย์ (เก็บแค่อันล่าสุด)
+        // จัดกลุ่ม submissions ตามโจทย์ (เก็บแค่อันล่าสุด โดย completed มีลำดับความสำคัญสูงสุด ไม่โดน draft ทับ)
         const latestSubmissions = new Map();
-        submissionsSnapshot.docs.forEach(doc => {
+        allDocs.forEach(doc => {
             const data = doc.data();
+            if (!data.problemId) return;
             const existing = latestSubmissions.get(data.problemId);
-            
-            // ป้องกันกรณี submittedAt ไม่มีอยู่หรือไม่ใช่ Timestamp object
-            const currentSubmittedAt = data.submittedAt && typeof data.submittedAt.toDate === 'function' ? data.submittedAt.toDate() : new Date(0);
-            const existingSubmittedAt = existing && existing.submittedAt && typeof existing.submittedAt.toDate === 'function' ? existing.submittedAt.toDate() : new Date(0);
-            
-            if (!existing || currentSubmittedAt > existingSubmittedAt) {
+            if (shouldReplaceSubmission(data, existing)) {
                 latestSubmissions.set(data.problemId, data);
             }
         });
@@ -1441,6 +1550,8 @@ async function viewProgress(studentId) {
         // ดึงข้อมูลโจทย์และคำนวณ maxScore
         const problemDetails = new Map();
         for (const data of sortedProblems) {
+            const pId = data.problemId || data.id;
+            if (!pId) continue;
             let maxScore = 0;
 
             if (data.type === 'python' && data.testCases) {
@@ -1451,12 +1562,6 @@ async function viewProgress(studentId) {
                 maxScore = data.pairs.reduce((sum, pair) => sum + (parseInt(pair.score) || 1), 0);
             } else if (data.type === 'flowchart') {
                 maxScore = data.maxScore || 10; // ใช้ maxScore จาก problemData ก่อน ถ้าไม่มีจึงใช้ค่า default 10
-                console.log('Problem data for flowchart:', {
-                    problemId: data.problemId,
-                    type: data.type,
-                    maxScore: data.maxScore,
-                    finalMaxScore: maxScore
-                });
             } else if (data.type === 'gui') {
                 if (data.maxScore) {
                     maxScore = data.maxScore;
@@ -1477,13 +1582,10 @@ async function viewProgress(studentId) {
                 maxScore = data.maxScore || 0;
             }
 
-            console.log(`Problem ${data.problemId}:`, {
-                type: data.type,
-                maxScore: maxScore
-            });
-
-            problemDetails.set(data.problemId, {
+            problemDetails.set(pId, {
                 ...data,
+                id: pId,
+                problemId: pId,
                 maxScore
             });
         }
@@ -1503,8 +1605,9 @@ async function viewProgress(studentId) {
             problem.displayMaxScore = actualMaxScore;
             
             // เพิ่ม score/status ที่เกี่ยวข้องเข้าไปใน object เพื่อเอาไป render ง่ายๆ
-            const score = submission?.status === 'completed' 
-                ? ((submission.score !== undefined) ? Number(submission.score) : problem.displayMaxScore) 
+            const isCompleted = submission && submission.status === 'completed';
+            const score = isCompleted 
+                ? ((submission.score !== undefined && submission.score !== null) ? Number(submission.score) : problem.displayMaxScore) 
                 : 0;
             let statusText = 'ยังไม่ส่ง';
             if (submission && submission.status !== 'draft') {
@@ -1532,7 +1635,8 @@ async function viewProgress(studentId) {
 
         practiceProblems.forEach(problem => {
             totalMaxScore += problem.displayMaxScore;
-            const submission = latestSubmissions.get(problem.problemId);
+            const pId = problem.problemId || problem.id;
+            const submission = latestSubmissions.get(pId);
             if (submission && submission.status === 'completed') {
                 completedCount++;
                 // ใช้คะแนนจริงที่ได้ (ถ้ามี) ถ้าไม่มีใช้เต็ม (เผื่อข้อมูลเก่า)
@@ -1547,10 +1651,11 @@ async function viewProgress(studentId) {
 
         // Helper สำหรับสร้าง HTML ของโจทย์
         const renderProblemItem = (problem) => {
+            const pId = problem.problemId || problem.id;
             let viewLink = '';
             if (problem.hasSubmission && problem.type) {
                 viewLink = `
-                    <button onclick="viewProblem('${problem.problemId}', '${studentId}')" 
+                    <button onclick="viewProblem('${pId}', '${studentId}')" 
                        class="view-answer-btn" 
                        style="margin-left: 10px; font-size: 0.9em; color: #3498db; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0;">
                        <i class="fas fa-search"></i> ดูคำตอบ
@@ -1691,6 +1796,10 @@ async function removeStudent(studentId) {
 
         alert('นำนักเรียนออกจากห้องเรียนสำเร็จ');
 
+        // รีเซ็ตแคชและโหลดข้อมูลใหม่
+        isStudentsLoaded = false;
+        if (cachedStudentsMap) cachedStudentsMap.delete(studentId);
+
         // โหลดข้อมูลใหม่
         await Promise.all([
             loadStudents(classId),
@@ -1706,18 +1815,24 @@ async function removeStudent(studentId) {
 // เพิ่มตัวแปร defaultAvatar ที่ด้านบนของไฟล์
 const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23999' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
 
-async function loadStudents(classId) {
+async function loadStudents(classId, preloadedEnrollments = null) {
     const studentList = document.getElementById('studentList');
     if (!studentList) return;
+    if (isStudentsLoading) return;
+    isStudentsLoading = true;
 
     try {
-        studentList.innerHTML = '<p class="loading">กำลังโหลดข้อมูล...</p>';
+        if (!isStudentsLoaded) {
+            studentList.innerHTML = '<p class="loading">กำลังโหลดข้อมูล...</p>';
+        }
 
-        // ดึงข้อมูลการลงทะเบียนพร้อมกับข้อมูลนักเรียน
-        const enrollments = await db.collection('class_enrollments')
-            .where('classId', '==', classId)
-            .orderBy('joinedAt', 'desc')
-            .get();
+        // ดึงข้อมูลการลงทะเบียนพร้อมกับข้อมูลนักเรียน (ใช้ preloaded ถ้ามี)
+        let enrollments = preloadedEnrollments;
+        if (!enrollments) {
+            enrollments = await db.collection('class_enrollments')
+                .where('classId', '==', classId)
+                .get();
+        }
 
         if (enrollments.empty) {
             studentList.innerHTML = `
@@ -1726,23 +1841,38 @@ async function loadStudents(classId) {
                     <p class="hint">นักเรียนสามารถเข้าร่วมได้ด้วยรหัสห้องเรียน</p>
                 </div>
             `;
+            isStudentsLoaded = true;
+            isStudentsLoading = false;
             return;
         }
 
-        // ดึงข้อมูลนักเรียนแต่ละคน
+        // ดึงข้อมูลนักเรียนแต่ละคน (แบบ parallel) พร้อมทั้ง cache ไว้
         const studentPromises = enrollments.docs.map(async (enrollment) => {
+            const data = enrollment.data();
             const studentDoc = await db.collection('users')
-                .doc(enrollment.data().studentId)
+                .doc(data.studentId)
                 .get();
 
-            return {
+            const studentObj = {
                 id: studentDoc.id,
-                joinedAt: enrollment.data().joinedAt,
-                ...studentDoc.data()
+                joinedAt: data.joinedAt,
+                ...(studentDoc.exists ? studentDoc.data() : {})
             };
+            if (cachedStudentsMap) {
+                cachedStudentsMap.set(studentObj.id, studentObj);
+            }
+            return studentObj;
         });
 
         const students = await Promise.all(studentPromises);
+
+        // เรียงลำดับตาม joinedAt จากใหม่ไปเก่า
+        students.sort((a, b) => {
+            const timeA = a.joinedAt ? (a.joinedAt.toMillis ? a.joinedAt.toMillis() : a.joinedAt) : 0;
+            const timeB = b.joinedAt ? (b.joinedAt.toMillis ? b.joinedAt.toMillis() : b.joinedAt) : 0;
+            return timeB - timeA;
+        });
+
         studentList.innerHTML = ''; // เคลียร์ loading
 
         students.forEach(student => {
@@ -1783,16 +1913,19 @@ async function loadStudents(classId) {
             studentList.appendChild(studentDiv);
         });
 
+        isStudentsLoaded = true;
     } catch (error) {
         console.error("Error loading students:", error);
         studentList.innerHTML = `
             <div class="error-state">
                 <p>เกิดข้อผิดพลาดในการโหลดรายชื่อนักเรียน</p>
-                <button onclick="loadStudents('${classId}')" class="retry-btn">
+                <button onclick="isStudentsLoaded = false; loadStudents('${classId}')" class="retry-btn">
                     ลองใหม่
                 </button>
             </div>
         `;
+    } finally {
+        isStudentsLoading = false;
     }
 }
 
@@ -1836,7 +1969,7 @@ async function exportScoresCSV() {
 
         const problems = sortedProblems.map(data => {
             return {
-                id: data.problemId,
+                id: data.problemId || data.id,
                 title: data.title || 'Unknown Problem',
             };
         });
@@ -1850,28 +1983,28 @@ async function exportScoresCSV() {
         const studentScores = new Map();
         students.forEach(s => studentScores.set(s.id, new Map()));
 
-        // เก็บ submission ล่าสุดของแต่ละคนในแต่ละโจทย์
+        // เก็บ submission ล่าสุดของแต่ละคนในแต่ละโจทย์ (โดย completed สำคัญที่สุด ไม่โดน draft ทับ)
         const latestSubmissions = new Map(); // key: studentId_problemId
         
         submissionsSnapshot.docs.forEach(doc => {
             const data = doc.data();
-            const key = `${data.studentId}_${data.problemId}`;
+            const sId = data.studentId || data.userId;
+            if (!sId || !data.problemId) return;
+            const key = `${sId}_${data.problemId}`;
             const existing = latestSubmissions.get(key);
             
-            const currentSubmittedAt = data.submittedAt && typeof data.submittedAt.toDate === 'function' ? data.submittedAt.toDate() : new Date(0);
-            const existingSubmittedAt = existing && existing.submittedAt && typeof existing.submittedAt.toDate === 'function' ? existing.submittedAt.toDate() : new Date(0);
-            
-            if (!existing || currentSubmittedAt > existingSubmittedAt) {
+            if (shouldReplaceSubmission(data, existing)) {
                 latestSubmissions.set(key, data);
             }
         });
 
         // ใส่คะแนนลงใน studentScores
         latestSubmissions.forEach((data, key) => {
-            const studentId = data.studentId;
+            const sId = data.studentId || data.userId;
             const problemId = data.problemId;
-            if (studentScores.has(studentId) && data.status === 'completed') {
-                studentScores.get(studentId).set(problemId, data.score || 0);
+            if (studentScores.has(sId) && data.status === 'completed') {
+                const s = (data.score !== undefined && data.score !== null) ? Number(data.score) : (data.maxScore || 0);
+                studentScores.get(sId).set(problemId, s);
             }
         });
 
@@ -1953,6 +2086,14 @@ function showTab(tabName) {
 
     // เพิ่ม active class ให้กับแท็บที่เลือก
     document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
+
+    // Lazy load รายชื่อนักเรียนเมื่อกดเข้าแท็บนักเรียน (หากยังไม่ได้โหลดเสร็จ)
+    if (tabName === 'students' && !isStudentsLoaded && !isStudentsLoading) {
+        const classId = new URLSearchParams(window.location.search).get('id');
+        if (classId) {
+            loadStudents(classId);
+        }
+    }
 }
 // โหลดคลังโจทย์
 async function loadProblemBank() {
@@ -2357,6 +2498,7 @@ window.removeTestCase = removeTestCase;
 window.addProblemToClass = addProblemToClass;
 window.closeProblemBankModal = closeProblemBankModal;
 window.searchProblems = searchProblems;
+window.setProblemFilter = setProblemFilter;
 window.viewProgress = viewProgress;
 window.removeStudent = removeStudent;
 window.viewProblem = viewProblem;

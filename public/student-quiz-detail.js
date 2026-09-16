@@ -234,56 +234,65 @@ async function loadLastSubmission(quizId, userId) {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const isViewMode = urlParams.get('mode') === 'view';
+        let classId = urlParams.get('classId');
 
         const snapshot = await db.collection('submissions')
             .where('problemId', '==', quizId)
             .where('studentId', '==', userId)
-            .orderBy('submittedAt', 'desc')
-            .limit(1)
             .get();
 
         if (!snapshot.empty) {
-            const submission = snapshot.docs[0].data();
-
-            // ใส่คำตอบที่เคยตอบไว้
-            submission.answers.forEach((answer, index) => {
-                const isExamCompleted = currentQuiz?.assignmentType === 'exam' && submission.status === 'completed';
-                const textarea = document.querySelector(`textarea[data-question="${index}"]`);
-                if (textarea) {
-                    if (isExamCompleted) {
-                        textarea.value = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูคำตอบย้อนหลังได้";
-                        textarea.readOnly = true;
-                        textarea.classList.add('view-mode');
-                    } else {
-                        textarea.value = answer;
-                        if (isViewMode) {
-                            textarea.readOnly = true;
-                            textarea.classList.add('view-mode');
-                        }
-                    }
-                } else {
-                    if (isExamCompleted) {
-                        const radios = document.querySelectorAll(`input[name="question-${index}"]`);
-                        radios.forEach(r => r.disabled = true);
-                    } else if (answer) {
-                        const radio = document.querySelector(`input[name="question-${index}"][value="${answer}"]`);
-                        if (radio) radio.checked = true;
-                        if (isViewMode) {
-                            const radios = document.querySelectorAll(`input[name="question-${index}"]`);
-                            radios.forEach(r => r.disabled = true);
-                        }
-                    }
-                }
-            });
-
-            if (currentQuiz?.assignmentType === 'exam' && submission.status === 'completed') {
-                const btn = document.querySelector('.submit-btn');
-                if (btn) btn.style.display = 'none';
+            let submissions = snapshot.docs.map(doc => doc.data());
+            if (classId) {
+                submissions = submissions.filter(sub => sub.classId === classId);
             }
+            if (submissions.length === 0) {
+                return;
+            }
+            submissions.sort((a, b) => {
+                const timeA = (a.timestamp || a.submittedAt)?.toDate?.()?.getTime?.() || (a.submittedAt?.toMillis?.() || 0);
+                const timeB = (b.timestamp || b.submittedAt)?.toDate?.()?.getTime?.() || (b.submittedAt?.toMillis?.() || 0);
+                return timeB - timeA;
+            });
+            const submission = submissions[0];
 
-            updateStatusBadge(submission.status);
-            if (submission.status === 'completed') {
-                showScoreBadge(submission.score || 0, submission.maxScore);
+            if (isViewMode) {
+                // ใส่คำตอบที่เคยตอบไว้ในโหมด view
+                if (Array.isArray(submission.answers)) {
+                    submission.answers.forEach((answer, index) => {
+                        const isExamCompleted = currentQuiz?.assignmentType === 'exam' && submission.status === 'completed';
+                        const textarea = document.querySelector(`textarea[data-question="${index}"]`);
+                        if (textarea) {
+                            if (isExamCompleted) {
+                                textarea.value = "ข้อสอบถูกส่งแล้ว ไม่สามารถดูคำตอบย้อนหลังได้";
+                                textarea.readOnly = true;
+                                textarea.classList.add('view-mode');
+                            } else {
+                                textarea.value = answer;
+                                textarea.readOnly = true;
+                                textarea.classList.add('view-mode');
+                            }
+                        } else {
+                            if (isExamCompleted) {
+                                const radios = document.querySelectorAll(`input[name="question-${index}"]`);
+                                radios.forEach(r => r.disabled = true);
+                            } else if (answer) {
+                                const radio = document.querySelector(`input[name="question-${index}"][value="${answer}"]`);
+                                if (radio) radio.checked = true;
+                                const radios = document.querySelectorAll(`input[name="question-${index}"]`);
+                                radios.forEach(r => r.disabled = true);
+                            }
+                        }
+                    });
+                }
+
+                if (submission.status === 'completed') {
+                    const btn = document.querySelector('.submit-btn');
+                    if (btn) btn.style.display = 'none';
+                    showScoreBadge(submission.score || 0, submission.maxScore);
+                }
+
+                updateStatusBadge(submission.status);
             }
         }
     } catch (error) {

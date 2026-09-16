@@ -37,12 +37,16 @@ async function loadSubmissionData(problemId, classId) {
             .where('problemId', '==', problemId)
             .where('studentId', '==', auth.currentUser.uid)
             .where('classId', '==', classId)
-            .orderBy('submittedAt', 'desc')
-            .limit(1)
             .get();
 
         if (!submissionsSnapshot.empty) {
-            return submissionsSnapshot.docs[0].data();
+            let submissions = submissionsSnapshot.docs.map(doc => doc.data());
+            submissions.sort((a, b) => {
+                const timeA = (a.timestamp || a.submittedAt)?.toDate?.()?.getTime?.() || (a.submittedAt?.toMillis?.() || 0);
+                const timeB = (b.timestamp || b.submittedAt)?.toDate?.()?.getTime?.() || (b.submittedAt?.toMillis?.() || 0);
+                return timeB - timeA;
+            });
+            return submissions[0];
         }
         return null;
     } catch (error) {

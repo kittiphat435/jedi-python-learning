@@ -58,15 +58,31 @@
 
         <!-- Content sections remain the same -->
         <div id="problemsTab" class="tab-content active">
-            <div class="search-box">
-                <input type="text" class="search-input" placeholder="ค้นหาโจทย์..."
-                    onkeyup="searchProblems(this.value)">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 12px;">
+                <div class="search-box" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+                    <input type="text" id="searchProblemInput" class="search-input" placeholder="ค้นหาโจทย์..."
+                        oninput="searchProblems(this.value)">
+                </div>
+                <div class="problem-actions" style="margin-bottom: 0;">
+                    <button onclick="showProblemBankModal()" class="primary-btn">
+                        เพิ่มจากคลังโจทย์
+                    </button>
+                </div>
             </div>
-            <div class="problem-actions">
-                <button onclick="showProblemBankModal()" class="primary-btn">
-                    เพิ่มจากคลังโจทย์
+
+            <!-- Sub-filter buttons สำหรับแยกโจทย์/ข้อสอบ -->
+            <div class="problem-sub-filter">
+                <button type="button" class="sub-filter-btn active" onclick="setProblemFilter('all')" id="filterBtn-all">
+                    ทั้งหมด (<span id="count-all">0</span>)
+                </button>
+                <button type="button" class="sub-filter-btn" onclick="setProblemFilter('practice')" id="filterBtn-practice">
+                    📝 แบบฝึกหัด (<span id="count-practice">0</span>)
+                </button>
+                <button type="button" class="sub-filter-btn" onclick="setProblemFilter('exam')" id="filterBtn-exam">
+                    📋 ข้อสอบ (<span id="count-exam">0</span>)
                 </button>
             </div>
+
             <div id="problemList" class="problem-list-scroll"></div>
             <div id="problemPagination" class="pagination"></div>
         </div>
