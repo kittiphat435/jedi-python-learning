@@ -263,16 +263,93 @@
     justify-content: center;
 }
 
-.code-order-card img {
+/* ============ ปุ่มควบคุมการย่อหน้า (Indentation) ============ */
+.code-order-indent-btns {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 3px 5px;
+    flex-shrink: 0;
+}
+
+.code-order-indent-btns .indent-btn {
+    width: 26px;
+    height: 24px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: #475569;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.code-order-indent-btns .indent-btn:hover:not(:disabled) {
+    background: #e0edff;
+    border-color: #1a73e8;
+    color: #1a73e8;
+}
+
+.code-order-indent-btns .indent-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: #f1f5f9;
+}
+
+.code-order-indent-btns .indent-level-badge {
+    min-width: 18px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1a73e8;
+}
+
+/* ============ กล่องบรรจุรูปภาพพร้อมไกด์เส้นประ ============ */
+.code-order-img-container {
     flex: 1;
     min-width: 0;
-    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    transition: padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.indent-guides {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    pointer-events: none;
+}
+
+.indent-guide-line {
+    width: 28px;
+    border-left: 2px dashed #cbd5e1;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.code-order-card img {
     max-height: 42px;
     min-height: 24px;
+    max-width: 100%;
+    width: auto;
     object-fit: contain;
+    object-position: left center;
     background: #fff;
     border: 1px solid #eee;
     border-radius: 4px;
+    padding: 2px 4px;
+    box-sizing: border-box;
+    display: block;
 }
 
 .code-order-card .order-move-buttons {
@@ -316,9 +393,28 @@
     background: #fef2f2;
 }
 
+.code-order-card.result-indent-wrong {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
 .code-order-card .result-mark {
     flex-shrink: 0;
     font-size: 1.1em;
+}
+
+.indent-wrong-badge {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 /* ============ ปุ่มด้านล่าง ============ */

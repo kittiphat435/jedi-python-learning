@@ -1,5 +1,6 @@
 let currentProblem = null;
 let order = [];            // order[position] = originalIndex ของบรรทัดที่อยู่ในตำแหน่งนั้น
+let userIndents = [];      // userIndents[position] = ระดับย่อหน้าของการ์ดที่อยู่ในตำแหน่งนั้น (0, 1, 2...)
 let isViewMode = false;
 let isSubmitted = false;
 let dragSourcePosition = null;
@@ -100,6 +101,9 @@ async function loadProblem() {
             const submission = await loadSubmissionData(problemId, classId);
             if (submission && Array.isArray(submission.order)) {
                 order = submission.order.slice();
+                userIndents = Array.isArray(submission.userIndents)
+                    ? submission.userIndents.slice()
+                    : new Array(order.length).fill(0);
                 isSubmitted = true;
                 renderCodeOrderList();
                 if (Array.isArray(submission.results)) {
@@ -107,6 +111,7 @@ async function loadProblem() {
                 }
             } else {
                 order = lines.map((_, i) => i);
+                userIndents = new Array(lines.length).fill(0);
                 renderCodeOrderList();
             }
 
@@ -119,6 +124,7 @@ async function loadProblem() {
             if (hint) hint.style.display = 'none';
         } else {
             order = getShuffledOrder(lines.length);
+            userIndents = new Array(lines.length).fill(0);
             renderCodeOrderList();
         }
 
@@ -160,6 +166,7 @@ function renderCodeOrderList() {
     listEl.innerHTML = '';
 
     order.forEach((originalIndex, position) => {
+        const indent = userIndents[position] || 0;
         const card = document.createElement('div');
         card.className = 'code-order-card';
         card.dataset.position = position;
@@ -168,7 +175,19 @@ function renderCodeOrderList() {
         card.innerHTML = `
             <span class="drag-handle"><i class="fas fa-grip-lines"></i></span>
             <span class="position-badge">${position + 1}</span>
-            <img src="${currentProblem.lines[originalIndex]}" alt="บรรทัดที่ ${position + 1}">
+            <div class="code-order-indent-btns">
+                <button type="button" class="indent-btn outdent-btn" onclick="changeIndent(${position}, -1)" ${(!interactive || indent <= 0) ? 'disabled' : ''} title="ลดการย่อหน้า (เลื่อนซ้าย)">
+                    <i class="fas fa-outdent"></i>
+                </button>
+                <span class="indent-level-badge" title="ระดับย่อหน้า">${indent}</span>
+                <button type="button" class="indent-btn indent-more-btn" onclick="changeIndent(${position}, 1)" ${(!interactive || indent >= 5) ? 'disabled' : ''} title="เพิ่มการย่อหน้า (เลื่อนขวา)">
+                    <i class="fas fa-indent"></i>
+                </button>
+            </div>
+            <div class="code-order-img-container" style="padding-left: ${indent * 28}px;">
+                ${indent > 0 ? `<div class="indent-guides">${'<span class="indent-guide-line"></span>'.repeat(indent)}</div>` : ''}
+                <img src="${currentProblem.lines[originalIndex]}" alt="บรรทัดที่ ${position + 1}" onload="trimLeadingWhitespaceFromCard(this)" crossorigin="anonymous">
+            </div>
             <div class="order-move-buttons">
                 <button type="button" onclick="moveCodeOrderLine(${position}, -1)" ${(!interactive || position === 0) ? 'disabled' : ''} title="เลื่อนขึ้น">
                     <i class="fas fa-chevron-up"></i>
@@ -190,6 +209,18 @@ function renderCodeOrderList() {
         listEl.appendChild(card);
     });
 }
+
+function changeIndent(position, delta) {
+    if (isViewMode || isSubmitted) return;
+    if (position < 0 || position >= userIndents.length) return;
+    const cur = userIndents[position] || 0;
+    const next = Math.max(0, Math.min(5, cur + delta));
+    if (cur !== next) {
+        userIndents[position] = next;
+        renderCodeOrderList();
+    }
+}
+window.changeIndent = changeIndent;
 
 // ============ Drag & Drop (เดสก์ท็อป) ============
 function handleDragStart(e) {
@@ -217,6 +248,10 @@ function handleDrop(e) {
 
     const [moved] = order.splice(dragSourcePosition, 1);
     order.splice(targetPosition, 0, moved);
+
+    const [movedIndent] = userIndents.splice(dragSourcePosition, 1);
+    userIndents.splice(targetPosition, 0, movedIndent || 0);
+
     dragSourcePosition = null;
     renderCodeOrderList();
 }
@@ -235,6 +270,11 @@ function moveCodeOrderLine(position, delta) {
     const tmp = order[position];
     order[position] = order[newPos];
     order[newPos] = tmp;
+
+    const tmpIndent = userIndents[position] || 0;
+    userIndents[position] = userIndents[newPos] || 0;
+    userIndents[newPos] = tmpIndent;
+
     renderCodeOrderList();
 }
 
@@ -242,6 +282,7 @@ function resetCodeOrder() {
     if (isViewMode || isSubmitted) return;
     if (!confirm('คุณแน่ใจหรือไม่ที่จะสลับลำดับใหม่ทั้งหมด?')) return;
     order = getShuffledOrder(currentProblem.lines.length);
+    userIndents = new Array(currentProblem.lines.length).fill(0);
     renderCodeOrderList();
 }
 
@@ -260,12 +301,25 @@ async function submitAnswer() {
         const total = lines.length;
         const maxScore = parseInt(currentProblem.maxScore) || total;
         const scorePerLine = maxScore / total;
+        const hasIndentCriteria = Array.isArray(currentProblem.indents) && currentProblem.indents.length === total;
 
         let correctCount = 0;
         const results = order.map((originalIndex, position) => {
-            const isCorrect = originalIndex === position;
+            const orderCorrect = originalIndex === position;
+            const targetIndent = hasIndentCriteria ? (currentProblem.indents[originalIndex] || 0) : 0;
+            const userIndent = userIndents[position] || 0;
+            const indentCorrect = !hasIndentCriteria || (userIndent === targetIndent);
+            const isCorrect = orderCorrect && indentCorrect;
             if (isCorrect) correctCount++;
-            return { position, originalIndex, isCorrect };
+            return {
+                position,
+                originalIndex,
+                orderCorrect,
+                indentCorrect,
+                userIndent,
+                targetIndent: hasIndentCriteria ? targetIndent : null,
+                isCorrect
+            };
         });
 
         const score = Math.round(scorePerLine * correctCount * 100) / 100;
@@ -277,6 +331,7 @@ async function submitAnswer() {
             studentId: auth.currentUser.uid,
             classId: classId,
             order: order,
+            userIndents: userIndents,
             results: results,
             score: score,
             maxScore: maxScore,
@@ -319,10 +374,19 @@ function showInlineResult(results) {
     results.forEach(r => {
         const card = cards[r.position];
         if (!card) return;
-        card.classList.add(r.isCorrect ? 'result-correct' : 'result-incorrect');
         const mark = document.createElement('span');
         mark.className = 'result-mark';
-        mark.textContent = r.isCorrect ? '✅' : '❌';
+
+        if (r.isCorrect) {
+            card.classList.add('result-correct');
+            mark.innerHTML = '<span title="ถูกต้องทั้งลำดับและย่อหน้า">✅</span>';
+        } else if (r.orderCorrect && !r.indentCorrect) {
+            card.classList.add('result-indent-wrong');
+            mark.innerHTML = `<span class="indent-wrong-badge" title="ลำดับถูกต้อง แต่ย่อหน้าผิด (คุณใส่ ${r.userIndent} ระดับ)">⚠️ ย่อหน้าผิด</span>`;
+        } else {
+            card.classList.add('result-incorrect');
+            mark.innerHTML = '<span title="ลำดับไม่ถูกต้อง">❌</span>';
+        }
         card.appendChild(mark);
     });
 }
@@ -333,10 +397,10 @@ function showResultModal(score, maxScore, correctCount, total) {
     const resultHTML = `
         <h3>ผลการตรวจ</h3>
         <div class="summary-box ${isPerfectScore ? 'perfect-score' : ''}">
-            <h4>${isPerfectScore ? '🎉 ยินดีด้วย! คุณเรียงลำดับถูกต้องทั้งหมด' : '📝 ผลการเรียงลำดับ'}</h4>
-            <p>เรียงถูก ${correctCount} จาก ${total} บรรทัด</p>
+            <h4>${isPerfectScore ? '🎉 ยินดีด้วย! คุณเรียงลำดับและย่อหน้าถูกต้องทั้งหมด' : '📝 ผลการเรียงลำดับคำสั่ง'}</h4>
+            <p>ถูกต้อง ${correctCount} จาก ${total} บรรทัด</p>
             <p>คะแนนที่ได้: ${score}/${maxScore} (${maxScore > 0 ? Math.round(score / maxScore * 100) : 0}%)</p>
-            <p style="font-size:0.9em; color:#666;">ดูเครื่องหมาย ✅ / ❌ ที่บัตรแต่ละใบด้านบนเพื่อดูว่าตำแหน่งไหนผิด</p>
+            <p style="font-size:0.9em; color:#666;">ดูเครื่องหมาย ✅ / ❌ / ⚠️ ที่บัตรแต่ละใบด้านบนเพื่อดูว่าตำแหน่งหรือย่อหน้าใดผิด</p>
         </div>
     `;
 
@@ -521,3 +585,76 @@ function toggleImageSize() {
     }
 }
 window.toggleImageSize = toggleImageSize;
+
+// ตัดช่องว่างย่อหน้าด้านหน้าของรูปภาพบรรทัดโค้ดออกอัตโนมัติ (ช่วยปรับสำหรับโจทย์เก่าที่ถูกบันทึกติดช่องว่างไว้)
+function trimLeadingWhitespaceFromCard(img) {
+    if (!img || img.dataset.trimmed) return;
+    try {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (!w || !h || w < 30 || h < 10) return;
+
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        const bgR = data[0], bgG = data[1], bgB = data[2];
+        const bgBr = (bgR + bgG + bgB) / 3;
+        const isDark = bgBr < 128;
+
+        const isInk = (r, g, b, a) => {
+            if (a < 50) return false;
+            const br = (r + g + b) / 3;
+            return isDark ? (br - bgBr >= 30) : (bgBr - br >= 30);
+        };
+
+        const colThresh = Math.max(2, Math.round(h * 0.12));
+        let firstInkX = w;
+        for (let x = 0; x < w; x++) {
+            let count = 0;
+            for (let y = 0; y < h; y++) {
+                const idx = (y * w + x) * 4;
+                if (isInk(data[idx], data[idx + 1], data[idx + 2], data[idx + 3])) {
+                    count++;
+                }
+            }
+            if (count >= colThresh) {
+                let ahead = 0;
+                for (let dx = 1; dx <= 6 && x + dx < w; dx++) {
+                    let cAhead = 0;
+                    for (let y = 0; y < h; y++) {
+                        const idx2 = (y * w + (x + dx)) * 4;
+                        if (isInk(data[idx2], data[idx2 + 1], data[idx2 + 2], data[idx2 + 3])) cAhead++;
+                    }
+                    if (cAhead >= colThresh) ahead++;
+                }
+                if (ahead >= 1) {
+                    firstInkX = x;
+                    break;
+                }
+            }
+        }
+
+        // หากตรวจพบช่องว่างด้านหน้ามากกว่า 16px (ประมาณ 2-4 spaces ขึ้นไป) ให้ crop ชิดซ้ายทันที
+        if (firstInkX > 16 && firstInkX < w) {
+            const cropX = Math.max(0, firstInkX - 4);
+            const cropW = w - cropX;
+            const trimCanvas = document.createElement('canvas');
+            trimCanvas.width = cropW;
+            trimCanvas.height = h;
+            const tctx = trimCanvas.getContext('2d');
+            tctx.drawImage(c, cropX, 0, cropW, h, 0, 0, cropW, h);
+            img.dataset.trimmed = '1';
+            img.src = trimCanvas.toDataURL('image/png');
+        }
+    } catch (e) {
+        // กรณีรูปมาจากต่างโดเมนแล้วเบราว์เซอร์บล็อก getImageData ด้วยนโยบาย CORS จะข้ามไปใช้รูปเดิมตามปกติ
+    }
+}
+window.trimLeadingWhitespaceFromCard = trimLeadingWhitespaceFromCard;
+

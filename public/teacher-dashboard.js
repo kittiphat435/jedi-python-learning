@@ -1865,17 +1865,23 @@ async function editProblem(problemId) {
 
                 if (codeOrderOriginalPreview) {
                     codeOrderOriginalPreview.innerHTML = problemData.originalImage
-                        ? `<img src="${problemData.originalImage}" style="max-width:100%; border:1px solid #ddd; border-radius:6px;">`
+                        ? `<img src="${problemData.originalImage}" style="max-width:100%; border:1px solid #ddd; border-radius:6px;">
+                           <div style="margin-top: 8px;">
+                               <button type="button" class="secondary-btn" onclick="recutFromOriginalImage()"><i class="fas fa-magic"></i> ตรวจจับและตัดบรรทัดชิดซ้ายใหม่จากรูปนี้</button>
+                           </div>`
                         : '';
                 }
 
-                // ต้องอัปโหลดรูปใหม่ถ้าต้องการตรวจจับ/ตัดบรรทัดใหม่
                 if (codeOrderSliceControls) codeOrderSliceControls.style.display = 'none';
 
                 window.codeOrderState = {
                     canvas: null,
                     boundaries: [],
                     lineDataUrls: lineUrls,
+                    xStarts: [],
+                    lineIndents: Array.isArray(problemData.indents) && problemData.indents.length === lineUrls.length
+                        ? [...problemData.indents]
+                        : new Array(lineUrls.length).fill(0),
                     originalImageURL: problemData.originalImage || ''
                 };
                 renderCodeOrderLinesList(false);
@@ -2557,6 +2563,9 @@ async function saveProblem(event) {
                 description,
                 originalImage: state.originalImageURL || '',
                 lines: lineUrls,
+                indents: Array.isArray(state.lineIndents) && state.lineIndents.length === lineUrls.length
+                    ? state.lineIndents
+                    : new Array(lineUrls.length).fill(0),
                 maxScore
             });
         }
@@ -4928,6 +4937,8 @@ window.codeOrderState = {
     canvas: null,          // canvas เต็มรูป (ไม่แสดงผล) ใช้ตัดบรรทัด - มีเฉพาะตอนเพิ่งอัปโหลดรูปใหม่
     boundaries: [],        // [[yStart, yEnd], ...] เรียงบนลงล่าง = ลำดับเฉลย (คู่กับ canvas)
     lineDataUrls: [],      // ภาพต่อบรรทัด: dataURL (รูปที่เพิ่งตัด) หรือ URL จริง (โจทย์เดิมที่เคยอัปโหลดแล้ว)
+    xStarts: [],           // พิกัด x เริ่มต้นของตัวอักษรแต่ละบรรทัด (ใช้ Left-trim)
+    lineIndents: [],       // ระดับย่อหน้าเฉลยของแต่ละบรรทัด (0 = ชิดซ้าย, 1 = ย่อหน้า 1 ระดับ, ...)
     originalImageURL: ''   // URL รูปเต็มที่อัปโหลดไว้อ้างอิง
 };
 
@@ -5000,8 +5011,7 @@ async function handleCodeOrderImageUpload(event) {
 }
 
 // ตรวจจับตำแหน่งบรรทัดโค้ดด้วยการฉาย pixel ในแนวนอน (horizontal projection)
-// หลักการ: แถวพิกเซลที่มีตัวอักษรจะมีค่าความเข้ม (ink) สูงกว่าแถวว่าง
-// ช่วงแถวว่างต่อเนื่องที่ยาวพอ = รอยต่อระหว่างบรรทัด
+// และตรวจจับการย่อหน้า (Indentation/Tab) เพื่อตัดช่องว่างย่อหน้าออกจากรูปภาพ
 function detectCodeOrderLines() {
     const state = window.codeOrderState;
     const canvas = state.canvas;
@@ -5010,6 +5020,25 @@ function detectCodeOrderLines() {
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     const imageData = ctx.getImageData(0, 0, width, height).data;
+
+    // 1. ตรวจจับสีพื้นหลัง เพื่อรองรับทั้ง Light Theme และ Dark Theme
+    const cornerSamples = [];
+    const sampleCoords = [
+        [0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1],
+        [Math.floor(width / 2), 0], [0, Math.floor(height / 2)], [width - 1, Math.floor(height / 2)]
+    ];
+    for (const [sx, sy] of sampleCoords) {
+        const sidx = (sy * width + sx) * 4;
+        cornerSamples.push((imageData[sidx] + imageData[sidx + 1] + imageData[sidx + 2]) / 3);
+    }
+    cornerSamples.sort((a, b) => a - b);
+    const bgBrightness = cornerSamples[Math.floor(cornerSamples.length / 2)];
+    const isDarkTheme = bgBrightness < 128;
+    const isInkPixel = (r, g, b, a) => {
+        if (a < 50) return false;
+        const br = (r + g + b) / 3;
+        return isDarkTheme ? (br - bgBrightness >= 35) : (bgBrightness - br >= 35);
+    };
 
     // sensitivity: 1 (หยาบ ตัดยาก รวมบรรทัดง่าย) - 10 (ละเอียด ตัดง่าย แยกบรรทัดง่าย)
     const sensitivity = parseInt(document.getElementById('codeOrderSensitivity')?.value) || 4;
@@ -5020,10 +5049,9 @@ function detectCodeOrderLines() {
         let ink = 0;
         for (let x = 0; x < width; x += step) {
             const idx = (y * width + x) * 4;
-            const a = imageData[idx + 3];
-            if (a === 0) continue; // โปร่งใส ไม่นับ
-            const brightness = (imageData[idx] + imageData[idx + 1] + imageData[idx + 2]) / 3;
-            if (brightness < 200) ink++; // พิกเซลเข้ม = น่าจะเป็นตัวอักษร
+            if (isInkPixel(imageData[idx], imageData[idx + 1], imageData[idx + 2], imageData[idx + 3])) {
+                ink++;
+            }
         }
         rowInk[y] = ink;
     }
@@ -5052,29 +5080,136 @@ function detectCodeOrderLines() {
     }
     if (start !== -1) rawRanges.push([start, height - 1 - gapCount]);
 
-    // เพิ่ม padding รอบแต่ละบรรทัดเล็กน้อย กันตัวอักษรถูกตัดขอบ (เช่นหาง g, y)
-    const padding = Math.max(2, Math.round(height * 0.004));
-    const boundaries = rawRanges.map(([s, e]) => [
-        Math.max(0, s - padding),
-        Math.min(height - 1, e + padding)
-    ]);
+    // เพิ่ม padding รอบแต่ละบรรทัด กันตัวอักษรถูกตัดขอบ (เพิ่ม Top-Bottom อีก 2px)
+    const padding = Math.max(4, Math.round(height * 0.004) + 2);
+    const boundaries = rawRanges.map(([s, e], idx) => {
+        let top = Math.max(0, s - padding);
+        let bottom = Math.min(height - 1, e + padding);
 
-    state.boundaries = boundaries.length > 0 ? boundaries : [[0, height - 1]];
+        // ป้องกันไม่ให้ขอบเขตบรรทัดติดกันตัดซ้อนทับกัน
+        if (idx > 0) {
+            const prevEnd = rawRanges[idx - 1][1];
+            const midBefore = Math.floor((prevEnd + s) / 2);
+            top = Math.max(top, midBefore + 1);
+        }
+        if (idx < rawRanges.length - 1) {
+            const nextStart = rawRanges[idx + 1][0];
+            const midAfter = Math.floor((e + nextStart) / 2);
+            bottom = Math.min(bottom, midAfter);
+        }
+        return [top, Math.max(top, bottom)];
+    });
+
+    const finalBoundaries = boundaries.length > 0 ? boundaries : [[0, height - 1]];
+    state.boundaries = finalBoundaries;
+
+    // 2. ตรวจจับตำแหน่ง x เริ่มต้นของคำสั่งในแต่ละบรรทัด (ข้ามเส้นไกด์ 1px และ noise)
+    const lineXStarts = [];
+    const lineXEnds = [];
+
+    for (let i = 0; i < finalBoundaries.length; i++) {
+        const [yStart, yEnd] = finalBoundaries[i];
+        const lineHeight = yEnd - yStart + 1;
+        const colInkThresh = Math.max(2, Math.round(lineHeight * 0.12));
+
+        const colInk = new Array(width).fill(0);
+        for (let x = 0; x < width; x++) {
+            let count = 0;
+            for (let y = yStart; y <= yEnd; y++) {
+                const idx = (y * width + x) * 4;
+                if (isInkPixel(imageData[idx], imageData[idx + 1], imageData[idx + 2], imageData[idx + 3])) {
+                    count++;
+                }
+            }
+            colInk[x] = count;
+        }
+
+        // หา xStart: ต้องเป็นจุดที่มีตัวอักษรจริง (ไม่ใช่เส้นไกด์ 1px)
+        let minX = width - 1;
+        let maxX = 0;
+        for (let x = 0; x < width; x++) {
+            if (colInk[x] >= colInkThresh) {
+                // กรองเส้นไกด์บางๆ 1px
+                let densityAhead = 0;
+                for (let dx = 1; dx <= 6 && x + dx < width; dx++) {
+                    if (colInk[x + dx] >= colInkThresh) densityAhead++;
+                }
+
+                if (densityAhead >= 1 || (x > 0 && colInk[x - 1] >= colInkThresh)) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                }
+            }
+        }
+
+        if (minX >= maxX) {
+            minX = 0;
+            maxX = width - 1;
+        }
+
+        lineXStarts.push(minX);
+        lineXEnds.push(maxX);
+    }
+
+    state.xStarts = lineXStarts;
+    state.xEnds = lineXEnds;
+
+    // 3. ตรวจจับขอบซ้ายฐาน (baseX) และระยะย่อหน้า 1 Tab (tabWidth)
+    const validXStarts = lineXStarts.filter(x => x < width - 1);
+    const minXGlobal = validXStarts.length > 0 ? Math.min(...validXStarts) : 0;
+    state.baseX = minXGlobal;
+
+    const positiveDeltas = lineXStarts
+        .map(x => x - minXGlobal)
+        .filter(d => d >= 12); // ระยะย่อหน้าอย่างน้อย 12px
+
+    let indentStep = 30; // ค่าเริ่มต้นถ้าทุกบรรทัดไม่มีย่อหน้า
+    if (positiveDeltas.length > 0) {
+        indentStep = Math.min(...positiveDeltas);
+        if (indentStep < 15) indentStep = 15;
+    }
+    state.tabWidth = indentStep;
+
+    // คำนวณระดับย่อหน้าเฉลย (0 = ชิดซ้าย, 1 = ย่อหน้า 1 Tab, 2 = ย่อหน้า 2 Tab...)
+    state.lineIndents = lineXStarts.map(x => {
+        const delta = x - minXGlobal;
+        if (delta < 10) return 0;
+        return Math.max(0, Math.min(5, Math.round(delta / indentStep)));
+    });
 }
 
 function renderCodeOrderLines() {
     const state = window.codeOrderState;
     if (!state.canvas) { renderCodeOrderLinesList(false); return; }
 
-    state.lineDataUrls = state.boundaries.map(([yStart, yEnd]) => {
+    const baseX = (state.baseX !== undefined) ? state.baseX : 0;
+    const tabWidth = state.tabWidth || 30;
+
+    state.lineDataUrls = state.boundaries.map(([yStart, yEnd], i) => {
         const lineHeight = Math.max(1, yEnd - yStart + 1);
+
+        // ✅ ตัดช่องว่างย่อหน้า (Indent/Tab) หน้าคำสั่งทิ้งทั้งหมด 100%:
+        // ทุกบรรทัดจะถูกตัดชิดซ้ายเริ่มต้นที่ตัวอักษรตัวแรกของบรรทัดนั้นเสมอ (เว้นระยะขอบซ้าย 4px)
+        // ไม่ว่าต้นฉบับจะย่อหน้ามากี่ Tab ภาพคำสั่งที่ตัดได้จะชิดซ้ายเท่ากันหมด เพื่อให้นักเรียนกดย่อหน้าเอง
+        const rawXStart = (state.xStarts && state.xStarts[i] !== undefined && state.xStarts[i] < state.canvas.width - 1)
+            ? state.xStarts[i]
+            : (state.baseX || 0);
+
+        const cropX = Math.max(0, rawXStart - 4); // เว้นขอบหน้าตัวอักษร 4px
+        // ตัดด้านขวาให้พอดีกับเนื้อหาคำสั่ง (เว้นขอบหลังตัวอักษร 16px) เพื่อไม่ให้มีพื้นที่ว่างเปล่ายาวเกินไป
+        const rawXEnd = (state.xEnds && state.xEnds[i] !== undefined) ? state.xEnds[i] : state.canvas.width - 1;
+        const cropWidth = Math.min(
+            state.canvas.width - cropX,
+            Math.max(60, (rawXEnd - cropX) + 16)
+        );
+
         const lineCanvas = document.createElement('canvas');
-        lineCanvas.width = state.canvas.width;
+        lineCanvas.width = cropWidth;
         lineCanvas.height = lineHeight;
         const lctx = lineCanvas.getContext('2d');
         lctx.fillStyle = '#ffffff';
-        lctx.fillRect(0, 0, lineCanvas.width, lineHeight);
-        lctx.drawImage(state.canvas, 0, yStart, state.canvas.width, lineHeight, 0, 0, state.canvas.width, lineHeight);
+        lctx.fillRect(0, 0, cropWidth, lineHeight);
+        lctx.drawImage(state.canvas, cropX, yStart, cropWidth, lineHeight, 0, 0, cropWidth, lineHeight);
         return lineCanvas.toDataURL('image/png');
     });
 
@@ -5095,24 +5230,47 @@ function renderCodeOrderLinesList(allowMerge) {
         return;
     }
 
+    if (!Array.isArray(state.lineIndents) || state.lineIndents.length !== state.lineDataUrls.length) {
+        state.lineIndents = new Array(state.lineDataUrls.length).fill(0);
+    }
+
     listEl.style.display = 'block';
     if (countEl) countEl.innerText = `ทั้งหมด ${state.lineDataUrls.length} บรรทัด (เรียงบนลงล่าง = ลำดับเฉลย)`;
 
-    listEl.innerHTML = state.lineDataUrls.map((url, i) => `
+    listEl.innerHTML = state.lineDataUrls.map((url, i) => {
+        const indent = state.lineIndents[i] || 0;
+        return `
         <div class="matching-item code-order-line">
             <span class="item-number">${i + 1}.</span>
-            <img src="${url}" class="code-order-thumb">
+            <div class="code-order-indent-control" title="ระดับย่อหน้าเฉลย (0 = ชิดซ้าย, 1 = ย่อหน้า 1 ระดับ, 2 = ย่อหน้า 2 ระดับ)">
+                <span class="indent-label"><i class="fas fa-indent"></i> ย่อหน้า:</span>
+                <button type="button" class="indent-adj-btn" onclick="adjustCodeOrderIndent(${i}, -1)" ${indent <= 0 ? 'disabled' : ''}>-</button>
+                <span class="indent-val">${indent}</span>
+                <button type="button" class="indent-adj-btn" onclick="adjustCodeOrderIndent(${i}, 1)" ${indent >= 5 ? 'disabled' : ''}>+</button>
+            </div>
+            <div class="code-order-thumb-wrapper" style="padding-left: ${indent * 20}px;">
+                <img src="${url}" class="code-order-thumb">
+            </div>
             <div class="code-order-line-actions">
                 ${allowMerge && i < state.lineDataUrls.length - 1 ? `<button type="button" class="secondary-btn" onclick="mergeCodeOrderLine(${i})">รวมกับถัดไป</button>` : ''}
                 <button type="button" class="delete-btn" onclick="deleteCodeOrderLine(${i})">ลบ</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     const maxScoreInput = document.getElementById('codeOrderMaxScore');
     if (maxScoreInput && !maxScoreInput.dataset.userEdited) {
         maxScoreInput.value = state.lineDataUrls.length;
     }
+}
+
+function adjustCodeOrderIndent(index, delta) {
+    const state = window.codeOrderState;
+    if (!Array.isArray(state.lineIndents)) state.lineIndents = [];
+    const cur = state.lineIndents[index] || 0;
+    state.lineIndents[index] = Math.max(0, Math.min(5, cur + delta));
+    renderCodeOrderLinesList(!!state.canvas);
 }
 
 function reDetectCodeOrderLines() {
@@ -5128,6 +5286,18 @@ function mergeCodeOrderLine(index) {
     const [start1] = state.boundaries[index];
     const [, end2] = state.boundaries[index + 1];
     state.boundaries.splice(index, 2, [start1, end2]);
+    if (Array.isArray(state.xStarts) && state.xStarts.length > index + 1) {
+        state.xStarts[index] = Math.min(state.xStarts[index], state.xStarts[index + 1]);
+        state.xStarts.splice(index + 1, 1);
+    }
+    if (Array.isArray(state.xEnds) && state.xEnds.length > index + 1) {
+        state.xEnds[index] = Math.max(state.xEnds[index], state.xEnds[index + 1]);
+        state.xEnds.splice(index + 1, 1);
+    }
+    if (Array.isArray(state.lineIndents) && state.lineIndents.length > index + 1) {
+        state.lineIndents[index] = Math.min(state.lineIndents[index], state.lineIndents[index + 1]);
+        state.lineIndents.splice(index + 1, 1);
+    }
     renderCodeOrderLines();
 }
 
@@ -5136,16 +5306,20 @@ function deleteCodeOrderLine(index) {
     if (state.canvas) {
         if (index < 0 || index >= state.boundaries.length) return;
         state.boundaries.splice(index, 1);
+        if (Array.isArray(state.xStarts)) state.xStarts.splice(index, 1);
+        if (Array.isArray(state.xEnds)) state.xEnds.splice(index, 1);
+        if (Array.isArray(state.lineIndents)) state.lineIndents.splice(index, 1);
         renderCodeOrderLines();
     } else {
         if (index < 0 || index >= state.lineDataUrls.length) return;
         state.lineDataUrls.splice(index, 1);
+        if (Array.isArray(state.lineIndents)) state.lineIndents.splice(index, 1);
         renderCodeOrderLinesList(false);
     }
 }
 
 function resetCodeOrderForm() {
-    window.codeOrderState = { canvas: null, boundaries: [], lineDataUrls: [], originalImageURL: '' };
+    window.codeOrderState = { canvas: null, boundaries: [], lineDataUrls: [], xStarts: [], lineIndents: [], originalImageURL: '' };
     const originalPreview = document.getElementById('codeOrderOriginalPreview');
     const linesList = document.getElementById('codeOrderLinesList');
     const lineCount = document.getElementById('codeOrderLineCount');
@@ -5160,10 +5334,57 @@ function resetCodeOrderForm() {
     if (maxScoreInput) { maxScoreInput.value = 1; delete maxScoreInput.dataset.userEdited; }
 }
 
+async function recutFromOriginalImage() {
+    const state = window.codeOrderState;
+    if (!state.originalImageURL) {
+        alert('ไม่พบรูปภาพต้นฉบับ กรุณาเลือกไฟล์รูปภาพใหม่');
+        return;
+    }
+    const progressDiv = document.getElementById('codeOrderUploadProgress');
+    if (progressDiv) {
+        progressDiv.style.display = 'block';
+        progressDiv.style.color = '#3498db';
+        progressDiv.innerText = 'กำลังโหลดรูปต้นฉบับมาประมวลผล...';
+    }
+    try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = state.originalImageURL;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        state.canvas = canvas;
+        const sliceControls = document.getElementById('codeOrderSliceControls');
+        if (sliceControls) sliceControls.style.display = 'block';
+
+        detectCodeOrderLines();
+        renderCodeOrderLines();
+
+        if (progressDiv) {
+            progressDiv.innerText = 'ตัดบรรทัดชิดซ้ายใหม่เรียบร้อยแล้ว ตรวจสอบแล้วกดบันทึกได้เลย';
+            setTimeout(() => { progressDiv.style.display = 'none'; }, 4000);
+        }
+    } catch (err) {
+        console.warn('Cannot load image cross-origin:', err);
+        alert('เบราว์เซอร์ไม่สามารถเข้าถึงพิกเซลของรูปต้นฉบับได้โดยตรง (ติด CORS) กรุณากดปุ่ม "เลือกรูปโค้ดต้นฉบับ" เพื่อเลือกไฟล์ภาพจากคอมพิวเตอร์ใหม่อีกครั้ง');
+        if (progressDiv) progressDiv.style.display = 'none';
+    }
+}
+
 window.handleCodeOrderImageUpload = handleCodeOrderImageUpload;
 window.reDetectCodeOrderLines = reDetectCodeOrderLines;
 window.mergeCodeOrderLine = mergeCodeOrderLine;
 window.deleteCodeOrderLine = deleteCodeOrderLine;
+window.adjustCodeOrderIndent = adjustCodeOrderIndent;
+window.recutFromOriginalImage = recutFromOriginalImage;
 
 async function duplicateProblem(problemId) {
     try {

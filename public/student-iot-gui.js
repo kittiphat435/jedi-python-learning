@@ -3812,13 +3812,6 @@ async function checkAnswer() {
     // 4. โครงสร้างผ่าน -> เปิดทางให้ไปต่อ (Running Logic Tests)
     // -------------------------------------------------------------
     console.log("Structure OK -> Running Logic Tests...");
-    
-    // ✅ ปลดล็อกปุ่ม Test Case ทันทีที่โครงสร้างผ่าน
-    if (testCaseBtn) {
-        testCaseBtn.disabled = false;
-        testCaseBtn.style.opacity = "1";
-        testCaseBtn.style.cursor = "pointer";
-    }
 
     try {
         const codeEditor = document.getElementById('codeEditorTextarea');
@@ -3842,12 +3835,22 @@ async function checkAnswer() {
 
         // เช็คเงื่อนไขส่งงาน
         if (guiBaseResult.passed === true) {
-            // ถ้ายิ่งมี Test Case ให้บังคับกดปุ่ม Test Case ก่อนส่งงาน
+            // ถ้ายิ่งมี Test Case ให้เปิดปุ่ม Test Case และบังคับกดปุ่ม Test Case ก่อนส่งงาน
             if (guiTestCaseBonus.maxScore > 0) {
+                if (testCaseBtn) {
+                    testCaseBtn.disabled = false;
+                    testCaseBtn.style.opacity = "1";
+                    testCaseBtn.style.cursor = "pointer";
+                }
                 if (submitBtn) submitBtn.disabled = true;
-                alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจ!\n\nคะแนนปัจจุบัน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\n(กรุณากดปุ่ม "ทดสอบ TestCase เฉพาะ" เพื่อเก็บคะแนนให้ครบก่อนส่งงาน)`);
-                showSuccess('โครงสร้างผ่านแล้ว! กรุณาทดสอบ TestCase ก่อนส่งงาน');
+                alert(`✅ โครงสร้างถูกต้อง และผ่านการตรวจคำตอบครบถ้วน!\n\nคะแนนปัจจุบัน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\n(กรุณากดปุ่ม "ทดสอบ TestCase เฉพาะ" เพื่อเก็บคะแนนให้ครบก่อนส่งงาน)`);
+                showSuccess('โครงสร้างและคำตอบผ่านแล้ว! กรุณาทดสอบ TestCase ก่อนส่งงาน');
             } else {
+                if (testCaseBtn) {
+                    testCaseBtn.disabled = true;
+                    testCaseBtn.style.opacity = "0.5";
+                    testCaseBtn.style.cursor = "not-allowed";
+                }
                 // ไม่มี Test Case ก็ส่งงานได้เลย
                 if (problemData?.assignmentType === 'exam') {
                     // ข้อสอบ ส่ง Auto ทันทีที่ผ่าน
@@ -3878,10 +3881,15 @@ async function checkAnswer() {
                 }
             }
         } else {
-            // โครงสร้างถูก แต่คะแนนไม่เต็ม
+            // โครงสร้างถูก แต่คะแนนไม่เต็ม หรือยังตรวจไม่ผ่าน (ล็อกปุ่ม testCase และ submit)
             if (submitBtn) submitBtn.disabled = true;
+            if (testCaseBtn) {
+                testCaseBtn.disabled = true;
+                testCaseBtn.style.opacity = "0.5";
+                testCaseBtn.style.cursor = "not-allowed";
+            }
             
-            alert(`⚠️ โครงสร้างถูกต้อง (ปุ่ม Test Case เปิดแล้ว)\n\nแต่คะแนนยังไม่เต็ม (${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore})\nอาจมีข้อความผิด หรือการจัดวาง/ข้อความไม่ตรง`);
+            alert(`⚠️ โครงสร้างถูกต้อง แต่ยังตรวจคำตอบไม่ผ่านสมบูรณ์\n\nคะแนน: ${guiBaseResult.score}/${guiBaseResult.maxScore + guiTestCaseBonus.maxScore}\nอาจมีข้อความผิด หรือการจัดวาง/คุณสมบัติไม่ตรงตามโจทย์ (กรุณาแก้ไขให้ผ่านก่อนทดสอบ TestCase)`);
         }
         
         if (typeof saveDraftCode === 'function') {
@@ -3894,6 +3902,12 @@ async function checkAnswer() {
 
     } catch (error) {
         console.error('Test Error:', error);
+        if (testCaseBtn) {
+            testCaseBtn.disabled = true;
+            testCaseBtn.style.opacity = "0.5";
+            testCaseBtn.style.cursor = "not-allowed";
+        }
+        if (submitBtn) submitBtn.disabled = true;
         showError('เกิดข้อผิดพลาด: ' + error.message);
         return { passed: false, totalScore: 0, maxScore: 0 }; // 🔴 กรณี Error
     }
