@@ -526,10 +526,24 @@ class CircuitCanvas {
         container.style.overflow = 'hidden';
         if (!container.style.background) container.style.background = '#081c15';
 
-        // ชั้นสายไฟ (SVG ทับทั้ง canvas)
+        // Zoom & Pan State
+        this.scale = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+        this.isPanning = false;
+        this._panMoved = false;
+        this._isSpaceDown = false;
+
+        // World Layer: รวมทุกชิ้นส่วนและ SVG เพื่อให้ Zoom & Pan ไปพร้อมกันอย่างสมบูรณ์
+        this.world = document.createElement('div');
+        this.world.className = 'cc-world';
+        this.world.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; transform-origin:0 0; will-change:transform; pointer-events:auto;';
+        container.appendChild(this.world);
+
+        // ชั้นสายไฟ (SVG ทับทั้ง world)
         this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        this.svg.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5;';
-        container.appendChild(this.svg);
+        this.svg.style.cssText = 'position:absolute; top:0; left:0; width:6000px; height:6000px; pointer-events:none; z-index:5;';
+        this.world.appendChild(this.svg);
 
         // เส้นชั่วคราวตอนกำลังลากสาย
         this.tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -542,6 +556,7 @@ class CircuitCanvas {
         this.tempLine.style.display = 'none';
         this.svg.appendChild(this.tempLine);
 
+        this._buildZoomControls();
         this._bindGlobalEvents();
         this.ready = CircuitCanvas.ensureElementsLoaded();
     }
@@ -570,6 +585,139 @@ class CircuitCanvas {
         }
     }
 
+    /* ----------------------------------------------------- zoom & pan --- */
+
+    clientToWorld(clientX, clientY) {
+        const rect = this.container.getBoundingClientRect();
+        const cx = clientX - rect.left;
+        const cy = clientY - rect.top;
+        return {
+            x: (cx - this.panX) / this.scale,
+            y: (cy - this.panY) / this.scale
+        };
+    }
+
+    worldToClient(wx, wy) {
+        const rect = this.container.getBoundingClientRect();
+        return {
+            x: rect.left + this.panX + wx * this.scale,
+            y: rect.top + this.panY + wy * this.scale
+        };
+    }
+
+    _applyWorldTransform() {
+        this.world.style.transform = `translate(${this.panX.toFixed(1)}px, ${this.panY.toFixed(1)}px) scale(${this.scale.toFixed(3)})`;
+        this._updateZoomUI();
+    }
+
+    zoomAt(cx, cy, factor) {
+        const oldScale = this.scale;
+        const newScale = Math.max(0.35, Math.min(3.0, oldScale * factor));
+        if (Math.abs(newScale - oldScale) < 0.001) return;
+
+        // จุด World ใต้เมาส์เดิม
+        const wx = (cx - this.panX) / oldScale;
+        const wy = (cy - this.panY) / oldScale;
+
+        // คำนวณ pan ใหม่ให้จุดเดิมอยู่ตรงตำแหน่งเดิม
+        this.panX = cx - wx * newScale;
+        this.panY = cy - wy * newScale;
+        this.scale = newScale;
+
+        this._applyWorldTransform();
+    }
+
+    zoomIn() {
+        const rect = this.container.getBoundingClientRect();
+        this.zoomAt((rect.width || 800) / 2, (rect.height || 460) / 2, 1.2);
+    }
+
+    zoomOut() {
+        const rect = this.container.getBoundingClientRect();
+        this.zoomAt((rect.width || 800) / 2, (rect.height || 460) / 2, 1 / 1.2);
+    }
+
+    resetZoom() {
+        this.scale = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+        this._applyWorldTransform();
+    }
+
+    fitToScreen() {
+        if (this.parts.length === 0) {
+            this.resetZoom();
+            return;
+        }
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        this.parts.forEach(p => {
+            const w = p._baseWidth || 100;
+            const h = p._baseHeight || 80;
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x + w);
+            maxY = Math.max(maxY, p.y + h);
+        });
+
+        const rect = this.container.getBoundingClientRect();
+        const cw = rect.width || 800;
+        const ch = rect.height || 460;
+        const pad = 40;
+        const boundW = Math.max(maxX - minX + pad * 2, 150);
+        const boundH = Math.max(maxY - minY + pad * 2, 120);
+
+        const targetScale = Math.max(0.35, Math.min(1.8, Math.min(cw / boundW, ch / boundH)));
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+
+        this.scale = targetScale;
+        this.panX = (cw / 2) - midX * targetScale;
+        this.panY = (ch / 2) - midY * targetScale;
+        this._applyWorldTransform();
+    }
+
+    _buildZoomControls() {
+        const bar = document.createElement('div');
+        bar.className = 'cc-zoom-bar';
+        bar.style.cssText = 'position:absolute; bottom:12px; right:12px; z-index:25; display:flex; align-items:center; gap:4px;' +
+            'background:rgba(15,23,42,0.92); backdrop-filter:blur(6px); padding:4px 8px; border-radius:10px;' +
+            'border:1px solid #334155; box-shadow:0 4px 12px rgba(0,0,0,0.45); user-select:none; pointer-events:auto; font-family:Sarabun,sans-serif;';
+
+        const makeBtn = (text, title, onClick) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.innerHTML = text;
+            btn.title = title;
+            btn.style.cssText = 'background:#1e293b; color:#f1f5f9; border:1px solid #475569; border-radius:6px; padding:4px 8px;' +
+                'font-size:12px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;' +
+                'transition:all 0.15s ease; line-height:1; min-width:28px; height:26px;';
+            btn.addEventListener('mouseenter', () => { btn.style.background = '#334155'; btn.style.borderColor = '#94a3b8'; });
+            btn.addEventListener('mouseleave', () => { btn.style.background = '#1e293b'; btn.style.borderColor = '#475569'; });
+            btn.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+            return btn;
+        };
+
+        const inBtn = makeBtn('➕', 'ซูมเข้า (Zoom In หรือหมุนลูกกลิ้งเมาส์)', () => this.zoomIn());
+        const outBtn = makeBtn('➖', 'ซูมออก (Zoom Out หรือหมุนลูกกลิ้งเมาส์)', () => this.zoomOut());
+        const resetBtn = makeBtn('100%', 'รีเซ็ตขนาดเป็น 100%', () => this.resetZoom());
+        resetBtn.style.minWidth = '48px';
+        const fitBtn = makeBtn('⛶', 'จัดมุมมองพอดีหน้าจอ (Fit to Screen)', () => this.fitToScreen());
+
+        bar.appendChild(inBtn);
+        bar.appendChild(outBtn);
+        bar.appendChild(resetBtn);
+        bar.appendChild(fitBtn);
+        this.container.appendChild(bar);
+        this.zoomBadge = resetBtn;
+    }
+
+    _updateZoomUI() {
+        if (this.zoomBadge) {
+            this.zoomBadge.innerHTML = Math.round(this.scale * 100) + '%';
+        }
+    }
+
+
     /* ---------------------------------------------------------- parts --- */
 
     async addPart(type, x, y, attrs, fixedId, rotate = 0) {
@@ -591,7 +739,7 @@ class CircuitCanvas {
             Object.entries(attrs).forEach(([k, v]) => comp.setAttribute(k, v));
         }
         wrap.appendChild(comp);
-        this.container.appendChild(wrap);
+        this.world.appendChild(wrap);
 
         const initRotate = (typeof rotate === 'number') ? (rotate % 360) : 0;
         const part = {
@@ -836,8 +984,8 @@ class CircuitCanvas {
             wrap.style.zIndex = '10';
 
             const onMove = (moveEv) => {
-                const dx = moveEv.clientX - startX;
-                const dy = moveEv.clientY - startY;
+                const dx = (moveEv.clientX - startX) / this.scale;
+                const dy = (moveEv.clientY - startY) / this.scale;
                 part.x = Math.max(0, origX + dx);
                 part.y = Math.max(0, origY + dy);
                 wrap.style.left = part.x + 'px';
@@ -1170,10 +1318,10 @@ class CircuitCanvas {
             circle.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const rect = this.container.getBoundingClientRect();
                 const onMove = (moveEv) => {
-                    pt.x = Math.round(moveEv.clientX - rect.left);
-                    pt.y = Math.round(moveEv.clientY - rect.top);
+                    const wPos = this.clientToWorld(moveEv.clientX, moveEv.clientY);
+                    pt.x = Math.round(wPos.x);
+                    pt.y = Math.round(wPos.y);
                     this._drawWire(wire);
                     this._renderWireHandlesContent(wire);
                 };
@@ -1220,15 +1368,15 @@ class CircuitCanvas {
             mid.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const rect = this.container.getBoundingClientRect();
                 const newPt = { x: Math.round(mx), y: Math.round(my) };
                 wire.waypoints.splice(i, 0, newPt);
                 this._drawWire(wire);
                 this._renderWireHandlesContent(wire);
 
                 const onMove = (moveEv) => {
-                    newPt.x = Math.round(moveEv.clientX - rect.left);
-                    newPt.y = Math.round(moveEv.clientY - rect.top);
+                    const wPos = this.clientToWorld(moveEv.clientX, moveEv.clientY);
+                    newPt.x = Math.round(wPos.x);
+                    newPt.y = Math.round(wPos.y);
                     this._drawWire(wire);
                     this._renderWireHandlesContent(wire);
                 };
@@ -1285,23 +1433,95 @@ class CircuitCanvas {
     }
 
     _bindGlobalEvents() {
+        // Wheel Zoom: หมุนลูกกลิ้งเมาส์เพื่อซูมเข้า/ออก ณ ตำแหน่งเคอร์เซอร์
+        this.container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = this.container.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.12 : 0.89;
+            this.zoomAt(cx, cy, factor);
+        }, { passive: false });
+
+        // Spacebar detection for Pan
+        this._keyHandlerSpace = (e) => {
+            if (e.code === 'Space' && !this._isSpaceDown) {
+                const tag = (document.activeElement && document.activeElement.tagName) || '';
+                if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                    this._isSpaceDown = true;
+                    this.container.style.cursor = 'grab';
+                }
+            }
+        };
+        this._keyUpSpace = (e) => {
+            if (e.code === 'Space') {
+                this._isSpaceDown = false;
+                this.container.style.cursor = 'default';
+            }
+        };
+        document.addEventListener('keydown', this._keyHandlerSpace);
+        document.addEventListener('keyup', this._keyUpSpace);
+
+        // Mousedown for Pan (Middle mouse button, Space+Drag, or background drag)
+        this.container.addEventListener('mousedown', (e) => {
+            const isMiddle = e.button === 1;
+            const isSpacePan = (this._isSpaceDown && e.button === 0);
+            const isBgPan = (e.button === 0 && !this.pendingWire && (e.target === this.container || e.target === this.svg || e.target === this.world));
+
+            if (isMiddle || isSpacePan || isBgPan) {
+                this.isPanning = true;
+                this._panMoved = false;
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const origPanX = this.panX;
+                const origPanY = this.panY;
+                this.container.style.cursor = 'grabbing';
+
+                const onPanMove = (moveEv) => {
+                    const dx = moveEv.clientX - startX;
+                    const dy = moveEv.clientY - startY;
+                    if (Math.hypot(dx, dy) > 3) {
+                        this._panMoved = true;
+                        this.panX = origPanX + dx;
+                        this.panY = origPanY + dy;
+                        this._applyWorldTransform();
+                    }
+                };
+
+                const onPanUp = () => {
+                    document.removeEventListener('mousemove', onPanMove);
+                    document.removeEventListener('mouseup', onPanUp);
+                    this.isPanning = false;
+                    this.container.style.cursor = this._isSpaceDown ? 'grab' : 'default';
+                };
+
+                document.addEventListener('mousemove', onPanMove);
+                document.addEventListener('mouseup', onPanUp);
+            }
+        });
+
         this.container.addEventListener('mousemove', (e) => {
             if (!this.pendingWire) return;
-            const rect = this.container.getBoundingClientRect();
-            this._updateTempLine(e.clientX - rect.left, e.clientY - rect.top);
+            const wPos = this.clientToWorld(e.clientX, e.clientY);
+            this._updateTempLine(wPos.x, wPos.y);
         });
 
         this.container.addEventListener('click', (e) => {
+            // หากเป็นการลาก Pan หน้าจอ ไม่ให้ถือเป็นการคลิก
+            if (this._panMoved) {
+                this._panMoved = false;
+                return;
+            }
             // หากคลิกที่ pin ให้ _onPinClick จัดการ
             if (e.target && e.target.classList && e.target.classList.contains('cc-pin')) return;
             // หากคลิกที่แถบเครื่องมือลอย ให้ปุ่มจัดการเอง
-            if (e.target.closest && (e.target.closest('.cc-part-toolbar') || e.target.closest('.cc-wire-handle'))) return;
+            if (e.target.closest && (e.target.closest('.cc-part-toolbar') || e.target.closest('.cc-wire-handle') || e.target.closest('.cc-zoom-bar'))) return;
 
             if (this.pendingWire) {
-                // ผู้ใช้คลิกบนพื้นที่ว่าง = เพิ่มจุดหักมุมสายไฟ (Wokwi-style waypoint)
-                const rect = this.container.getBoundingClientRect();
-                const clickX = Math.round(e.clientX - rect.left);
-                const clickY = Math.round(e.clientY - rect.top);
+                // ผู้ใช้คลิกบนพื้นที่ว่าง = เพิ่มจุดหักมุมสายไฟ (Wokwi-style waypoint) ในพิกัด World
+                const wPos = this.clientToWorld(e.clientX, e.clientY);
+                const clickX = Math.round(wPos.x);
+                const clickY = Math.round(wPos.y);
 
                 this.pendingWire.waypoints.push({ x: clickX, y: clickY });
 
@@ -1322,7 +1542,7 @@ class CircuitCanvas {
             }
 
             // คลิกพื้นที่ว่างปกติ = ยกเลิกการเลือก
-            if (e.target === this.container || e.target === this.svg) {
+            if (e.target === this.container || e.target === this.svg || e.target === this.world) {
                 if (this.selectedWireId) this._selectWire(null);
                 this.deselectPart();
             }
@@ -1413,6 +1633,8 @@ class CircuitCanvas {
 
     destroy() {
         document.removeEventListener('keydown', this._keyHandler);
+        document.removeEventListener('keydown', this._keyHandlerSpace);
+        document.removeEventListener('keyup', this._keyUpSpace);
         this.clear();
         this.svg.remove();
     }
