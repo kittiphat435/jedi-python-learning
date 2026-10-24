@@ -425,20 +425,6 @@ window.toggleProblemTypeFields = function () {
         document.getElementById('freeGuiSection').style.display = 'block';
     } else if (problemType === 'summary') {
         document.getElementById('summarySection').style.display = 'block';
-    } else if (problemType === 'iot') {
-        document.getElementById('pythonSection').style.display = 'block';
-        const iotSection = document.getElementById('iotSection');
-        if (iotSection) iotSection.style.display = 'block';
-    } else if (problemType === 'iot_gui') {
-        const iotSection = document.getElementById('iotSection');
-        if (iotSection) iotSection.style.display = 'block';
-        const guiSection = document.getElementById('guiSection');
-        if (guiSection) {
-            guiSection.style.display = 'block';
-            setTimeout(() => {
-                addSaveWidgetButton();
-            }, 100);
-        }
     } else if (problemType === 'esp32_iot') {
         // 🎛️ ESP32+IoT (ต่อวงจรเอง): canvas วงจร + ส่วนจำลอง ESP32 (โค้ดตั้งต้น + IoT Test Cases)
         const esp32Section = document.getElementById('esp32IotSection');
@@ -2457,7 +2443,7 @@ async function saveProblem(event) {
                 return;
             }
             Object.assign(problemData, fields);
-        } else if (problemType === 'python' || problemType === 'iot') {
+        } else if (problemType === 'python') {
             const description = document.getElementById('problemDescription')?.value?.trim() || '';
             const templateCode = document.getElementById('templateCode')?.value || '';
             const solutionCode = ''; // admin-add-ploblem.html ไม่มีฟิลด์สำหรับเฉลยใน python

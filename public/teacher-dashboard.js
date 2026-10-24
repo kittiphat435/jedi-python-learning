@@ -460,25 +460,17 @@ window.toggleProblemTypeFields = function () {
         document.getElementById('summarySection').style.display = 'block';
     } else if (problemType === 'code_order') {
         document.getElementById('codeOrderSection').style.display = 'block';
-    } else if (problemType === 'iot') {
-        document.getElementById('pythonSection').style.display = 'block';
-        const iotSection = document.getElementById('iotSection');
-        if (iotSection) iotSection.style.display = 'block';
-    } else if (problemType === 'iot_gui') {
-        const iotSection = document.getElementById('iotSection');
-        if (iotSection) iotSection.style.display = 'block';
-        const guiSection = document.getElementById('guiSection');
-        if (guiSection) {
-            guiSection.style.display = 'block';
-            setTimeout(() => {
-                addSaveWidgetButton();
-            }, 100);
-        }
     } else if (problemType === 'esp32_iot') {
         const esp32Section = document.getElementById('esp32IotSection');
         if (esp32Section) esp32Section.style.display = 'block';
         const iotSection = document.getElementById('iotSection');
-        if (iotSection) iotSection.style.display = 'block';
+        if (iotSection) {
+            iotSection.style.display = 'block';
+            const wokwiGroup = document.getElementById('iotWokwiId')?.closest('.form-group');
+            if (wokwiGroup) wokwiGroup.style.display = 'none';
+            const codeChecksGroup = document.getElementById('iotCodeChecksList')?.closest('.form-group');
+            if (codeChecksGroup) codeChecksGroup.style.display = 'none';
+        }
         if (typeof initEsp32IotSection === 'function') initEsp32IotSection();
     }
 };
@@ -2298,7 +2290,7 @@ async function saveProblem(event) {
                 return;
             }
             Object.assign(problemData, fields);
-        } else if (problemType === 'python' || problemType === 'iot') {
+        } else if (problemType === 'python') {
             const description = document.getElementById('problemDescription')?.value?.trim() || '';
             const templateCode = document.getElementById('templateCode')?.value || '';
             const solutionCode = ''; // teacher-dashboard.html ไม่มีฟิลด์สำหรับเฉลยใน python
@@ -3303,36 +3295,7 @@ async function deleteClass(classId) {
 function viewClass(classId) {
     window.location.href = `class-detail.html?id=${classId}`;
 }
-function toggleProblemTypeFields() {
-    const problemType = document.getElementById('problemType').value;
-
-    // ซ่อนทุก section ก่อน
-    const sections = ['pythonSection', 'comprehensionContentGroup', 'questionsSection', 'matchingSection', 'flowchartSection', 'summarySection', 'codeOrderSection'];
-    sections.forEach(section => {
-        const element = document.getElementById(section);
-        if (element) element.style.display = 'none';
-    });
-
-    // แสดง section ตามประเภทที่เลือก
-    if (problemType === 'flowchart') {
-        document.getElementById('flowchartSection').style.display = 'block';
-        // ไม่ต้อง initialize ใหม่ถ้ามีอยู่แล้ว
-        if (!window.flowchartEditor) {
-            window.flowchartEditor = new FlowchartEditor('flowchartCanvas');
-        }
-    } else if (problemType === 'python') {
-        document.getElementById('pythonSection').style.display = 'block';
-    } else if (problemType === 'comprehension') {
-        document.getElementById('comprehensionContentGroup').style.display = 'block';
-        document.getElementById('questionsSection').style.display = 'block';
-    } else if (problemType === 'matching') {
-        document.getElementById('matchingSection').style.display = 'block';
-    } else if (problemType === 'summary') {
-        document.getElementById('summarySection').style.display = 'block';
-    } else if (problemType === 'code_order') {
-        document.getElementById('codeOrderSection').style.display = 'block';
-    }
-}
+// (duplicate toggleProblemTypeFields removed)
 
 let flowchartData = {
     shapes: [],
