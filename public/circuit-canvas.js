@@ -341,9 +341,9 @@ class CircuitDht11 extends HTMLElement {
 
     get pinInfo() {
         return [
-            { name: 'VCC', x: 18, y: 74 },
+            { name: 'VCC', x: 16, y: 74 },
             { name: 'DATA', x: 30, y: 74 },
-            { name: 'GND', x: 42, y: 74 }
+            { name: 'GND', x: 44, y: 74 }
         ];
     }
 
@@ -364,14 +364,14 @@ class CircuitDht11 extends HTMLElement {
 
                 <text x="30" y="48" font-size="8.5" font-family="Arial, sans-serif" font-weight="bold" fill="#ffffff" text-anchor="middle">DHT11</text>
 
-                <!-- ขาเชื่อมต่อด้านล่าง 3 ขา -->
-                <rect x="16" y="60" width="4" height="15" fill="#bdc3c7" stroke="#7f8c8d" stroke-width="0.8"/>
+                <!-- ขาเชื่อมต่อด้านล่าง 3 ขา (ระยะห่างขา 14px ให้ตรงกับช่องของ Breadboard) -->
+                <rect x="14" y="60" width="4" height="15" fill="#bdc3c7" stroke="#7f8c8d" stroke-width="0.8"/>
                 <rect x="28" y="60" width="4" height="15" fill="#bdc3c7" stroke="#7f8c8d" stroke-width="0.8"/>
-                <rect x="40" y="60" width="4" height="15" fill="#bdc3c7" stroke="#7f8c8d" stroke-width="0.8"/>
+                <rect x="42" y="60" width="4" height="15" fill="#bdc3c7" stroke="#7f8c8d" stroke-width="0.8"/>
 
-                <text x="18" y="58" font-size="7" font-weight="bold" fill="#f9e79f" text-anchor="middle">+</text>
+                <text x="16" y="58" font-size="7" font-weight="bold" fill="#f9e79f" text-anchor="middle">+</text>
                 <text x="30" y="58" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">S</text>
-                <text x="42" y="58" font-size="7" font-weight="bold" fill="#aed6f1" text-anchor="middle">-</text>
+                <text x="44" y="58" font-size="7" font-weight="bold" fill="#aed6f1" text-anchor="middle">-</text>
             </svg>
         `;
     }
@@ -413,6 +413,29 @@ const CIRCUIT_PARTS_CATALOG = [
 ];
 
 const WIRE_COLORS = ['#e74c3c', '#2ecc71', '#3498db', '#f39c12', '#9b59b6', '#16a085', '#e67e22', '#34495e'];
+
+/* ขนาดมาตรฐานของอุปกรณ์ (สำหรับคำนวณตำแหน่งขา และการขยายสัดส่วนให้ตรงกับระยะ 14px ของ Breadboard) */
+const COMPONENT_BASE_SIZES = {
+    'wokwi-led': { w: 40, h: 50 },
+    'wokwi-dht22': { w: 57, h: 117 },
+    'wokwi-buzzer': { w: 64, h: 76 },
+    'wokwi-slide-switch': { w: 32, h: 35 },
+    'wokwi-esp32-devkit-v1': { w: 107, h: 204 },
+    'wokwi-resistor': { w: 59, h: 12 },
+    'wokwi-hc-sr04': { w: 170, h: 95 },
+    'wokwi-servo': { w: 80, h: 80 },
+    'circuit-dht11': { w: 60, h: 85 },
+    'circuit-dc-motor': { w: 140, h: 90 },
+    'circuit-motor-driver': { w: 130, h: 95 },
+    'circuit-breadboard-half': { w: 472, h: 246 }
+};
+
+function getPartScaleFactor(type) {
+    if (type === 'circuit-breadboard-half') return 1.0;
+    if (type === 'wokwi-led' || type === 'wokwi-buzzer') return 1.4;
+    if (typeof type === 'string' && type.startsWith('wokwi-')) return 1.458;
+    return 1.0;
+}
 
 /* =========================================================================
  * Smooth Rounded Polyline Helper (Wokwi-style corner rounding)
@@ -764,8 +787,12 @@ class CircuitCanvas {
         try { await customElements.whenDefined(type); } catch (e) {}
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-        part._baseWidth = comp.offsetWidth || (comp.getBoundingClientRect ? comp.getBoundingClientRect().width : 80);
-        part._baseHeight = comp.offsetHeight || (comp.getBoundingClientRect ? comp.getBoundingClientRect().height : 80);
+        part._baseWidth = comp.offsetWidth || (comp.getBoundingClientRect ? comp.getBoundingClientRect().width : 0);
+        part._baseHeight = comp.offsetHeight || (comp.getBoundingClientRect ? comp.getBoundingClientRect().height : 0);
+        const baseDef = COMPONENT_BASE_SIZES[part.type];
+        if (!part._baseWidth && baseDef) part._baseWidth = baseDef.w;
+        if (!part._baseHeight && baseDef) part._baseHeight = baseDef.h;
+        part.scaleFactor = getPartScaleFactor(part.type);
 
         this._applyPartTransform(part);
         this._buildPartActionButtons(part);
@@ -776,10 +803,20 @@ class CircuitCanvas {
     }
 
     _applyPartTransform(part) {
+        if (part.type === 'circuit-breadboard-half') {
+            part.scaleFactor = 1.0;
+            part.comp.style.transform = '';
+            part.comp.style.display = 'block';
+            return;
+        }
+
         const deg = part.rotate || 0;
+        const scale = getPartScaleFactor(part.type);
+        part.scaleFactor = scale;
+
         part.comp.style.transformOrigin = 'center center';
         part.comp.style.transition = 'transform 0.15s ease';
-        part.comp.style.transform = deg ? `rotate(${deg}deg)` : '';
+        part.comp.style.transform = `rotate(${deg}deg) scale(${scale})`;
         part.comp.style.display = 'block';
     }
 
@@ -824,14 +861,21 @@ class CircuitCanvas {
         part.pinDots.forEach(dot => {
             const plug = plugged[dot.name];
             if (plug) {
-                dot.el.style.background = '#2ecc71';
-                dot.el.style.border = '2px solid #ffffff';
-                dot.el.style.boxShadow = '0 0 6px rgba(46, 204, 113, 0.9)';
-                dot.el.title = `${dot.name} เสียบตรงลงรู ${plug.hole} ของ Breadboard`;
+                // เมื่อต่อ/เสียบลง Breadboard แล้ว ให้ซ่อนสัญลักษณ์กลมๆ ออก เพื่อให้มองเห็นขาอุปกรณ์ชัดเจน
+                dot.el.style.display = 'none';
             } else {
-                dot.el.style.background = '#3498db';
-                dot.el.style.border = '1.5px solid #ffffff';
-                dot.el.style.boxShadow = 'none';
+                dot.el.style.display = 'block';
+                if (part.type === 'circuit-breadboard-half') {
+                    dot.el.style.background = 'transparent';
+                    dot.el.style.border = 'none';
+                    dot.el.style.opacity = '0';
+                    dot.el.style.boxShadow = 'none';
+                } else {
+                    dot.el.style.background = '#3498db';
+                    dot.el.style.border = '1.5px solid #ffffff';
+                    dot.el.style.opacity = '0.85';
+                    dot.el.style.boxShadow = 'none';
+                }
                 dot.el.title = dot.name;
             }
         });
@@ -914,6 +958,7 @@ class CircuitCanvas {
 
         this._applyPartTransform(part);
         this._updatePinDots(part);
+        this._updatePluggedPins(part);
         this._redrawWiresOf(part.id);
         this._emitChange();
     }
@@ -1056,19 +1101,23 @@ class CircuitCanvas {
 
     _computeRotatedPin(part, pin) {
         const deg = part.rotate || 0;
-        if (!deg) return { x: pin.x, y: pin.y };
+        const s = part.scaleFactor || getPartScaleFactor(part.type);
 
-        const w = part._baseWidth || part.comp.offsetWidth || 80;
-        const h = part._baseHeight || part.comp.offsetHeight || 80;
+        const baseDef = COMPONENT_BASE_SIZES[part.type];
+        const w = part._baseWidth || (baseDef ? baseDef.w : (part.comp.offsetWidth || 80));
+        const h = part._baseHeight || (baseDef ? baseDef.h : (part.comp.offsetHeight || 80));
         const cx = w / 2;
         const cy = h / 2;
+
+        const dx = (pin.x - cx) * s;
+        const dy = (pin.y - cy) * s;
+
+        if (!deg) return { x: cx + dx, y: cy + dy };
 
         const rad = (deg * Math.PI) / 180;
         const cos = Math.cos(rad);
         const sin = Math.sin(rad);
 
-        const dx = pin.x - cx;
-        const dy = pin.y - cy;
         const rx = cx + (dx * cos - dy * sin);
         const ry = cy + (dx * sin + dy * cos);
         return { x: rx, y: ry };
@@ -1083,27 +1132,49 @@ class CircuitCanvas {
 
         pins.forEach(p => {
             const dot = document.createElement('div');
-            dot.className = 'cc-pin';
+            dot.className = 'cc-pin' + (isBreadboard ? ' cc-pin-bb' : '');
             dot.dataset.partId = part.id;
             dot.dataset.pinName = p.name;
             dot.title = p.name;
 
-            const size = isBreadboard ? 9 : 11;
-            dot.style.cssText =
-                'position:absolute; width:' + size + 'px; height:' + size + 'px; border-radius:50%;' +
-                'background:#3498db; border:1.5px solid #ffffff; cursor:crosshair; z-index:3;' +
-                'transform:translate(-50%, -50%); opacity:0.85; transition:transform 0.1s ease, opacity 0.1s ease;';
+            const size = isBreadboard ? 12 : 11;
+            if (isBreadboard) {
+                // สำหรับ Breadboard ให้ซ่อนเป็นโปร่งใส เพื่อมองเห็นรูกราฟิก Breadboard ชัดเจน ไม่ลายตา
+                dot.style.cssText =
+                    'position:absolute; width:' + size + 'px; height:' + size + 'px; border-radius:50%;' +
+                    'background:transparent; border:none; cursor:crosshair; z-index:3;' +
+                    'transform:translate(-50%, -50%); opacity:0; transition:opacity 0.12s ease, transform 0.12s ease;';
 
-            dot.addEventListener('mouseenter', () => {
-                dot.style.opacity = '1';
-                dot.style.transform = 'translate(-50%, -50%) scale(1.5)';
-                dot.style.background = '#e74c3c';
-            });
-            dot.addEventListener('mouseleave', () => {
-                dot.style.opacity = '0.85';
-                dot.style.transform = 'translate(-50%, -50%) scale(1)';
-                dot.style.background = '#3498db';
-            });
+                dot.addEventListener('mouseenter', () => {
+                    dot.style.opacity = '1';
+                    dot.style.background = '#e74c3c';
+                    dot.style.border = '1.5px solid #ffffff';
+                    dot.style.transform = 'translate(-50%, -50%) scale(1.3)';
+                });
+                dot.addEventListener('mouseleave', () => {
+                    dot.style.opacity = '0';
+                    dot.style.background = 'transparent';
+                    dot.style.border = 'none';
+                    dot.style.transform = 'translate(-50%, -50%) scale(1)';
+                });
+            } else {
+                dot.style.cssText =
+                    'position:absolute; width:' + size + 'px; height:' + size + 'px; border-radius:50%;' +
+                    'background:#3498db; border:1.5px solid #ffffff; cursor:crosshair; z-index:3;' +
+                    'transform:translate(-50%, -50%); opacity:0.85; transition:transform 0.1s ease, opacity 0.1s ease;';
+
+                dot.addEventListener('mouseenter', () => {
+                    dot.style.opacity = '1';
+                    dot.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                    dot.style.background = '#e74c3c';
+                });
+                dot.addEventListener('mouseleave', () => {
+                    dot.style.opacity = '0.85';
+                    dot.style.transform = 'translate(-50%, -50%) scale(1)';
+                    dot.style.background = '#3498db';
+                });
+            }
+
             dot.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (this.opts.readonly) return;
