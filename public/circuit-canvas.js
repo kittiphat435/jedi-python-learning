@@ -421,7 +421,7 @@ const COMPONENT_BASE_SIZES = {
     'wokwi-buzzer': { w: 64, h: 76 },
     'wokwi-slide-switch': { w: 32, h: 35 },
     'wokwi-esp32-devkit-v1': { w: 107, h: 204 },
-    'wokwi-resistor': { w: 59, h: 12 },
+    'wokwi-resistor': { w: 58.8, h: 11.3 },
     'wokwi-hc-sr04': { w: 170, h: 95 },
     'wokwi-servo': { w: 80, h: 80 },
     'circuit-dht11': { w: 60, h: 85 },
@@ -432,6 +432,7 @@ const COMPONENT_BASE_SIZES = {
 
 function getPartScaleFactor(type) {
     if (type === 'circuit-breadboard-half') return 1.0;
+    if (type === 'wokwi-resistor') return 84.0 / 58.8; // 1.4285714... = ระยะขา 6 ช่อง Breadboard พอดี (84px)
     if (type === 'wokwi-led' || type === 'wokwi-buzzer') return 1.4;
     if (typeof type === 'string' && type.startsWith('wokwi-')) return 1.458;
     return 1.0;
@@ -790,8 +791,13 @@ class CircuitCanvas {
         part._baseWidth = comp.offsetWidth || (comp.getBoundingClientRect ? comp.getBoundingClientRect().width : 0);
         part._baseHeight = comp.offsetHeight || (comp.getBoundingClientRect ? comp.getBoundingClientRect().height : 0);
         const baseDef = COMPONENT_BASE_SIZES[part.type];
-        if (!part._baseWidth && baseDef) part._baseWidth = baseDef.w;
-        if (!part._baseHeight && baseDef) part._baseHeight = baseDef.h;
+        if (part.type === 'wokwi-resistor') {
+            part._baseWidth = 58.8;
+            part._baseHeight = 11.3;
+        } else {
+            if (!part._baseWidth && baseDef) part._baseWidth = baseDef.w;
+            if (!part._baseHeight && baseDef) part._baseHeight = baseDef.h;
+        }
         part.scaleFactor = getPartScaleFactor(part.type);
 
         this._applyPartTransform(part);
@@ -814,10 +820,18 @@ class CircuitCanvas {
         const scale = getPartScaleFactor(part.type);
         part.scaleFactor = scale;
 
+        // สำหรับ Resistor ต้องคงค่า display เป็น flex ตาม LitElement host style ไม่ให้เกิด line-height ช่องว่างด้านบน
+        if (part.type === 'wokwi-resistor') {
+            part._baseWidth = 58.8;
+            part._baseHeight = 11.3;
+            part.comp.style.display = 'flex';
+        } else {
+            part.comp.style.display = 'block';
+        }
+
         part.comp.style.transformOrigin = 'center center';
         part.comp.style.transition = 'transform 0.15s ease';
         part.comp.style.transform = `rotate(${deg}deg) scale(${scale})`;
-        part.comp.style.display = 'block';
     }
 
     
